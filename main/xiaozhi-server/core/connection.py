@@ -202,6 +202,16 @@ class ConnectionHandler:
             self.websocket = ws
             self.device_id = self.headers.get("device-id", None)
 
+            # 🔥 使用设备ID作为session_id，这样LLM可以识别同一用户
+            if self.device_id:
+                self.session_id = self.device_id
+                self.logger.bind(tag=TAG).info(f"✅ 获得设备ID: {self.device_id}")
+                self.logger.bind(tag=TAG).info(f"✅ 使用设备ID作为session_id: {self.session_id}")
+            else:
+                self.logger.bind(tag=TAG).warning("❌ 未获取到设备ID，使用随机session_id")
+                self.logger.bind(tag=TAG).warning(f"🎲 随机session_id: {self.session_id}")
+
+
             # 初始化活动时间戳
             self.last_activity_time = time.time() * 1000
 
