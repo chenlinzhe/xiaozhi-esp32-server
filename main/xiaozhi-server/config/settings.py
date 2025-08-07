@@ -13,7 +13,7 @@ def check_config_file():
     """
     简化的配置检查，仅提示用户配置文件的使用情况
     """
-    custom_config_file = get_project_dir() + "data/." + default_config_file
+    custom_config_file = get_project_dir() + "data/" + default_config_file
     if not os.path.exists(custom_config_file):
         raise FileNotFoundError(
             "找不到data/.config.yaml文件，请按教程确认该配置文件是否存在"
