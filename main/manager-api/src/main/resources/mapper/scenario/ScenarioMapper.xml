@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.ScenarioMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.ScenarioEntity">
+        <id column="id" property="id" jdbcType="VARCHAR"/>
+        <result column="agent_id" property="agentId" jdbcType="VARCHAR"/>
+        <result column="scenario_code" property="scenarioCode" jdbcType="VARCHAR"/>
+        <result column="scenario_name" property="scenarioName" jdbcType="VARCHAR"/>
+        <result column="scenario_type" property="scenarioType" jdbcType="VARCHAR"/>
+        <result column="trigger_type" property="triggerType" jdbcType="VARCHAR"/>
+        <result column="trigger_keywords" property="triggerKeywords" jdbcType="TEXT"/>
+        <result column="trigger_cards" property="triggerCards" jdbcType="TEXT"/>
+        <result column="description" property="description" jdbcType="TEXT"/>
+        <result column="difficulty_level" property="difficultyLevel" jdbcType="INTEGER"/>
+        <result column="target_age" property="targetAge" jdbcType="VARCHAR"/>
+        <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
+        <result column="is_active" property="isActive" jdbcType="TINYINT"/>
+        <result column="creator" property="creator" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updater" property="updater" jdbcType="BIGINT"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 扩展结果映射，包含步骤数量 -->
+    <resultMap id="ScenarioWithStepCountMap" type="xiaozhi.modules.scenario.entity.ScenarioEntity" extends="BaseResultMap">
+        <result column="step_count" property="stepCount" jdbcType="INTEGER"/>
+        <result column="agent_name" property="agentName" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, agent_id, scenario_code, scenario_name, scenario_type, trigger_type, 
+        trigger_keywords, trigger_cards, description, difficulty_level, target_age, 
+        sort_order, is_active, creator, created_at, updater, updated_at
+    </sql>
+
+    <!-- 根据智能体ID获取场景列表 -->
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_scenario
+        WHERE agent_id = #{agentId}
+        ORDER BY sort_order ASC, created_at DESC
+    </select>
+
+    <!-- 获取场景列表（包含步骤数量） -->
+    <select id="selectScenarioList" resultMap="ScenarioWithStepCountMap">
+        SELECT 
+            s.id, s.agent_id, s.scenario_code, s.scenario_name, s.scenario_type, 
+            s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
+            s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
+            s.creator, s.created_at, s.updater, s.updated_at,
+            COUNT(st.id) as step_count,
+            a.agent_name
+        FROM ai_scenario s
+        LEFT JOIN ai_scenario_step st ON s.id = st.scenario_id
+        LEFT JOIN ai_agent a ON s.agent_id = a.id
+        <where>
+            <if test="params.agentId != null and params.agentId != ''">
+                AND s.agent_id = #{params.agentId}
+            </if>
+            <if test="params.scenarioType != null and params.scenarioType != ''">
+                AND s.scenario_type = #{params.scenarioType}
+            </if>
+            <if test="params.isActive != null">
+                AND s.is_active = #{params.isActive}
+            </if>
+            <if test="params.scenarioName != null and params.scenarioName != ''">
+                AND s.scenario_name LIKE CONCAT('%', #{params.scenarioName}, '%')
+            </if>
+        </where>
+        GROUP BY s.id
+        ORDER BY s.sort_order ASC, s.created_at DESC
+    </select>
+
+    <!-- 根据场景类型获取场景列表 -->
+    <select id="selectByTypeAndStatus" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_scenario
+        WHERE scenario_type = #{scenarioType}
+        AND is_active = #{isActive}
+        ORDER BY sort_order ASC, created_at DESC
+    </select>
+
+</mapper> 
