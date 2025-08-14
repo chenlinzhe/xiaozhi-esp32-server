@@ -10,8 +10,11 @@ import xiaozhi.modules.scenario.dao.ChildLearningRecordMapper;
 import xiaozhi.modules.scenario.entity.ChildLearningRecordEntity;
 import xiaozhi.modules.scenario.service.ChildLearningRecordService;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 儿童学习记录Service实现类
@@ -72,6 +75,13 @@ public class ChildLearningRecordServiceImpl extends ServiceImpl<ChildLearningRec
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveLearningRecord(ChildLearningRecordEntity entity) {
+        // 生成唯一的记录ID
+        if (entity.getRecordId() == null || entity.getRecordId().trim().isEmpty()) {
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+            String uuid = UUID.randomUUID().toString().substring(0, 8);
+            entity.setRecordId("RECORD_" + timestamp + "_" + uuid);
+        }
+        
         return save(entity);
     }
 
@@ -100,12 +110,6 @@ public class ChildLearningRecordServiceImpl extends ServiceImpl<ChildLearningRec
         List<ChildLearningRecordEntity> list = list(queryWrapper);
         
         // 构建分页数据
-        PageData<ChildLearningRecordEntity> pageData = new PageData<>();
-        pageData.setList(list);
-        pageData.setTotal(total);
-        pageData.setPage(page);
-        pageData.setLimit(limit);
-        
-        return pageData;
+        return new PageData<>(list, total);
     }
 }

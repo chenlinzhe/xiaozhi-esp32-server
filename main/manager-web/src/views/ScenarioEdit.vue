@@ -166,73 +166,77 @@ export default {
     this.loadScenarioData();
   },
   methods: {
-    async loadScenarioData() {
-      try {
-        const response = await Api.scenario.getScenario(this.scenarioId);
-        const scenario = response.data;
-        
-        // 处理JSON格式的数据
-        if (scenario.triggerKeywords) {
-          try {
-            const keywords = JSON.parse(scenario.triggerKeywords);
-            scenario.triggerKeywords = keywords.join(', ');
-          } catch (e) {
-            // 如果不是JSON格式，直接使用
+    loadScenarioData() {
+      Api.scenario.getScenario(this.scenarioId, (response) => {
+        console.log('获取场景详情响应:', response);
+        if (response && response.code === 0) {
+          const scenario = response.data;
+          
+          // 处理JSON格式的数据
+          if (scenario.triggerKeywords) {
+            try {
+              const keywords = JSON.parse(scenario.triggerKeywords);
+              scenario.triggerKeywords = keywords.join(', ');
+            } catch (e) {
+              // 如果不是JSON格式，直接使用
+            }
           }
-        }
-        
-        if (scenario.triggerCards) {
-          try {
-            const cards = JSON.parse(scenario.triggerCards);
-            scenario.triggerCards = JSON.stringify(cards, null, 2);
-          } catch (e) {
-            // 如果不是JSON格式，直接使用
+          
+          if (scenario.triggerCards) {
+            try {
+              const cards = JSON.parse(scenario.triggerCards);
+              scenario.triggerCards = JSON.stringify(cards, null, 2);
+            } catch (e) {
+              // 如果不是JSON格式，直接使用
+            }
           }
+          
+          this.scenarioForm = { ...scenario };
+        } else {
+          this.$message.error('加载场景数据失败: ' + (response ? response.msg : '未知错误'));
+          console.error('加载场景数据失败:', response);
         }
-        
-        this.scenarioForm = { ...scenario };
-      } catch (error) {
-        this.$message.error('加载场景数据失败');
-        console.error('加载场景数据失败:', error);
-      }
+      });
     },
     
     goBack() {
       this.$router.go(-1);
     },
     
-    async saveScenario() {
-      try {
-        await this.$refs.scenarioForm.validate();
-        
-        // 处理触发关键词格式
-        if (this.scenarioForm.triggerKeywords) {
-          const keywords = this.scenarioForm.triggerKeywords.split(',').map(k => k.trim());
-          this.scenarioForm.triggerKeywords = JSON.stringify(keywords);
-        }
-        
-        // 处理视觉卡片格式
-        if (this.scenarioForm.triggerCards) {
-          try {
-            const cards = JSON.parse(this.scenarioForm.triggerCards);
-            this.scenarioForm.triggerCards = JSON.stringify(cards);
-          } catch (e) {
-            this.$message.error('视觉卡片格式错误，请使用JSON格式');
-            return;
+    saveScenario() {
+      this.$refs.scenarioForm.validate((valid) => {
+        if (valid) {
+          // 处理触发关键词格式
+          if (this.scenarioForm.triggerKeywords) {
+            const keywords = this.scenarioForm.triggerKeywords.split(',').map(k => k.trim());
+            this.scenarioForm.triggerKeywords = JSON.stringify(keywords);
           }
-        }
-        
-        await Api.scenario.updateScenario(this.scenarioId, this.scenarioForm);
-        this.$message.success('场景更新成功');
-        this.$router.push('/scenario-config');
-      } catch (error) {
-        if (error.message) {
-          this.$message.error(error.message);
+          
+          // 处理视觉卡片格式
+          if (this.scenarioForm.triggerCards) {
+            try {
+              const cards = JSON.parse(this.scenarioForm.triggerCards);
+              this.scenarioForm.triggerCards = JSON.stringify(cards);
+            } catch (e) {
+              this.$message.error('视觉卡片格式错误，请使用JSON格式');
+              return;
+            }
+          }
+          
+          Api.scenario.updateScenario(this.scenarioId, this.scenarioForm, (response) => {
+            console.log('更新场景响应:', response);
+            if (response && response.code === 0) {
+              this.$message.success('场景更新成功');
+              this.$router.push('/scenario-config');
+            } else {
+              this.$message.error('保存失败: ' + (response ? response.msg : '未知错误'));
+              console.error('保存场景失败:', response);
+            }
+          });
         } else {
-          this.$message.error('保存失败');
+          this.$message.error('请检查表单填写是否正确');
         }
-        console.error('保存场景失败:', error);
-      }
+      });
     }
   }
 }

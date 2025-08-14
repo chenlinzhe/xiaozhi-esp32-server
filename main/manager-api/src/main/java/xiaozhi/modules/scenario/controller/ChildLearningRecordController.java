@@ -36,7 +36,7 @@ public class ChildLearningRecordController {
     @GetMapping("/{id}")
     @Operation(summary = "获取学习记录详情")
     public Result<ChildLearningRecordEntity> get(@PathVariable("id") String id) {
-        ChildLearningRecordEntity data = learningRecordService.getById(id);
+        ChildLearningRecordEntity data = learningRecordService.getById(Long.valueOf(id));
         return new Result<ChildLearningRecordEntity>().ok(data);
     }
 
@@ -50,7 +50,7 @@ public class ChildLearningRecordController {
     @PutMapping("/{id}")
     @Operation(summary = "更新学习记录")
     public Result update(@PathVariable("id") String id, @RequestBody ChildLearningRecordEntity entity) {
-        entity.setId(id);
+        entity.setId(Long.valueOf(id));
         learningRecordService.updateLearningRecord(entity);
         return new Result();
     }
@@ -58,7 +58,7 @@ public class ChildLearningRecordController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除学习记录")
     public Result delete(@PathVariable("id") String id) {
-        learningRecordService.removeById(id);
+        learningRecordService.removeById(Long.valueOf(id));
         return new Result();
     }
 

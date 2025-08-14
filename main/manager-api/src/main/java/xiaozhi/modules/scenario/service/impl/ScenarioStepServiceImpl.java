@@ -7,7 +7,10 @@ import xiaozhi.modules.scenario.dao.ScenarioStepMapper;
 import xiaozhi.modules.scenario.entity.ScenarioStepEntity;
 import xiaozhi.modules.scenario.service.ScenarioStepService;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 对话步骤配置Service实现类
@@ -41,6 +44,13 @@ public class ScenarioStepServiceImpl extends ServiceImpl<ScenarioStepMapper, Sce
                     ScenarioStepEntity step = steps.get(i);
                     step.setScenarioId(scenarioId);
                     step.setStepOrder(i + 1);
+                    
+                    // 生成步骤ID
+                    if (step.getStepId() == null || step.getStepId().trim().isEmpty()) {
+                        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                        String uuid = UUID.randomUUID().toString().substring(0, 8);
+                        step.setStepId("STEP_" + timestamp + "_" + uuid);
+                    }
                     
                     // 生成步骤编码
                     if (step.getStepCode() == null || step.getStepCode().isEmpty()) {

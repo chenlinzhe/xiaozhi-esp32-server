@@ -10,6 +10,10 @@ import xiaozhi.modules.scenario.dao.ScenarioMapper;
 import xiaozhi.modules.scenario.entity.ScenarioEntity;
 import xiaozhi.modules.scenario.service.ScenarioService;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.UUID;
+
 import java.util.List;
 import java.util.Map;
 
@@ -24,34 +28,39 @@ public class ScenarioServiceImpl extends ServiceImpl<ScenarioMapper, ScenarioEnt
 
     @Override
     public PageData<ScenarioEntity> page(Map<String, Object> params) {
-        // 构建查询条件
-        QueryWrapper<ScenarioEntity> queryWrapper = new QueryWrapper<>();
+        // 获取分页参数
+        int page = ConvertUtils.intValue(params.get("page"), 1);
+        int limit = ConvertUtils.intValue(params.get("limit"), 10);
         
-        // 根据智能体ID查询
-        if (params.get("agentId") != null) {
-            queryWrapper.eq("agent_id", params.get("agentId"));
+        // 过滤空字符串参数
+        if (params.get("isActive") != null && "".equals(params.get("isActive"))) {
+            params.remove("isActive");
+        }
+        if (params.get("scenarioType") != null && "".equals(params.get("scenarioType"))) {
+            params.remove("scenarioType");
+        }
+        if (params.get("scenarioName") != null && "".equals(params.get("scenarioName"))) {
+            params.remove("scenarioName");
+        }
+        if (params.get("agentId") != null && "".equals(params.get("agentId"))) {
+            params.remove("agentId");
         }
         
-        // 根据场景类型查询
-        if (params.get("scenarioType") != null) {
-            queryWrapper.eq("scenario_type", params.get("scenarioType"));
-        }
+        // 计算偏移量
+        int offset = (page - 1) * limit;
         
-        // 根据启用状态查询
-        if (params.get("isActive") != null) {
-            queryWrapper.eq("is_active", params.get("isActive"));
-        }
+        // 添加分页参数
+        params.put("offset", offset);
+        params.put("limit", limit);
         
-        // 根据场景名称模糊查询
-        if (params.get("scenarioName") != null) {
-            queryWrapper.like("scenario_name", params.get("scenarioName"));
-        }
+        // 查询总数
+        long total = baseMapper.selectScenarioListCount(params);
         
-        // 排序
-        queryWrapper.orderByAsc("sort_order").orderByDesc("created_at");
+        // 使用自定义查询获取数据（包含步骤数量和智能体名称）
+        List<ScenarioEntity> list = baseMapper.selectScenarioList(params);
         
-        // 分页查询
-        return getPage(params, queryWrapper);
+        // 构建分页数据
+        return new PageData<>(list, total);
     }
 
     @Override
@@ -67,6 +76,13 @@ public class ScenarioServiceImpl extends ServiceImpl<ScenarioMapper, ScenarioEnt
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveScenario(ScenarioEntity entity) {
+        // 生成唯一的场景ID
+        if (entity.getScenarioId() == null || entity.getScenarioId().trim().isEmpty()) {
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+            String uuid = UUID.randomUUID().toString().substring(0, 8);
+            entity.setScenarioId("SCENARIO_" + timestamp + "_" + uuid);
+        }
+        
         // 设置默认值
         if (entity.getIsActive() == null) {
             entity.setIsActive(1);
@@ -90,14 +106,14 @@ public class ScenarioServiceImpl extends ServiceImpl<ScenarioMapper, ScenarioEnt
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteScenario(String id) {
-        return removeById(id);
+        return removeById(Long.valueOf(id));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean toggleScenario(String id, Integer isActive) {
         ScenarioEntity entity = new ScenarioEntity();
-        entity.setId(id);
+        entity.setId(Long.valueOf(id));
         entity.setIsActive(isActive);
         return updateById(entity);
     }
@@ -121,12 +137,6 @@ public class ScenarioServiceImpl extends ServiceImpl<ScenarioMapper, ScenarioEnt
         List<ScenarioEntity> list = list(queryWrapper);
         
         // 构建分页数据
-        PageData<ScenarioEntity> pageData = new PageData<>();
-        pageData.setList(list);
-        pageData.setTotal(total);
-        pageData.setPage(page);
-        pageData.setLimit(limit);
-        
-        return pageData;
+        return new PageData<>(list, total);
     }
 } 

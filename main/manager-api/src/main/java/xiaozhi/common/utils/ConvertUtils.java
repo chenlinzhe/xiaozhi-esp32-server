@@ -48,4 +48,31 @@ public class ConvertUtils {
 
         return targetList;
     }
+
+    /**
+     * 将Object转换为int类型，如果转换失败则返回默认值
+     * 
+     * @param value 要转换的值
+     * @param defaultValue 默认值
+     * @return 转换后的int值
+     */
+    public static int intValue(Object value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        
+        return defaultValue;
+    }
 }

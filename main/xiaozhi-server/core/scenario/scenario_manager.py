@@ -7,14 +7,14 @@ import json
 import asyncio
 import aiohttp
 from typing import Dict, List, Optional
-from config.config_loader import get_config_from_api
+from config.config_loader import load_config
 
 
 class ScenarioManager:
     """场景管理器"""
     
     def __init__(self):
-        self.config = get_config_from_api()
+        self.config = load_config()
         self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
     
     async def get_scenario(self, scenario_id: str) -> Optional[Dict]:
@@ -96,7 +96,7 @@ class StepManager:
     """步骤管理器"""
     
     def __init__(self):
-        self.config = get_config_from_api()
+        self.config = load_config()
         self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
     
     async def get_scenario_steps(self, scenario_id: str) -> List[Dict]:
@@ -186,4 +186,7 @@ class StepManager:
 
 # 创建全局实例
 scenario_manager = ScenarioManager()
-step_manager = StepManager() 
+step_manager = StepManager()
+
+# 导入并创建 scenario_trigger 实例
+from core.scenario.dialogue_executor import scenario_trigger 

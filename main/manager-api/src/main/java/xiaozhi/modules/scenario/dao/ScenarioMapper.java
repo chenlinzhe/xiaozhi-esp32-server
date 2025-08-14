@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import xiaozhi.modules.scenario.entity.ScenarioEntity;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 场景配置Mapper接口
@@ -30,7 +31,15 @@ public interface ScenarioMapper extends BaseMapper<ScenarioEntity> {
      * @param params 查询参数
      * @return 场景列表
      */
-    List<ScenarioEntity> selectScenarioList(@Param("params") Object params);
+    List<ScenarioEntity> selectScenarioList(Map<String, Object> params);
+
+    /**
+     * 获取场景列表总数
+     * 
+     * @param params 查询参数
+     * @return 总数
+     */
+    long selectScenarioListCount(Map<String, Object> params);
 
     /**
      * 根据场景类型获取场景列表

@@ -4,15 +4,15 @@
 
     <!-- 基础结果映射 -->
     <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.StepTemplateEntity">
-        <id column="id" property="id" jdbcType="VARCHAR"/>
+        <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="template_code" property="templateCode" jdbcType="VARCHAR"/>
         <result column="template_name" property="templateName" jdbcType="VARCHAR"/>
         <result column="template_type" property="templateType" jdbcType="VARCHAR"/>
-        <result column="ai_message" property="aiMessage" jdbcType="TEXT"/>
-        <result column="expected_keywords" property="expectedKeywords" jdbcType="TEXT"/>
-        <result column="expected_phrases" property="expectedPhrases" jdbcType="TEXT"/>
-        <result column="alternative_message" property="alternativeMessage" jdbcType="TEXT"/>
-        <result column="description" property="description" jdbcType="TEXT"/>
+        <result column="ai_message" property="aiMessage" jdbcType="LONGVARCHAR"/>
+        <result column="expected_keywords" property="expectedKeywords" jdbcType="LONGVARCHAR"/>
+        <result column="expected_phrases" property="expectedPhrases" jdbcType="LONGVARCHAR"/>
+        <result column="alternative_message" property="alternativeMessage" jdbcType="LONGVARCHAR"/>
+        <result column="description" property="description" jdbcType="LONGVARCHAR"/>
         <result column="is_default" property="isDefault" jdbcType="TINYINT"/>
         <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
         <result column="creator" property="creator" jdbcType="BIGINT"/>

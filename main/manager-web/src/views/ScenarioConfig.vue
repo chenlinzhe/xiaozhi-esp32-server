@@ -7,6 +7,7 @@
       <div class="right-operations">
         <el-button type="primary" @click="createScenario">新建场景</el-button>
         <el-button @click="importTemplate">导入模板</el-button>
+        <el-button type="warning" @click="testApi">测试API</el-button>
       </div>
     </div>
     
@@ -120,24 +121,26 @@ export default {
     this.fetchScenarioList();
   },
   methods: {
-    async fetchScenarioList() {
-      try {
-        this.loading = true;
-        const params = {
-          page: this.currentPage,
-          limit: this.pageSize,
-          ...this.searchForm
-        };
-        
-        const response = await Api.getScenarioList(params);
-        this.scenarios = response.data.list;
-        this.total = response.data.total;
-      } catch (error) {
-        this.$message.error('获取场景列表失败');
-        console.error('获取场景列表失败:', error);
-      } finally {
+    fetchScenarioList() {
+      this.loading = true;
+      const params = {
+        page: this.currentPage,
+        limit: this.pageSize,
+        ...this.searchForm
+      };
+      
+      Api.scenario.getScenarioList(params, (response) => {
         this.loading = false;
-      }
+        console.log('场景列表响应:', response);
+        if (response.code === 0) {
+          this.scenarios = response.data.list || [];
+          this.total = response.data.total || 0;
+          console.log('场景数据:', this.scenarios);
+        } else {
+          console.error('场景列表请求失败:', response);
+          this.$message.error(response.msg || '获取场景列表失败');
+        }
+      });
     },
     
     searchScenarios() {
@@ -182,19 +185,64 @@ export default {
       this.$message.info('测试功能开发中...');
     },
     
-    async toggleScenario(scenario) {
-      try {
-        await Api.toggleScenario(scenario.id, scenario.isActive);
-        this.$message.success('场景状态更新成功');
-      } catch (error) {
-        this.$message.error('更新失败');
-        scenario.isActive = !scenario.isActive; // 恢复状态
-      }
+    toggleScenario(scenario) {
+      Api.scenario.toggleScenario(scenario.id, scenario.isActive, (response) => {
+        if (response.code === 0) {
+          this.$message.success('场景状态更新成功');
+        } else {
+          this.$message.error(response.msg || '更新失败');
+          scenario.isActive = !scenario.isActive; // 恢复状态
+        }
+      });
     },
     
     importTemplate() {
       this.$message.info('导入模板功能开发中...');
     },
+    
+         testApi() {
+       console.log('开始测试 API 调用');
+       
+       // 先测试简单的网络连接
+       fetch('/xiaozhi/scenario/test')
+         .then(response => {
+           console.log('Fetch 测试响应状态:', response.status);
+           return response.json();
+         })
+         .then(data => {
+           console.log('Fetch 测试响应数据:', data);
+           this.$message.success('Fetch 测试成功');
+         })
+         .catch(error => {
+           console.error('Fetch 测试失败:', error);
+           this.$message.error('Fetch 测试失败: ' + error.message);
+         });
+       
+       // 然后测试 API 调用
+       const params = {
+         page: 1,
+         limit: 10
+       };
+       
+       Api.scenario.getScenarioList(params, (response) => {
+         console.log('API 测试响应:', response);
+         console.log('响应类型:', typeof response);
+         console.log('响应数据结构:', JSON.stringify(response, null, 2));
+         console.log('response.data:', response.data);
+         console.log('response.code:', response.code);
+         console.log('response.msg:', response.msg);
+         
+         if (response && response.code === 0) {
+           console.log('API 调用成功');
+           this.$message.success('API 测试成功');
+         } else {
+           console.log('API 调用失败');
+           console.log('失败原因 - code:', response ? response.code : 'undefined');
+           console.log('失败原因 - msg:', response ? response.msg : 'undefined');
+           this.$message.error('API 测试失败: ' + (response ? response.msg : '未知错误'));
+         }
+       });
+     },
     
     getScenarioTypeColor(type) {
       const colorMap = {

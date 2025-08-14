@@ -46,7 +46,7 @@ public class ScenarioStepController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除步骤")
     public Result delete(@PathVariable("id") String id) {
-        stepService.removeById(id);
+        stepService.removeById(Long.valueOf(id));
         return new Result();
     }
 

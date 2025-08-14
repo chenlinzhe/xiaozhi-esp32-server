@@ -1,66 +1,79 @@
 """
 学习记录管理器
-负责记录和管理儿童的学习数据
+负责管理儿童学习记录
 """
 
 import json
 import asyncio
 import aiohttp
+from typing import Dict, List, Optional
 from datetime import datetime
-from typing import Dict, Optional
-from config.config_loader import get_config_from_api
+from config.config_loader import load_config
 
 
 class LearningRecordManager:
     """学习记录管理器"""
     
     def __init__(self):
-        self.config = get_config_from_api()
+        self.config = load_config()
         self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
     
-    async def create_learning_record(self, record_data: Dict) -> Optional[str]:
-        """创建学习记录"""
+    async def save_learning_record(self, record_data: Dict) -> bool:
+        """保存学习记录"""
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/learning-record"
                 async with session.post(url, json=record_data) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return data.get("data", {}).get("id")
+                        return data.get("code") == 0
                     else:
-                        print(f"创建学习记录失败，状态码: {response.status}")
-                        return None
+                        print(f"保存学习记录失败，状态码: {response.status}")
+                        return False
         except Exception as e:
-            print(f"创建学习记录失败: {e}")
-            return None
-    
-    async def update_learning_record(self, record_id: str, record_data: Dict) -> bool:
-        """更新学习记录"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/learning-record/{record_id}"
-                async with session.put(url, json=record_data) as response:
-                    return response.status == 200
-        except Exception as e:
-            print(f"更新学习记录失败: {e}")
+            print(f"保存学习记录失败: {e}")
             return False
     
-    async def get_learning_statistics(self, agent_id: str, child_name: str) -> Optional[Dict]:
-        """获取学习统计信息"""
+    async def get_learning_records(self, child_name: str = None, scenario_id: str = None, 
+                                 page: int = 1, size: int = 10) -> List[Dict]:
+        """获取学习记录"""
         try:
+            params = {
+                "page": page,
+                "limit": size
+            }
+            if child_name:
+                params["childName"] = child_name
+            if scenario_id:
+                params["scenarioId"] = scenario_id
+            
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/learning-record/statistics"
-                params = {"agentId": agent_id, "childName": child_name}
+                url = f"{self.api_base_url}/xiaozhi/learning-record/list"
                 async with session.get(url, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return data.get("data")
-                    else:
-                        print(f"获取学习统计失败，状态码: {response.status}")
-                        return None
+                        if data.get("code") == 0:
+                            return data.get("data", {}).get("list", [])
+                    return []
         except Exception as e:
-            print(f"获取学习统计失败: {e}")
-            return None
+            print(f"获取学习记录失败: {e}")
+            return []
+    
+    async def get_child_statistics(self, child_name: str) -> Dict:
+        """获取儿童学习统计"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.api_base_url}/xiaozhi/learning-record/statistics"
+                params = {"childName": child_name}
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get("code") == 0:
+                            return data.get("data", {})
+                    return {}
+        except Exception as e:
+            print(f"获取儿童统计失败: {e}")
+            return {}
     
     def calculate_success_rate(self, completed_steps: int, total_steps: int) -> float:
         """计算成功率"""
@@ -158,7 +171,7 @@ class LearningSession:
         }
         
         # 保存记录
-        record_id = await self.record_manager.create_learning_record(record_data)
+        record_id = await self.record_manager.save_learning_record(record_data)
         
         # 重置会话状态
         self.reset_session()

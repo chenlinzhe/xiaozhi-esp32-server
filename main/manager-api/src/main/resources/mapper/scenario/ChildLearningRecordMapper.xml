@@ -4,7 +4,7 @@
 
     <!-- 基础结果映射 -->
     <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.ChildLearningRecordEntity">
-        <id column="id" property="id" jdbcType="VARCHAR"/>
+        <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="agent_id" property="agentId" jdbcType="VARCHAR"/>
         <result column="scenario_id" property="scenarioId" jdbcType="VARCHAR"/>
         <result column="child_name" property="childName" jdbcType="VARCHAR"/>
@@ -15,7 +15,7 @@
         <result column="success_rate" property="successRate" jdbcType="DECIMAL"/>
         <result column="learning_duration" property="learningDuration" jdbcType="INTEGER"/>
         <result column="difficulty_rating" property="difficultyRating" jdbcType="INTEGER"/>
-        <result column="notes" property="notes" jdbcType="TEXT"/>
+        <result column="notes" property="notes" jdbcType="LONGVARCHAR"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
     </resultMap>
 
@@ -43,8 +43,8 @@
             a.agent_name,
             CONCAT(FLOOR(r.learning_duration/60), '分', MOD(r.learning_duration, 60), '秒') as learning_duration_formatted
         FROM ai_child_learning_record r
-        LEFT JOIN ai_scenario s ON r.scenario_id = s.id
-        LEFT JOIN ai_agent a ON r.agent_id = a.id
+        LEFT JOIN ai_scenario s ON r.scenario_id = s.scenario_id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN ai_agent a ON r.agent_id = a.id COLLATE utf8mb4_unicode_ci
         WHERE r.agent_id = #{agentId}
         ORDER BY r.created_at DESC
     </select>
@@ -59,8 +59,8 @@
             a.agent_name,
             CONCAT(FLOOR(r.learning_duration/60), '分', MOD(r.learning_duration, 60), '秒') as learning_duration_formatted
         FROM ai_child_learning_record r
-        LEFT JOIN ai_scenario s ON r.scenario_id = s.id
-        LEFT JOIN ai_agent a ON r.agent_id = a.id
+        LEFT JOIN ai_scenario s ON r.scenario_id = s.scenario_id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN ai_agent a ON r.agent_id = a.id COLLATE utf8mb4_unicode_ci
         WHERE r.scenario_id = #{scenarioId}
         ORDER BY r.created_at DESC
     </select>
@@ -75,8 +75,8 @@
             a.agent_name,
             CONCAT(FLOOR(r.learning_duration/60), '分', MOD(r.learning_duration, 60), '秒') as learning_duration_formatted
         FROM ai_child_learning_record r
-        LEFT JOIN ai_scenario s ON r.scenario_id = s.id
-        LEFT JOIN ai_agent a ON r.agent_id = a.id
+        LEFT JOIN ai_scenario s ON r.scenario_id = s.scenario_id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN ai_agent a ON r.agent_id = a.id COLLATE utf8mb4_unicode_ci
         WHERE r.child_name = #{childName}
         ORDER BY r.created_at DESC
     </select>

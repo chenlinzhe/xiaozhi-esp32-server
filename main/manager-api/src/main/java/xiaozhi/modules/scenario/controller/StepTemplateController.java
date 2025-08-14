@@ -34,7 +34,7 @@ public class StepTemplateController {
     @GetMapping("/{id}")
     @Operation(summary = "获取模板详情")
     public Result<StepTemplateEntity> get(@PathVariable("id") String id) {
-        StepTemplateEntity data = templateService.getById(id);
+        StepTemplateEntity data = templateService.getById(Long.valueOf(id));
         return new Result<StepTemplateEntity>().ok(data);
     }
 
@@ -48,7 +48,7 @@ public class StepTemplateController {
     @PutMapping("/{id}")
     @Operation(summary = "更新模板")
     public Result update(@PathVariable("id") String id, @RequestBody StepTemplateEntity entity) {
-        entity.setId(id);
+        entity.setId(Long.valueOf(id));
         templateService.updateTemplate(entity);
         return new Result();
     }
@@ -56,7 +56,7 @@ public class StepTemplateController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除模板")
     public Result delete(@PathVariable("id") String id) {
-        templateService.removeById(id);
+        templateService.removeById(Long.valueOf(id));
         return new Result();
     }
 
