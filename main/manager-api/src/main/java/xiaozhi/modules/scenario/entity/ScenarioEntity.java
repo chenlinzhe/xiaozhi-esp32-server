@@ -80,6 +80,26 @@ public class ScenarioEntity extends BaseEntity {
     @TableField("is_active")
     private Integer isActive;
 
+    @Schema(description = "是否为默认教学场景：0-否 1-是")
+    @TableField("is_default_teaching")
+    private Integer isDefaultTeaching;
+
+    @Schema(description = "教学模式配置，JSON格式")
+    @TableField("teaching_mode_config")
+    private String teachingModeConfig;
+
+    @Schema(description = "完成后是否自动切换到自由模式：0-否 1-是")
+    @TableField("auto_switch_to_free")
+    private Integer autoSwitchToFree;
+
+    @Schema(description = "夸奖消息列表，JSON格式")
+    @TableField("praise_messages")
+    private String praiseMessages;
+
+    @Schema(description = "鼓励消息列表，JSON格式")
+    @TableField("encouragement_messages")
+    private String encouragementMessages;
+
     // 继承自BaseEntity的字段：id, creator, createDate
     // 需要单独定义的字段：
     @Schema(description = "更新者ID")

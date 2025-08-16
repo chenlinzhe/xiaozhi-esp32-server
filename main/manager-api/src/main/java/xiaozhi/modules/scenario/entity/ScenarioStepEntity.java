@@ -79,6 +79,26 @@ public class ScenarioStepEntity extends BaseEntity {
     @TableField("alternative_message")
     private String alternativeMessage;
 
+    @Schema(description = "正确答案，用于教学模式判断")
+    @TableField("correct_response")
+    private String correctResponse;
+
+    @Schema(description = "回答正确时的夸奖消息")
+    @TableField("praise_message")
+    private String praiseMessage;
+
+    @Schema(description = "回答错误时的鼓励消息")
+    @TableField("encouragement_message")
+    private String encouragementMessage;
+
+    @Schema(description = "超时时的自动回复内容")
+    @TableField("auto_reply_on_timeout")
+    private String autoReplyOnTimeout;
+
+    @Schema(description = "等待用户回复的时间（秒）")
+    @TableField("wait_time_seconds")
+    private Integer waitTimeSeconds;
+
     @Schema(description = "手势提示：point_mouth/point_stomach等")
     @TableField("gesture_hint")
     private String gestureHint;

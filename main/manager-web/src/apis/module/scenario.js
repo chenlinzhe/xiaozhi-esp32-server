@@ -12,7 +12,7 @@ export default {
             .data(params)
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {
@@ -28,7 +28,7 @@ export default {
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {
@@ -45,7 +45,7 @@ export default {
             .data(scenarioData)
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {
@@ -62,7 +62,7 @@ export default {
             .data(scenarioData)
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {
@@ -78,7 +78,7 @@ export default {
             .method('DELETE')
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {
@@ -95,7 +95,7 @@ export default {
             .data({ isActive: isActive })
             .success((res) => {
                 RequestService.clearRequestTime();
-                callback(res);
+                callback(res);  // 统一传递完整响应
             })
             .networkFail(() => {
                 RequestService.reAjaxFun(() => {

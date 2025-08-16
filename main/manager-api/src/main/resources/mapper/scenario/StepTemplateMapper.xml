@@ -5,6 +5,7 @@
     <!-- 基础结果映射 -->
     <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.StepTemplateEntity">
         <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="template_id" property="templateId" jdbcType="VARCHAR"/>
         <result column="template_code" property="templateCode" jdbcType="VARCHAR"/>
         <result column="template_name" property="templateName" jdbcType="VARCHAR"/>
         <result column="template_type" property="templateType" jdbcType="VARCHAR"/>
@@ -16,14 +17,14 @@
         <result column="is_default" property="isDefault" jdbcType="TINYINT"/>
         <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
         <result column="creator" property="creator" jdbcType="BIGINT"/>
-        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, template_code, template_name, template_type, ai_message, 
+        id, template_id, template_code, template_name, template_type, ai_message, 
         expected_keywords, expected_phrases, alternative_message, description, 
-        is_default, sort_order, creator, created_at
+        is_default, sort_order, creator, create_date
     </sql>
 
     <!-- 根据模板类型获取模板列表 -->
@@ -32,7 +33,7 @@
         <include refid="Base_Column_List"/>
         FROM ai_step_template
         WHERE template_type = #{templateType}
-        ORDER BY sort_order ASC, created_at DESC
+        ORDER BY sort_order ASC, create_date DESC
     </select>
 
     <!-- 获取默认模板列表 -->
@@ -41,7 +42,7 @@
         <include refid="Base_Column_List"/>
         FROM ai_step_template
         WHERE is_default = 1
-        ORDER BY sort_order ASC, created_at DESC
+        ORDER BY sort_order ASC, create_date DESC
     </select>
 
     <!-- 根据模板类型获取默认模板 -->
@@ -51,7 +52,7 @@
         FROM ai_step_template
         WHERE template_type = #{templateType}
         AND is_default = 1
-        ORDER BY sort_order ASC, created_at DESC
+        ORDER BY sort_order ASC, create_date DESC
         LIMIT 1
     </select>
 

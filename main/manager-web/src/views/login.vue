@@ -45,6 +45,7 @@
               <img loading="lazy" alt="" class="input-icon" src="@/assets/login/password.png" />
               <el-input v-model="form.password" placeholder="请输入密码" type="password" show-password />
             </div>
+            <!-- 验证码相关UI已注释掉
             <div style="display: flex; align-items: center; margin-top: 20px; width: 100%; gap: 10px;">
               <div class="input-box" style="width: calc(100% - 130px); margin-top: 0;">
                 <img loading="lazy" alt="" class="input-icon" src="@/assets/login/shield.png" />
@@ -53,6 +54,7 @@
               <img loading="lazy" v-if="captchaUrl" :src="captchaUrl" alt="验证码"
                 style="width: 150px; height: 40px; cursor: pointer;" @click="fetchCaptcha" />
             </div>
+            -->
             <div
               style="font-weight: 400;font-size: 14px;text-align: left;color: #5778ff;display: flex;justify-content: space-between;margin-top: 20px;">
               <div v-if="allowUserRegister" style="cursor: pointer;" @click="goToRegister">新用户注册</div>
@@ -123,7 +125,7 @@ export default {
     }
   },
   mounted() {
-    this.fetchCaptcha();
+    // this.fetchCaptcha();
     this.$store.dispatch('fetchPubConfig').then(() => {
       // 根据配置决定默认登录方式
       this.isMobileLogin = this.enableMobileRegister;
@@ -157,7 +159,7 @@ export default {
       this.form.mobile = '';
       this.form.password = '';
       this.form.captcha = '';
-      this.fetchCaptcha();
+      // this.fetchCaptcha();
     },
 
     // 封装输入验证逻辑
@@ -190,26 +192,27 @@ export default {
         return;
       }
       // 验证验证码
-      if (!this.validateInput(this.form.captcha, '验证码不能为空')) {
-        return;
-      }
+      // if (!this.validateInput(this.form.captcha, '验证码不能为空')) {
+      //   return;
+      // }
 
       this.form.captchaId = this.captchaUuid
       Api.user.login(this.form, ({ data }) => {
         showSuccess('登录成功！');
-        this.$store.commit('setToken', JSON.stringify(data.data));
+        // 直接存储token字符串，而不是整个对象
+        this.$store.commit('setToken', data.data.token);
         goToPage('/home');
       }, (err) => {
         showDanger(err.data.msg || '登录失败')
-        if (err.data != null && err.data.msg != null && err.data.msg.indexOf('图形验证码') > -1) {
-          this.fetchCaptcha()
-        }
+        // if (err.data != null && err.data.msg != null && err.data.msg.indexOf('图形验证码') > -1) {
+        //   this.fetchCaptcha()
+        // }
       })
 
       // 重新获取验证码
-      setTimeout(() => {
-        this.fetchCaptcha();
-      }, 1000);
+      // setTimeout(() => {
+      //   this.fetchCaptcha();
+      // }, 1000);
     },
 
     goToRegister() {

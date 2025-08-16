@@ -1,6 +1,7 @@
 package xiaozhi.modules.scenario.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xiaozhi.modules.scenario.dao.ScenarioStepMapper;
@@ -19,24 +20,44 @@ import java.util.UUID;
  * @since 2024-12-01
  */
 @Service
+@Slf4j
 public class ScenarioStepServiceImpl extends ServiceImpl<ScenarioStepMapper, ScenarioStepEntity> implements ScenarioStepService {
 
     @Override
     public List<ScenarioStepEntity> getStepsByScenarioId(String scenarioId) {
-        return baseMapper.selectByScenarioId(scenarioId);
+        try {
+            log.info("获取场景步骤，场景ID: {}", scenarioId);
+            List<ScenarioStepEntity> steps = baseMapper.selectByScenarioId(scenarioId);
+            log.info("获取到步骤数量: {}", steps != null ? steps.size() : 0);
+            return steps;
+        } catch (Exception e) {
+            log.error("获取场景步骤失败，场景ID: {}", scenarioId, e);
+            return null;
+        }
     }
 
     @Override
     public List<ScenarioStepEntity> getStepsByScenarioIdOrdered(String scenarioId) {
-        return baseMapper.selectByScenarioIdOrdered(scenarioId);
+        try {
+            log.info("获取场景步骤（有序），场景ID: {}", scenarioId);
+            List<ScenarioStepEntity> steps = baseMapper.selectByScenarioIdOrdered(scenarioId);
+            log.info("获取到步骤数量: {}", steps != null ? steps.size() : 0);
+            return steps;
+        } catch (Exception e) {
+            log.error("获取场景步骤（有序）失败，场景ID: {}", scenarioId, e);
+            return null;
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean batchSaveSteps(String scenarioId, List<ScenarioStepEntity> steps) {
         try {
+            log.info("批量保存步骤，场景ID: {}, 步骤数量: {}", scenarioId, steps != null ? steps.size() : 0);
+            
             // 先删除原有步骤
-            baseMapper.deleteByScenarioId(scenarioId);
+            int deletedCount = baseMapper.deleteByScenarioId(scenarioId);
+            log.info("删除原有步骤数量: {}", deletedCount);
             
             // 批量保存新步骤
             if (steps != null && !steps.isEmpty()) {
@@ -59,11 +80,12 @@ public class ScenarioStepServiceImpl extends ServiceImpl<ScenarioStepMapper, Sce
                     
                     save(step);
                 }
+                log.info("批量保存步骤成功");
             }
             
             return true;
         } catch (Exception e) {
-            log.error("批量保存步骤失败", e);
+            log.error("批量保存步骤失败，场景ID: {}", scenarioId, e);
             return false;
         }
     }
@@ -71,11 +93,26 @@ public class ScenarioStepServiceImpl extends ServiceImpl<ScenarioStepMapper, Sce
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int deleteStepsByScenarioId(String scenarioId) {
-        return baseMapper.deleteByScenarioId(scenarioId);
+        try {
+            log.info("删除场景步骤，场景ID: {}", scenarioId);
+            int count = baseMapper.deleteByScenarioId(scenarioId);
+            log.info("删除步骤数量: {}", count);
+            return count;
+        } catch (Exception e) {
+            log.error("删除场景步骤失败，场景ID: {}", scenarioId, e);
+            return 0;
+        }
     }
 
     @Override
     public int countStepsByScenarioId(String scenarioId) {
-        return baseMapper.countByScenarioId(scenarioId);
+        try {
+            int count = baseMapper.countByScenarioId(scenarioId);
+            log.debug("场景步骤数量，场景ID: {}, 数量: {}", scenarioId, count);
+            return count;
+        } catch (Exception e) {
+            log.error("统计场景步骤数量失败，场景ID: {}", scenarioId, e);
+            return 0;
+        }
     }
 }

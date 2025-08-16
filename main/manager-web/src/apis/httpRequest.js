@@ -28,7 +28,7 @@ function sendRequest() {
         _responseType: undefined, // 新增响应类型字段
         'send'() {
             if (isNotNull(store.getters.getToken)) {
-                this._header.Authorization = 'Bearer ' + (JSON.parse(store.getters.getToken)).token
+                this._header.Authorization = 'Bearer ' + store.getters.getToken
             }
 
             // 打印请求信息
@@ -46,7 +46,7 @@ function sendRequest() {
 
                 if (this._sucCallback) {
                     console.log('调用成功回调');
-                    this._sucCallback(res.data)  // 传递 res.data 而不是整个 res
+                    this._sucCallback(res)  // 传递整个 res 对象
                 }
             }).catch((res) => {
                 // 打印失败响应

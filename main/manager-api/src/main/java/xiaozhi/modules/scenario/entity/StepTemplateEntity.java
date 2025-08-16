@@ -67,11 +67,6 @@ public class StepTemplateEntity extends BaseEntity {
     @TableField("sort_order")
     private Integer sortOrder;
 
-    @Schema(description = "创建者ID")
-    @TableField("creator")
-    private Long creator;
-
-    @Schema(description = "创建时间")
-    @TableField("created_at")
-    private Date createdAt;
+    // 继承自BaseEntity的字段：id, creator, createDate
+    // 注意：creator和createDate字段通过继承BaseEntity获得，不需要重复定义
 } 

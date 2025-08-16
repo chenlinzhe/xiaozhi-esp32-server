@@ -6,6 +6,7 @@ import json
 import uuid
 from typing import Dict, Any
 from core.scenario.dialogue_service import DialogueService
+from core.scenario.chat_status_manager import ChatStatusManager
 
 
 class DialogueHandler:
@@ -13,13 +14,16 @@ class DialogueHandler:
     
     def __init__(self):
         self.dialogue_service = DialogueService()
+        self.chat_status_manager = ChatStatusManager()
     
     async def handle_dialogue_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """处理对话请求"""
         try:
             action = request_data.get("action")
             
-            if action == "start_scenario":
+            if action == "chat":
+                return await self._handle_chat(request_data)
+            elif action == "start_scenario":
                 return await self._handle_start_scenario(request_data)
             elif action == "process_response":
                 return await self._handle_process_response(request_data)
@@ -27,6 +31,8 @@ class DialogueHandler:
                 return await self._handle_get_scenarios(request_data)
             elif action == "free_chat":
                 return await self._handle_free_chat(request_data)
+            elif action == "check_timeout":
+                return await self._handle_check_timeout(request_data)
             else:
                 return {"success": False, "error": "未知操作"}
                 
@@ -114,6 +120,33 @@ class DialogueHandler:
             "scenarios": scenarios,
             "message": f"获取到 {len(scenarios)} 个可用场景"
         }
+    
+    async def _handle_chat(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """处理聊天请求（集成教学模式和自由模式）"""
+        user_text = request_data.get("user_text", "")
+        user_id = request_data.get("user_id", "default_user")
+        child_name = request_data.get("child_name", "小朋友")
+        
+        if not user_text:
+            return {"success": False, "error": "用户文本不能为空"}
+        
+        # 使用聊天状态管理器处理用户输入
+        result = await self.chat_status_manager.handle_user_input(user_id, user_text, child_name)
+        return result
+    
+    async def _handle_check_timeout(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """检查教学会话超时"""
+        user_id = request_data.get("user_id", "default_user")
+        
+        result = await self.chat_status_manager.check_teaching_timeout(user_id)
+        if result:
+            return result
+        else:
+            return {
+                "success": True,
+                "action": "no_timeout",
+                "message": "会话未超时"
+            }
     
     async def _handle_free_chat(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """处理自由聊天"""

@@ -97,7 +97,8 @@
 </template>
 
 <script>
-import Api from '@/apis/api';
+import Api from '@/apis/module/scenario';
+import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
 
 export default {
@@ -129,16 +130,28 @@ export default {
         ...this.searchForm
       };
       
-      Api.scenario.getScenarioList(params, (response) => {
+      Api.getScenarioList(params, (data) => {
         this.loading = false;
-        console.log('场景列表响应:', response);
-        if (response.code === 0) {
-          this.scenarios = response.data.list || [];
-          this.total = response.data.total || 0;
-          console.log('场景数据:', this.scenarios);
+        ApiLogger.log('场景列表响应数据:', data);
+        
+        if (isApiSuccess(data)) {
+          const businessData = getBusinessData(data);
+          if (businessData && businessData.list) {
+            this.scenarios = businessData.list;
+            this.total = businessData.total || 0;
+            ApiLogger.log('场景数据设置成功:', this.scenarios);
+          } else {
+            ApiLogger.error('响应数据格式不正确，缺少list字段');
+            this.scenarios = [];
+            this.total = 0;
+            this.$message.error('响应数据格式不正确');
+          }
         } else {
-          console.error('场景列表请求失败:', response);
-          this.$message.error(response.msg || '获取场景列表失败');
+          const errorMsg = getErrorMessage(data, '获取场景列表失败');
+          ApiLogger.error('场景列表请求失败:', errorMsg);
+          this.scenarios = [];
+          this.total = 0;
+          this.$message.error(errorMsg);
         }
       });
     },
@@ -186,11 +199,12 @@ export default {
     },
     
     toggleScenario(scenario) {
-      Api.scenario.toggleScenario(scenario.id, scenario.isActive, (response) => {
-        if (response.code === 0) {
+      Api.toggleScenario(scenario.id, scenario.isActive, (data) => {
+        if (isApiSuccess(data)) {
           this.$message.success('场景状态更新成功');
         } else {
-          this.$message.error(response.msg || '更新失败');
+          const errorMsg = getErrorMessage(data, '更新失败');
+          this.$message.error(errorMsg);
           scenario.isActive = !scenario.isActive; // 恢复状态
         }
       });
@@ -224,22 +238,16 @@ export default {
          limit: 10
        };
        
-       Api.scenario.getScenarioList(params, (response) => {
-         console.log('API 测试响应:', response);
-         console.log('响应类型:', typeof response);
-         console.log('响应数据结构:', JSON.stringify(response, null, 2));
-         console.log('response.data:', response.data);
-         console.log('response.code:', response.code);
-         console.log('response.msg:', response.msg);
+       Api.getScenarioList(params, (data) => {
+         ApiLogger.log('API 测试响应:', data);
          
-         if (response && response.code === 0) {
-           console.log('API 调用成功');
+         if (isApiSuccess(data)) {
+           ApiLogger.log('API 调用成功');
            this.$message.success('API 测试成功');
          } else {
-           console.log('API 调用失败');
-           console.log('失败原因 - code:', response ? response.code : 'undefined');
-           console.log('失败原因 - msg:', response ? response.msg : 'undefined');
-           this.$message.error('API 测试失败: ' + (response ? response.msg : '未知错误'));
+           const errorMsg = getErrorMessage(data, 'API测试失败');
+           ApiLogger.error('API 调用失败:', errorMsg);
+           this.$message.error(errorMsg);
          }
        });
      },

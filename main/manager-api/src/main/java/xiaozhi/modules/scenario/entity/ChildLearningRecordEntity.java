@@ -76,6 +76,10 @@ public class ChildLearningRecordEntity extends BaseEntity {
     @TableField("created_at")
     private Date createdAt;
 
+    @Schema(description = "更新时间")
+    @TableField("update_date")
+    private Date updateDate;
+
     // 扩展字段，用于前端显示
     @Schema(description = "场景名称")
     @TableField(exist = false)

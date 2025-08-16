@@ -18,6 +18,11 @@
         <result column="target_age" property="targetAge" jdbcType="VARCHAR"/>
         <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
         <result column="is_active" property="isActive" jdbcType="TINYINT"/>
+        <result column="is_default_teaching" property="isDefaultTeaching" jdbcType="TINYINT"/>
+        <result column="teaching_mode_config" property="teachingModeConfig" jdbcType="LONGVARCHAR"/>
+        <result column="auto_switch_to_free" property="autoSwitchToFree" jdbcType="TINYINT"/>
+        <result column="praise_messages" property="praiseMessages" jdbcType="LONGVARCHAR"/>
+        <result column="encouragement_messages" property="encouragementMessages" jdbcType="LONGVARCHAR"/>
         <result column="creator" property="creator" jdbcType="BIGINT"/>
         <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
         <result column="updater" property="updater" jdbcType="BIGINT"/>
@@ -34,7 +39,8 @@
     <sql id="Base_Column_List">
         id, scenario_id, agent_id, scenario_code, scenario_name, scenario_type, trigger_type, 
         trigger_keywords, trigger_cards, description, difficulty_level, target_age, 
-        sort_order, is_active, creator, create_date, updater, update_date
+        sort_order, is_active, is_default_teaching, teaching_mode_config, auto_switch_to_free,
+        praise_messages, encouragement_messages, creator, create_date, updater, update_date
     </sql>
 
     <!-- 根据智能体ID获取场景列表 -->
@@ -52,6 +58,8 @@
             s.id, s.scenario_id, s.agent_id, s.scenario_code, s.scenario_name, s.scenario_type, 
             s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
             s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
+            s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
+            s.praise_messages, s.encouragement_messages,
             s.creator, s.create_date, s.updater, s.update_date,
             COALESCE(COUNT(st.id), 0) as step_count,
             a.agent_name
@@ -75,6 +83,8 @@
         GROUP BY s.id, s.scenario_id, s.agent_id, s.scenario_code, s.scenario_name, s.scenario_type, 
                  s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
                  s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
+                 s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
+                 s.praise_messages, s.encouragement_messages,
                  s.creator, s.create_date, s.updater, s.update_date, a.agent_name
         ORDER BY s.sort_order ASC, s.create_date DESC
         <if test="offset != null and limit != null">

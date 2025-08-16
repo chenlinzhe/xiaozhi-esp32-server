@@ -40,6 +40,7 @@ from config.manage_api_client import DeviceNotFoundException, DeviceBindExceptio
 from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
 from core.utils import textUtils
+from core.scenario.chat_status_manager import ChatStatusManager
 
 TAG = __name__
 
@@ -160,6 +161,9 @@ class ConnectionHandler:
 
         # 初始化提示词管理器
         self.prompt_manager = PromptManager(config, self.logger)
+
+        # 初始化聊天状态管理器
+        self.chat_status_manager = ChatStatusManager()
 
     async def handle_connection(self, ws):
         try:
@@ -674,9 +678,125 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
+    def _handle_chat_mode(self, query):
+        """处理聊天模式切换和教学模式逻辑"""
+        try:
+            self.logger.bind(tag=TAG).info(f"处理聊天模式切换和教学模式逻辑")
+            # 使用设备ID作为用户ID，如果没有则使用session_id
+            user_id = self.device_id if self.device_id else self.session_id
+            child_name = "小朋友"  # 可以从配置中获取儿童姓名
+            
+            # 异步处理用户输入
+            future = asyncio.run_coroutine_threadsafe(
+                self.chat_status_manager.handle_user_input(user_id, query, child_name),
+                self.loop
+            )
+            result = future.result()
+            
+            if result and result.get("success"):
+                action = result.get("action")
+                ai_message = result.get("ai_message", "")
+                
+                if action == "mode_switch":
+                    # 模式切换，直接返回AI消息
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info(f"聊天模式切换: {result.get('mode')}")
+                    return True
+                    
+                elif action == "start_teaching":
+                    # 开始教学模式
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
+                    
+                    # 启动等待超时检查
+                    self._start_teaching_timeout_check(user_id, result.get("wait_time", 10))
+                    return True
+                    
+                elif action == "next_step" or action == "retry":
+                    # 教学步骤处理
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
+                    
+                    # 重新启动等待超时检查
+                    self._start_teaching_timeout_check(user_id, result.get("wait_time", 10))
+                    return True
+                    
+                elif action == "completed":
+                    # 教学完成，切换到自由模式
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info(f"教学完成，最终得分: {result.get('final_score')}")
+                    return True
+                    
+                elif action == "free_chat":
+                    # 自由聊天模式，继续正常流程
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info("自由聊天模式")
+                    return True
+                    
+                elif action == "timeout_response":
+                    # 超时自动回复
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info("教学超时自动回复")
+                    return True
+            
+            # 如果没有特殊处理，返回None继续正常流程
+            return None
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"处理聊天模式失败: {e}")
+            return None
+
+    def _send_tts_message(self, message):
+        """发送TTS消息"""
+        if message and self.tts:
+            self.tts.tts_text_queue.put(
+                TTSMessageDTO(
+                    sentence_id=self.sentence_id,
+                    sentence_type=SentenceType.MIDDLE,
+                    content_type=ContentType.TEXT,
+                    content_detail=message,
+                )
+            )
+
+    def _start_teaching_timeout_check(self, user_id, wait_time):
+        """启动教学超时检查"""
+        def timeout_check():
+            try:
+                time.sleep(wait_time)
+                # 检查是否超时
+                future = asyncio.run_coroutine_threadsafe(
+                    self.chat_status_manager.check_teaching_timeout(user_id),
+                    self.loop
+                )
+                result = future.result()
+                
+                if result and result.get("success"):
+                    ai_message = result.get("ai_message", "")
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info("教学超时检查触发")
+                    
+            except Exception as e:
+                self.logger.bind(tag=TAG).error(f"教学超时检查失败: {e}")
+        
+        # 在后台线程中执行超时检查
+        threading.Thread(target=timeout_check, daemon=True).start()
+
     def chat(self, query, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
+        depth = 0
+        # 检查聊天模式（只在最顶层调用时检查）
+        if depth == 0:
+            chat_result = self._handle_chat_mode(query)
+            if chat_result:
+                return chat_result
 
         if not tool_call:
             self.dialogue.put(Message(role="user", content=query))
@@ -739,9 +859,15 @@ class ConnectionHandler:
             if self.client_abort:
                 break
             if self.intent_type == "function_call" and functions is not None:
-                content, tools_call = response
-                if "content" in response:
+                # 检查response是否是元组（正常情况）还是字符串（错误情况）
+                if isinstance(response, tuple):
+                    content, tools_call = response
+                elif isinstance(response, dict) and "content" in response:
                     content = response["content"]
+                    tools_call = None
+                else:
+                    # 处理错误情况，response是字符串
+                    content = response
                     tools_call = None
                 if content is not None and len(content) > 0:
                     content_arguments += content
@@ -953,6 +1079,17 @@ class ConnectionHandler:
                 except Exception as cleanup_error:
                     self.logger.bind(tag=TAG).error(
                         f"清理工具处理器时出错: {cleanup_error}"
+                    )
+
+            # 清理聊天会话数据
+            if hasattr(self, "chat_status_manager") and self.chat_status_manager:
+                try:
+                    user_id = self.device_id if self.device_id else self.session_id
+                    self.chat_status_manager.redis_client.delete_session_data(f"teaching_{user_id}")
+                    self.logger.bind(tag=TAG).info(f"清理用户 {user_id} 的聊天会话数据")
+                except Exception as chat_cleanup_error:
+                    self.logger.bind(tag=TAG).error(
+                        f"清理聊天会话数据时出错: {chat_cleanup_error}"
                     )
 
             # 触发停止事件

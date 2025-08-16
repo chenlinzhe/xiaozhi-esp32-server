@@ -196,3 +196,17 @@ class DialogueService:
         except Exception as e:
             print(f"获取场景列表失败: {e}")
             return []
+    
+    async def get_default_teaching_scenario(self) -> Optional[Dict]:
+        """获取默认教学场景"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.api_base_url}/xiaozhi/scenario/default-teaching"
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data.get("data")
+                    return None
+        except Exception as e:
+            print(f"获取默认教学场景失败: {e}")
+            return None

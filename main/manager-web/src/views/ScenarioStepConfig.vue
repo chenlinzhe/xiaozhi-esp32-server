@@ -8,6 +8,7 @@
         <el-button type="primary" @click="addStep">添加步骤</el-button>
         <el-button @click="importStepTemplate">导入步骤模板</el-button>
         <el-button @click="saveSteps">保存配置</el-button>
+        <el-button type="warning" @click="testApiConnection">测试API</el-button>
         <el-button @click="goBack">返回</el-button>
       </div>
     </div>
@@ -64,113 +65,115 @@
           </div>
           
           <div class="step-content">
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="AI消息" class="form-item">
-                  <el-input 
-                    type="textarea" 
-                    v-model="step.aiMessage" 
-                    :rows="3"
-                    placeholder="请输入AI要说的内容，支持使用 **{childName}** 替换儿童姓名" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="期望关键词" class="form-item">
-                  <el-input 
-                    type="textarea" 
-                    v-model="step.expectedKeywords" 
-                    :rows="3"
-                    placeholder="请输入期望的关键词，JSON格式，如：['你好', 'hi']" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="期望短语" class="form-item">
-                  <el-input 
-                    type="textarea" 
-                    v-model="step.expectedPhrases" 
-                    :rows="3"
-                    placeholder="请输入期望的短语，JSON格式，如：['你好', 'hi']" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="成功条件" class="form-item">
-                  <el-select v-model="step.successCondition" placeholder="请选择成功条件">
-                    <el-option label="完全匹配" value="exact" />
-                    <el-option label="部分匹配" value="partial" />
-                    <el-option label="关键词匹配" value="keyword" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-row :gutter="20">
-              <el-col :span="8">
-                <el-form-item label="最大尝试次数" class="form-item">
-                  <el-input-number 
-                    v-model="step.maxAttempts" 
-                    :min="1" 
-                    :max="10"
-                    size="small" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="超时时间(秒)" class="form-item">
-                  <el-input-number 
-                    v-model="step.timeoutSeconds" 
-                    :min="5" 
-                    :max="60"
-                    size="small" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="步骤类型" class="form-item">
-                  <el-select v-model="step.stepType" placeholder="请选择步骤类型">
-                    <el-option label="普通步骤" value="normal" />
-                    <el-option label="可选步骤" value="optional" />
-                    <el-option label="分支步骤" value="branch" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="替代消息" class="form-item">
-                  <el-input 
-                    type="textarea" 
-                    v-model="step.alternativeMessage" 
-                    :rows="2"
-                    placeholder="当用户回答错误时的提示消息" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="手势提示" class="form-item">
-                  <el-input 
-                    v-model="step.gestureHint" 
-                    placeholder="如：指嘴巴、指肚子、指眼睛等" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="音效文件" class="form-item">
-                  <el-input 
-                    v-model="step.musicEffect" 
-                    placeholder="音效文件路径，如：/audio/success.mp3" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="下一步骤ID" class="form-item">
-                  <el-input 
-                    v-model="step.nextStepId" 
-                    placeholder="指定下一步骤ID，留空则按顺序执行" />
-                </el-form-item>
-              </el-col>
-            </el-row>
+            <el-form :model="step" label-width="120px">
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="AI消息" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.aiMessage" 
+                      :rows="3"
+                      placeholder="请输入AI要说的内容，支持使用 **{childName}** 替换儿童姓名" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="期望关键词" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.expectedKeywords" 
+                      :rows="3"
+                      placeholder="请输入期望的关键词，JSON格式，如：['你好', 'hi']" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="期望短语" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.expectedPhrases" 
+                      :rows="3"
+                      placeholder="请输入期望的短语，JSON格式，如：['你好', 'hi']" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="成功条件" class="form-item">
+                    <el-select v-model="step.successCondition" placeholder="请选择成功条件">
+                      <el-option label="完全匹配" value="exact" />
+                      <el-option label="部分匹配" value="partial" />
+                      <el-option label="关键词匹配" value="keyword" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="最大尝试次数" class="form-item">
+                    <el-input-number 
+                      v-model="step.maxAttempts" 
+                      :min="1" 
+                      :max="10"
+                      size="small" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="超时时间(秒)" class="form-item">
+                    <el-input-number 
+                      v-model="step.timeoutSeconds" 
+                      :min="5" 
+                      :max="60"
+                      size="small" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="步骤类型" class="form-item">
+                    <el-select v-model="step.stepType" placeholder="请选择步骤类型">
+                      <el-option label="普通步骤" value="normal" />
+                      <el-option label="可选步骤" value="optional" />
+                      <el-option label="分支步骤" value="branch" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="替代消息" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.alternativeMessage" 
+                      :rows="2"
+                      placeholder="当用户回答错误时的提示消息" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="手势提示" class="form-item">
+                    <el-input 
+                      v-model="step.gestureHint" 
+                      placeholder="如：指嘴巴、指肚子、指眼睛等" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="音效文件" class="form-item">
+                    <el-input 
+                      v-model="step.musicEffect" 
+                      placeholder="音效文件路径，如：/audio/success.mp3" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="下一步骤ID" class="form-item">
+                    <el-input 
+                      v-model="step.nextStepId" 
+                      placeholder="指定下一步骤ID，留空则按顺序执行" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-form>
           </div>
         </el-card>
       </div>
@@ -204,7 +207,8 @@
 </template>
 
 <script>
-import Api from '@/apis/api';
+import Api from '@/apis/module/scenario';
+import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
 
 export default {
@@ -233,11 +237,25 @@ export default {
           this.getScenarioData(),
           this.getScenarioStepsData()
         ]);
-        this.scenario = scenarioRes.data;
-        this.steps = stepsRes.data || [];
+        
+        // 使用API辅助工具处理响应
+        if (isApiSuccess(scenarioRes)) {
+          this.scenario = getBusinessData(scenarioRes);
+          ApiLogger.log('场景数据加载成功:', this.scenario);
+        } else {
+          throw new Error(getErrorMessage(scenarioRes, '获取场景数据失败'));
+        }
+        
+        if (isApiSuccess(stepsRes)) {
+          this.steps = getBusinessData(stepsRes) || [];
+          ApiLogger.log('步骤数据加载成功:', this.steps);
+        } else {
+          throw new Error(getErrorMessage(stepsRes, '获取步骤数据失败'));
+        }
+        
       } catch (error) {
-        this.$message.error('加载场景数据失败');
-        console.error('加载场景数据失败:', error);
+        ApiLogger.error('加载场景数据失败:', error);
+        this.$message.error('加载场景数据失败: ' + error.message);
       } finally {
         this.loading = false;
       }
@@ -245,11 +263,11 @@ export default {
     
     getScenarioData() {
       return new Promise((resolve, reject) => {
-        Api.scenario.getScenario(this.scenarioId, (res) => {
-          if (res.code === 0) {
+        Api.getScenario(this.scenarioId, (res) => {
+          if (isApiSuccess(res)) {
             resolve(res);
           } else {
-            reject(new Error(res.msg));
+            reject(new Error(getErrorMessage(res, '获取场景数据失败')));
           }
         });
       });
@@ -257,11 +275,11 @@ export default {
     
     getScenarioStepsData() {
       return new Promise((resolve, reject) => {
-        Api.scenario.getScenarioSteps(this.scenarioId, (res) => {
-          if (res.code === 0) {
+        Api.getScenarioSteps(this.scenarioId, (res) => {
+          if (isApiSuccess(res)) {
             resolve(res);
           } else {
-            reject(new Error(res.msg));
+            reject(new Error(getErrorMessage(res, '获取步骤数据失败')));
           }
         });
       });
@@ -269,35 +287,44 @@ export default {
     
     async loadStepTemplates() {
       try {
-        Api.scenario.getStepTemplateList((res) => {
-          if (res.code === 0) {
-            this.stepTemplates = res.data || [];
+        Api.getStepTemplateList((res) => {
+          if (isApiSuccess(res)) {
+            this.stepTemplates = getBusinessData(res) || [];
+            ApiLogger.log('步骤模板加载成功:', this.stepTemplates);
+          } else {
+            ApiLogger.error('加载步骤模板失败:', getErrorMessage(res));
           }
         });
       } catch (error) {
-        console.error('加载步骤模板失败:', error);
+        ApiLogger.error('加载步骤模板失败:', error);
       }
     },
     
     addStep() {
-      const newStep = {
-        id: this.generateId(),
-        stepName: `步骤${this.steps.length + 1}`,
-        aiMessage: '',
-        expectedKeywords: '[]',
-        expectedPhrases: '[]',
-        successCondition: 'partial',
-        maxAttempts: 3,
-        timeoutSeconds: 10,
-        alternativeMessage: '',
-        gestureHint: '',
-        musicEffect: '',
-        stepType: 'normal',
-        stepOrder: this.steps.length + 1,
-        nextStepId: '',
-        retryStepId: ''
-      };
-      this.steps.push(newStep);
+      try {
+        const newStep = {
+          // 移除id字段，让后端自动生成
+          stepName: `步骤${this.steps.length + 1}`,
+          aiMessage: '',
+          expectedKeywords: '[]',
+          expectedPhrases: '[]',
+          successCondition: 'partial',
+          maxAttempts: 3,
+          timeoutSeconds: 10,
+          alternativeMessage: '',
+          gestureHint: '',
+          musicEffect: '',
+          stepType: 'normal',
+          stepOrder: this.steps.length + 1,
+          nextStepId: '',
+          retryStepId: ''
+        };
+        this.steps.push(newStep);
+        this.$message.success('步骤添加成功');
+      } catch (error) {
+        ApiLogger.error('添加步骤失败:', error);
+        this.$message.error('添加步骤失败: ' + error.message);
+      }
     },
     
     removeStep(index) {
@@ -306,24 +333,42 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        this.steps.splice(index, 1);
-        this.updateStepOrder();
-      }).catch(() => {});
+        try {
+          // 使用Vue.set确保响应式更新
+          this.$set(this.steps, index, null);
+          this.steps.splice(index, 1);
+          this.updateStepOrder();
+          this.$message.success('步骤删除成功');
+        } catch (error) {
+          ApiLogger.error('删除步骤失败:', error);
+          this.$message.error('删除步骤失败: ' + error.message);
+        }
+      }).catch(() => {
+        // 用户取消删除
+      });
     },
     
     moveStep(index, direction) {
       const newIndex = index + direction;
       if (newIndex >= 0 && newIndex < this.steps.length) {
-        const temp = this.steps[index];
-        this.steps[index] = this.steps[newIndex];
-        this.steps[newIndex] = temp;
-        this.updateStepOrder();
+        try {
+          const temp = this.steps[index];
+          this.$set(this.steps, index, this.steps[newIndex]);
+          this.$set(this.steps, newIndex, temp);
+          this.updateStepOrder();
+          this.$message.success('步骤移动成功');
+        } catch (error) {
+          ApiLogger.error('移动步骤失败:', error);
+          this.$message.error('移动步骤失败: ' + error.message);
+        }
       }
     },
     
     updateStepOrder() {
       this.steps.forEach((step, index) => {
-        step.stepOrder = index + 1;
+        if (step) {
+          this.$set(step, 'stepOrder', index + 1);
+        }
       });
     },
     
@@ -357,19 +402,20 @@ export default {
         
         this.loading = true;
         await new Promise((resolve, reject) => {
-          Api.scenario.saveScenarioSteps(this.scenarioId, this.steps, (res) => {
-            if (res.code === 0) {
+          Api.saveScenarioSteps(this.scenarioId, this.steps, (res) => {
+            if (isApiSuccess(res)) {
               resolve(res);
             } else {
-              reject(new Error(res.msg));
+              reject(new Error(getErrorMessage(res, '保存失败')));
             }
           });
         });
         
         this.$message.success('步骤配置保存成功');
+        ApiLogger.log('步骤配置保存成功');
       } catch (error) {
+        ApiLogger.error('保存步骤失败:', error);
         this.$message.error('保存失败: ' + error.message);
-        console.error('保存步骤失败:', error);
       } finally {
         this.loading = false;
       }
@@ -381,7 +427,7 @@ export default {
     
     selectTemplate(template) {
       const newStep = {
-        id: this.generateId(),
+        // 移除id字段，让后端自动生成
         stepName: template.templateName,
         aiMessage: template.aiMessage || '',
         expectedKeywords: template.expectedKeywords || '[]',
@@ -404,10 +450,6 @@ export default {
     
     goBack() {
       this.$router.go(-1);
-    },
-    
-    generateId() {
-      return 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     },
     
     getScenarioTypeLabel(type) {
@@ -448,6 +490,38 @@ export default {
         'branch': 'success'
       };
       return colorMap[type] || '';
+    },
+
+    testApiConnection() {
+      ApiLogger.log('开始测试API连接');
+      
+      // 测试获取场景数据
+      Api.getScenario(this.scenarioId, (res) => {
+        ApiLogger.log('场景数据API测试响应:', res);
+        if (isApiSuccess(res)) {
+          const data = getBusinessData(res);
+          ApiLogger.log('场景数据获取成功:', data);
+          this.$message.success('场景数据API测试成功');
+        } else {
+          const errorMsg = getErrorMessage(res, '场景数据API测试失败');
+          ApiLogger.error('场景数据API测试失败:', errorMsg);
+          this.$message.error(errorMsg);
+        }
+      });
+      
+      // 测试获取步骤数据
+      Api.getScenarioSteps(this.scenarioId, (res) => {
+        ApiLogger.log('步骤数据API测试响应:', res);
+        if (isApiSuccess(res)) {
+          const data = getBusinessData(res);
+          ApiLogger.log('步骤数据获取成功:', data);
+          this.$message.success('步骤数据API测试成功');
+        } else {
+          const errorMsg = getErrorMessage(res, '步骤数据API测试失败');
+          ApiLogger.error('步骤数据API测试失败:', errorMsg);
+          this.$message.error(errorMsg);
+        }
+      });
     }
   }
 }

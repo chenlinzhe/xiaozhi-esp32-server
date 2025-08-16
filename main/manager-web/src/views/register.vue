@@ -79,9 +79,8 @@
                 <el-input v-model="form.confirmPassword" placeholder="请确认密码" type="password" show-password />
               </div>
 
-              <!-- 验证码部分保持相同 -->
-              <div v-if="!enableMobileRegister"
-                style="display: flex; align-items: center; margin-top: 20px; width: 100%; gap: 10px;">
+              <!-- 验证码相关UI已注释掉
+              <div style="display: flex; align-items: center; margin-top: 20px; width: 100%; gap: 10px;">
                 <div class="input-box" style="width: calc(100% - 130px); margin-top: 0;">
                   <img loading="lazy" alt="" class="input-icon" src="@/assets/login/shield.png" />
                   <el-input v-model="form.captcha" placeholder="请输入验证码" style="flex: 1;" />
@@ -89,6 +88,7 @@
                 <img loading="lazy" v-if="captchaUrl" :src="captchaUrl" alt="验证码"
                   style="width: 150px; height: 40px; cursor: pointer;" @click="fetchCaptcha" />
               </div>
+              -->
 
               <!-- 修改底部链接 -->
               <div style="font-weight: 400;font-size: 14px;text-align: left;color: #5778ff;margin-top: 20px;">
@@ -165,7 +165,7 @@ export default {
         }, 1500);
       }
     });
-    this.fetchCaptcha();
+    // this.fetchCaptcha();
   },
   methods: {
     // 复用验证码获取方法
@@ -200,10 +200,10 @@ export default {
       }
 
       // 验证图形验证码
-      if (!this.validateInput(this.form.captcha, '请输入图形验证码')) {
-        this.fetchCaptcha();
-        return;
-      }
+      // if (!this.validateInput(this.form.captcha, '请输入图形验证码')) {
+      //   this.fetchCaptcha();
+      //   return;
+      // }
 
       // 清除可能存在的旧定时器
       if (this.timer) {
@@ -232,7 +232,7 @@ export default {
       }, (err) => {
         showDanger(err.data.msg || '验证码发送失败');
         this.countdown = 0;
-        this.fetchCaptcha();
+        // this.fetchCaptcha();
       });
     },
 
@@ -260,27 +260,25 @@ export default {
         return;
       }
       if (this.form.password !== this.form.confirmPassword) {
-        showDanger('两次输入的密码不一致')
-        return
-      }
-      // 验证验证码
-      if (!this.validateInput(this.form.captcha, '验证码不能为空')) {
+        showDanger('两次输入的密码不一致');
         return;
       }
+      // 验证验证码
+      // if (!this.validateInput(this.form.captcha, '验证码不能为空')) {
+      //   return;
+      // }
 
       if (this.enableMobileRegister) {
         this.form.username = this.form.areaCode + this.form.mobile
       }
 
-      Api.user.register(this.form, ({ data }) => {
-        showSuccess('注册成功！')
-        goToPage('/login')
+      Api.user.register(this.form, (res) => {
+        showSuccess('注册成功！');
+        goToPage('/login');
       }, (err) => {
-        showDanger(err.data.msg || '注册失败')
-        if (err.data != null && err.data.msg != null && err.data.msg.indexOf('图形验证码') > -1) {
-          this.fetchCaptcha()
-        }
-      })
+        showDanger(err.data.msg || '注册失败');
+        // this.fetchCaptcha();
+      });
     },
 
     goToLogin() {
