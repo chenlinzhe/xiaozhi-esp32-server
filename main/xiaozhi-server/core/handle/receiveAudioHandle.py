@@ -64,9 +64,15 @@ async def startToChat(conn, text):
     else:
         conn.current_speaker = None
 
+    # 检查是否需要绑定设备
     if conn.need_bind:
-        await check_bind_device(conn)
-        return
+        # 如果设备已经激活，清除绑定标志
+        if not conn.bind_code:
+            conn.need_bind = False
+            conn.logger.bind(tag=TAG).info("设备已激活，清除绑定标志")
+        else:
+            await check_bind_device(conn)
+            return
 
     # 如果当日的输出字数大于限定的字数
     if conn.max_output_size > 0:

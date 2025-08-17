@@ -164,6 +164,9 @@ class ConnectionHandler:
 
         # 初始化聊天状态管理器
         self.chat_status_manager = ChatStatusManager()
+        
+        # 添加儿童姓名属性
+        self.child_name = "小朋友"
 
     async def handle_connection(self, ws):
         try:
@@ -764,6 +767,20 @@ class ConnectionHandler:
                     # 不返回True，让流程继续到正常的LLM处理
                     return None
                     
+                elif action == "warning_reminder":
+                    # 警告提示
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info("发出警告提示")
+                    return True
+                    
+                elif action == "final_reminder":
+                    # 最终提醒
+                    self._send_tts_message(ai_message)
+                    self.dialogue.put(Message(role="assistant", content=ai_message))
+                    self.logger.bind(tag=TAG).info("发出最终提醒")
+                    return True
+                    
                 elif action == "timeout_response":
                     # 超时自动回复
                     self._send_tts_message(ai_message)
@@ -826,35 +843,68 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
 
     def _start_teaching_timeout_check(self, user_id, wait_time):
-        """启动教学超时检查"""
+        """启动教学超时检查 - 优化版本，支持渐进式提示"""
         # 如果wait_time为0，不启动超时检查
         if wait_time <= 0:
             self.logger.bind(tag=TAG).info("不启动超时检查（立即开始）")
             return
             
-        self.logger.bind(tag=TAG).info(f"等待{wait_time}秒钟")
-        async def timeout_check():
+        self.logger.bind(tag=TAG).info(f"启动渐进式超时检查，总等待时间: {wait_time}秒")
+        
+        async def progressive_timeout_check():
+            """渐进式超时检查"""
             try:
-                await asyncio.sleep(wait_time)
-                # 检查是否超时
-                result = await self.chat_status_manager.check_teaching_timeout(user_id)
+                # 获取超时配置
+                progressive_config = self.chat_status_manager.PROGRESSIVE_TIMEOUT_CONFIG
+                warning_timeout = wait_time * progressive_config.get("warning_timeout", 0.7)
+                final_timeout = wait_time * progressive_config.get("final_timeout", 0.9)
                 
-                if result and result.get("success"):
+                self.logger.bind(tag=TAG).info(f"警告时间点: {warning_timeout}秒")
+                self.logger.bind(tag=TAG).info(f"最终提醒时间点: {final_timeout}秒")
+                
+                # 检查警告提示
+                if progressive_config.get("enabled", False):
+                    await asyncio.sleep(warning_timeout)
+                    result = await self.chat_status_manager.check_teaching_timeout(user_id)
+                    if result and result.get("success") and result.get("action") == "warning_reminder":
+                        ai_message = result.get("ai_message", "")
+                        self._send_tts_message(ai_message)
+                        self.dialogue.put(Message(role="assistant", content=ai_message))
+                        self.logger.bind(tag=TAG).info("发出警告提示")
+                    
+                    # 检查最终提醒
+                    remaining_time = final_timeout - warning_timeout
+                    if remaining_time > 0:
+                        await asyncio.sleep(remaining_time)
+                        result = await self.chat_status_manager.check_teaching_timeout(user_id)
+                        if result and result.get("success") and result.get("action") == "final_reminder":
+                            ai_message = result.get("ai_message", "")
+                            self._send_tts_message(ai_message)
+                            self.dialogue.put(Message(role="assistant", content=ai_message))
+                            self.logger.bind(tag=TAG).info("发出最终提醒")
+                
+                # 最终超时检查
+                remaining_time = wait_time - final_timeout
+                if remaining_time > 0:
+                    await asyncio.sleep(remaining_time)
+                
+                result = await self.chat_status_manager.check_teaching_timeout(user_id)
+                if result and result.get("success") and result.get("action") == "timeout_response":
                     ai_message = result.get("ai_message", "")
                     self._send_tts_message(ai_message)
                     self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("教学超时检查触发")
+                    self.logger.bind(tag=TAG).info("教学超时，发送替代提示")
                     
             except Exception as e:
-                self.logger.bind(tag=TAG).error(f"教学超时检查失败: {e}")
+                self.logger.bind(tag=TAG).error(f"渐进式超时检查失败: {e}")
         
         # 在事件循环中执行超时检查
         try:
-            asyncio.create_task(timeout_check())
+            asyncio.create_task(progressive_timeout_check())
         except RuntimeError as e:
             if "no running event loop" in str(e):
                 # 如果没有运行的事件循环，使用run_coroutine_threadsafe
-                asyncio.run_coroutine_threadsafe(timeout_check(), self.loop)
+                asyncio.run_coroutine_threadsafe(progressive_timeout_check(), self.loop)
             else:
                 raise
 

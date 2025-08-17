@@ -217,51 +217,75 @@ class DialogueService:
     
     def _evaluate_response(self, session: Dict, user_text: str) -> Dict:
         """评估用户回复 - 优化版本"""
+        self.logger.info(f"=== 开始评估用户回复 ===")
+        self.logger.info(f"用户输入: {user_text}")
+        self.logger.info(f"会话数据: {session}")
+        
         current_step = session["steps"][session["current_step"]]
+        self.logger.info(f"当前步骤: {current_step}")
         
         # 处理期望关键词 - API返回的是JSON字符串，需要解析
         expected_keywords_str = current_step.get("expectedKeywords", "")
+        self.logger.info(f"期望关键词原始字符串: {expected_keywords_str}")
+        
         expected_keywords = []
         if expected_keywords_str:
             try:
                 import json
                 expected_keywords = json.loads(expected_keywords_str)
-            except (json.JSONDecodeError, TypeError):
+                self.logger.info(f"JSON解析成功，期望关键词: {expected_keywords}")
+            except (json.JSONDecodeError, TypeError) as e:
+                self.logger.warning(f"JSON解析失败: {e}，尝试按逗号分割")
                 # 如果解析失败，尝试按逗号分割
                 expected_keywords = [kw.strip() for kw in expected_keywords_str.split(",") if kw.strip()]
+                self.logger.info(f"逗号分割结果: {expected_keywords}")
         
         # 智能关键词匹配（支持模糊匹配）
         matches = 0
         total_keywords = len(expected_keywords) if expected_keywords else 1
+        self.logger.info(f"开始关键词匹配，总关键词数: {total_keywords}")
         
         for keyword in expected_keywords:
             keyword_clean = keyword.strip().lower()
             user_text_clean = user_text.lower()
             
+            self.logger.info(f"检查关键词: '{keyword_clean}' vs 用户输入: '{user_text_clean}'")
+            
             # 精确匹配
             if keyword_clean in user_text_clean:
                 matches += 1
+                self.logger.info(f"精确匹配成功: '{keyword_clean}'")
             # 模糊匹配（关键词包含在用户回答中）
             elif any(kw in user_text_clean for kw in keyword_clean.split()):
                 matches += 0.8
+                self.logger.info(f"模糊匹配成功: '{keyword_clean}'")
             # 语义相似度匹配（简单实现）
             elif self._check_semantic_similarity(keyword_clean, user_text_clean):
                 matches += 0.6
+                self.logger.info(f"语义相似度匹配成功: '{keyword_clean}'")
+            else:
+                self.logger.info(f"关键词 '{keyword_clean}' 未匹配")
+        
+        self.logger.info(f"匹配结果: {matches}/{total_keywords}")
         
         # 计算分数
         base_score = int((matches / total_keywords) * 100)
+        self.logger.info(f"基础分数计算: {matches}/{total_keywords} * 100 = {base_score}")
         
         # 计算重试次数
         retry_count = 0
-        for eval in session["evaluations"]:
-            if eval["step_index"] == session["current_step"]:
-                retry_count += 1
+        if "evaluations" in session:
+            for eval in session["evaluations"]:
+                if eval.get("step_index") == session["current_step"]:
+                    retry_count += 1
+        self.logger.info(f"重试次数: {retry_count}")
         
         # 根据重试次数调整分数
         if retry_count > 0:
             # 重试时给予鼓励性加分
             encouragement_bonus = min(retry_count * 5, 20)
             base_score = min(base_score + encouragement_bonus, 100)
+            self.logger.info(f"重试加分: +{encouragement_bonus}, 最终分数: {base_score}")
         
         # 获取替代消息
         alternative_message = current_step.get("alternativeMessage", "")
@@ -269,11 +293,13 @@ class DialogueService:
             # 替换儿童姓名占位符
             child_name = session.get("child_name", "小朋友")
             alternative_message = alternative_message.replace("{文杰}", child_name)
+        self.logger.info(f"替代消息: {alternative_message}")
         
         # 智能反馈生成
         feedback = self._generate_smart_feedback(base_score, retry_count)
+        self.logger.info(f"智能反馈: {feedback}")
         
-        return {
+        result = {
             "score": base_score,
             "feedback": feedback,
             "step_index": session["current_step"],
@@ -283,6 +309,13 @@ class DialogueService:
             "is_good": base_score >= 80,
             "is_pass": base_score >= 60
         }
+        
+        self.logger.info(f"评估结果: {result}")
+        self.logger.info(f"是否优秀: {result['is_excellent']}")
+        self.logger.info(f"是否良好: {result['is_good']}")
+        self.logger.info(f"是否及格: {result['is_pass']}")
+        
+        return result
     
     def _check_semantic_similarity(self, keyword: str, user_text: str) -> bool:
         """检查语义相似度（简单实现）"""
@@ -303,6 +336,10 @@ class DialogueService:
         """生成智能反馈"""
         import random
         
+        self.logger.info(f"=== 生成智能反馈 ===")
+        self.logger.info(f"分数: {score}")
+        self.logger.info(f"重试次数: {retry_count}")
+        
         if score >= 90:
             praise_messages = [
                 "太棒了！你说得很好！",
@@ -310,7 +347,8 @@ class DialogueService:
                 "哇！你真是太厉害了！",
                 "完美！你学得很快！"
             ]
-            return random.choice(praise_messages)
+            feedback = random.choice(praise_messages)
+            self.logger.info(f"优秀级别反馈: {feedback}")
         elif score >= 80:
             good_messages = [
                 "很好！回答得很棒！",
@@ -318,7 +356,8 @@ class DialogueService:
                 "真棒！继续加油！",
                 "很好！你理解得很清楚！"
             ]
-            return random.choice(good_messages)
+            feedback = random.choice(good_messages)
+            self.logger.info(f"良好级别反馈: {feedback}")
         elif score >= 60:
             pass_messages = [
                 "不错！再试试看。",
@@ -326,7 +365,8 @@ class DialogueService:
                 "很好！再努力一下。",
                 "不错！继续努力！"
             ]
-            return random.choice(pass_messages)
+            feedback = random.choice(pass_messages)
+            self.logger.info(f"及格级别反馈: {feedback}")
         else:
             if retry_count > 0:
                 encouragement_messages = [
@@ -335,9 +375,13 @@ class DialogueService:
                     "别着急，慢慢来~",
                     "再想想看，我相信你！"
                 ]
-                return random.choice(encouragement_messages)
+                feedback = random.choice(encouragement_messages)
+                self.logger.info(f"重试鼓励反馈: {feedback}")
             else:
-                return "没关系，我们再试一次！"
+                feedback = "没关系，我们再试一次！"
+                self.logger.info(f"默认反馈: {feedback}")
+        
+        return feedback
     
     def _calculate_final_score(self, session: Dict) -> int:
         """计算最终分数"""
