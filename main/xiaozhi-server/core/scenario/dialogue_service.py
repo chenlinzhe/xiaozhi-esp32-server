@@ -25,6 +25,10 @@ class DialogueService:
         self.user_token = None
         self.sessions = {}
         
+        # 初始化logger
+        from config.logger import setup_logging
+        self.logger = setup_logging()
+        
         print(f"DialogueService初始化成功，API地址: {self.api_base_url}")
     
     def _get_server_auth_headers(self) -> Dict[str, str]:
