@@ -17,13 +17,27 @@ class LearningRecordManager:
     def __init__(self):
         self.config = load_config()
         self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
+        # 获取认证token
+        self.auth_token = self.config.get("manager-api", {}).get("secret", "")
+    
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """获取认证头"""
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        if self.auth_token and "你" not in self.auth_token:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
+        return headers
     
     async def save_learning_record(self, record_data: Dict) -> bool:
         """保存学习记录"""
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/learning-record"
-                async with session.post(url, json=record_data) as response:
+                headers = self._get_auth_headers()
+                
+                async with session.post(url, json=record_data, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         return data.get("code") == 0
@@ -49,7 +63,9 @@ class LearningRecordManager:
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/learning-record/list"
-                async with session.get(url, params=params) as response:
+                headers = self._get_auth_headers()
+                
+                async with session.get(url, params=params, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get("code") == 0:
@@ -65,7 +81,9 @@ class LearningRecordManager:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/learning-record/statistics"
                 params = {"childName": child_name}
-                async with session.get(url, params=params) as response:
+                headers = self._get_auth_headers()
+                
+                async with session.get(url, params=params, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data.get("code") == 0:

@@ -53,11 +53,6 @@ class TTSProviderBase(ABC):
             "~",
         )
         self.first_sentence_punctuations = (
-            "，",
-            "～",
-            "~",
-            "、",
-            ",",
             "。",
             "？",
             "?",
