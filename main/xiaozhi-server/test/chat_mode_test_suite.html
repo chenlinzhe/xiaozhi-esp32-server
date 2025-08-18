@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天模式管理系统 - 自动化测试套件</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #444;
+            font-size: 20px;
+        }
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        .btn-primary { background-color: #4285f4; }
+        .btn-success { background-color: #0f9d58; }
+        .btn-warning { background-color: #f4b400; }
+        .btn-danger { background-color: #db4437; }
+        button:hover { opacity: 0.8; }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .connection-panel {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .connection-panel input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            min-width: 200px;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-connected { background-color: #0f9d58; }
+        .status-disconnected { background-color: #db4437; }
+        .status-connecting { 
+            background-color: #f4b400;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .test-results {
+            margin-top: 20px;
+        }
+        .test-case {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ddd;
+        }
+        .test-case.passed {
+            background-color: #e6f4ea;
+            border-left-color: #0f9d58;
+        }
+        .test-case.failed {
+            background-color: #fce8e6;
+            border-left-color: #db4437;
+        }
+        .test-case.running {
+            background-color: #fef7e0;
+            border-left-color: #f4b400;
+        }
+        .test-case.pending {
+            background-color: #f0f0f0;
+            border-left-color: #9e9e9e;
+        }
+        .test-case h4 {
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-status {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-passed { background-color: #0f9d58; color: white; }
+        .status-failed { background-color: #db4437; color: white; }
+        .status-running { background-color: #f4b400; color: white; }
+        .status-pending { background-color: #9e9e9e; color: white; }
+        .test-details {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4285f4;
+            transition: width 0.3s ease;
+        }
+        .test-summary {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .mode-display {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .mode-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .mode-teaching {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .mode-free {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .mode-unknown {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+        .manual-test-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        .manual-test-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .manual-test-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .conversation-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: white;
+            margin-top: 10px;
+        }
+        .message {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        .message.user {
+            background-color: #e2f2ff;
+            margin-left: auto;
+            text-align: right;
+        }
+        .message.server {
+            background-color: #f0f0f0;
+            margin-right: auto;
+        }
+        .test-log {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log-info { color: #333; }
+        .log-success { color: #0f9d58; }
+        .log-warning { color: #f4b400; }
+        .log-error { color: #db4437; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>聊天模式管理系统 - 自动化测试套件</h1>
+
+        <!-- 连接配置 -->
+        <div class="test-section">
+            <h2>🔗 服务器连接配置</h2>
+            <div class="connection-panel">
+                <input type="text" id="serverUrl" value="ws://127.0.0.1:8000/xiaozhi/v1/" 
+                       placeholder="WebSocket服务器地址">
+                <input type="text" id="deviceId" value="test_device_001" 
+                       placeholder="设备ID">
+                <button id="connectBtn" class="btn-primary">连接服务器</button>
+                <button id="disconnectBtn" class="btn-danger" disabled>断开连接</button>
+            </div>
+            <div class="connection-status">
+                <span>连接状态: <span id="connectionStatus">未连接</span></span>
+                <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+                <span>当前模式: <span id="currentMode">未知</span></span>
+                <span>消息统计: 文本<span id="textCount">0</span> | 二进制<span id="binaryCount">0</span> | 错误<span id="errorCount">0</span></span>
+            </div>
+        </div>
+
+        <!-- 测试控制 -->
+        <div class="test-section">
+            <h2>🧪 测试控制</h2>
+            <div class="test-controls">
+                <button id="runAllTestsBtn" class="btn-success" disabled>运行所有测试</button>
+                <button id="runBasicTestsBtn" class="btn-primary" disabled>运行基础测试</button>
+                <button id="runModeTestsBtn" class="btn-primary" disabled>运行模式切换测试</button>
+                <button id="runTimeoutTestsBtn" class="btn-warning" disabled>运行超时测试</button>
+                <button id="stopTestsBtn" class="btn-danger" disabled>停止测试</button>
+                <button id="clearResultsBtn" class="btn-warning">清除结果</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- 测试结果 -->
+        <div class="test-section">
+            <h2>📊 测试结果</h2>
+            <div class="test-summary">
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="totalTests">0</span>
+                        <span class="stat-label">总测试数</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="passedTests">0</span>
+                        <span class="stat-label">通过</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="failedTests">0</span>
+                        <span class="stat-label">失败</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="runningTests">0</span>
+                        <span class="stat-label">运行中</span>
+                    </div>
+                </div>
+            </div>
+            <div class="test-results" id="testResults">
+                <!-- 测试用例将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- 手动测试 -->
+        <div class="test-section">
+            <h2>🖱️ 手动测试</h2>
+            <div class="manual-test-panel">
+                <div class="mode-display">
+                    <span>当前模式:</span>
+                    <span class="mode-badge mode-unknown" id="modeBadge">未知</span>
+                </div>
+                <div class="manual-test-input">
+                    <input type="text" id="manualInput" placeholder="输入测试消息..." disabled>
+                    <button id="sendManualBtn" class="btn-primary" disabled>发送</button>
+                    <button id="switchTeachingBtn" class="btn-warning" disabled>切换到教学模式</button>
+                    <button id="switchFreeBtn" class="btn-success" disabled>切换到自由模式</button>
+                    <button id="checkTimeoutBtn" class="btn-warning" disabled>检查超时</button>
+                </div>
+                <div class="conversation-log" id="conversationLog">
+                    <div class="message server">系统准备就绪，请连接服务器开始测试...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细日志 -->
+        <div class="test-section">
+            <h2>📝 详细日志</h2>
+            <div class="test-log" id="detailedLogContent">
+                <!-- 详细日志将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let websocket = null;
+        let isConnected = false;
+        let currentMode = 'unknown';
+        let testResults = [];
+        let isTestRunning = false;
+        let messageStats = {
+            text: 0,
+            binary: 0,
+            errors: 0
+        };
+
+        // 测试用例定义
+        const testCases = {
+            basic: [
+                {
+                    id: 'connection_test',
+                    name: '服务器连接测试',
+                    description: '测试WebSocket连接是否正常建立',
+                    run: async () => {
+                        return new Promise((resolve) => {
+                            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                                resolve({ success: true, message: '连接成功' });
+                            } else {
+                                resolve({ success: false, message: '连接失败' });
+                            }
+                        });
+                    }
+                },
+                {
+                    id: 'hello_test',
+                    name: 'Hello握手测试',
+                    description: '测试与服务器的Hello握手协议',
+                    run: async () => {
+                        return new Promise((resolve) => {
+                            const helloMessage = {
+                                type: 'hello',
+                                device_id: document.getElementById('deviceId').value,
+                                device_name: 'Test Device',
+                                device_mac: document.getElementById('deviceId').value,
+                                token: 'test-token',
+                                features: { mcp: true }
+                            };
+
+                            const timeout = setTimeout(() => {
+                                resolve({ success: false, message: 'Hello响应超时' });
+                            }, 5000);
+
+                            const originalOnMessage = websocket.onmessage;
+                            websocket.onmessage = (event) => {
+                                // 跳过二进制数据
+                                if (event.data instanceof ArrayBuffer) {
+                                    return;
+                                }
+                                
+                                try {
+                                    const response = JSON.parse(event.data);
+                                    if (response.type === 'hello' && response.session_id) {
+                                        clearTimeout(timeout);
+                                        websocket.onmessage = originalOnMessage;
+                                        resolve({ success: true, message: `握手成功，会话ID: ${response.session_id}` });
+                                    }
+                                } catch (e) {
+                                    // 忽略非JSON消息
+                                }
+                            };
+
+                            websocket.send(JSON.stringify(helloMessage));
+                        });
+                    }
+                }
+            ],
+            modeSwitch: [
+                {
+                    id: 'switch_to_teaching_test',
+                    name: '切换到教学模式测试',
+                    description: '测试从自由模式切换到教学模式',
+                    run: async () => {
+                        return new Promise((resolve) => {
+                            const chatMessage = {
+                                type: 'dialogue',
+                                action: 'chat',
+                                user_text: '切换到教学模式',
+                                user_id: document.getElementById('deviceId').value,
+                                child_name: '小朋友'
+                            };
+
+                            const timeout = setTimeout(() => {
+                                resolve({ success: false, message: '模式切换响应超时' });
+                            }, 5000);
+
+                            const originalOnMessage = websocket.onmessage;
+                            websocket.onmessage = (event) => {
+                                // 跳过二进制数据
+                                if (event.data instanceof ArrayBuffer) {
+                                    return;
+                                }
+                                
+                                try {
+                                    const response = JSON.parse(event.data);
+                                    if (response.type === 'dialogue' && response.success) {
+                                        clearTimeout(timeout);
+                                        websocket.onmessage = originalOnMessage;
+                                        if (response.action === 'mode_switch' && response.mode === 'teaching_mode') {
+                                            resolve({ success: true, message: '成功切换到教学模式' });
+                                        } else {
+                                            resolve({ success: false, message: '模式切换失败' });
+                                        }
+                                    }
+                                } catch (e) {
+                                    // 忽略非JSON消息
+                                }
+                            };
+
+                            websocket.send(JSON.stringify(chatMessage));
+                        });
+                    }
+                },
+                {
+                    id: 'switch_to_free_test',
+                    name: '切换到自由模式测试',
+                    description: '测试从教学模式切换到自由模式',
+                    run: async () => {
+                        return new Promise((resolve) => {
+                            const chatMessage = {
+                                type: 'dialogue',
+                                action: 'chat',
+                                user_text: '切换到自由模式',
+                                user_id: document.getElementById('deviceId').value,
+                                child_name: '小朋友'
+                            };
+
+                            const timeout = setTimeout(() => {
+                                resolve({ success: false, message: '模式切换响应超时' });
+                            }, 5000);
+
+                            const originalOnMessage = websocket.onmessage;
+                            websocket.onmessage = (event) => {
+                                // 跳过二进制数据
+                                if (event.data instanceof ArrayBuffer) {
+                                    return;
+                                }
+                                
+                                try {
+                                    const response = JSON.parse(event.data);
+                                    if (response.type === 'dialogue' && response.success) {
+                                        clearTimeout(timeout);
+                                        websocket.onmessage = originalOnMessage;
+                                        if (response.action === 'mode_switch' && response.mode === 'free_mode') {
+                                            resolve({ success: true, message: '成功切换到自由模式' });
+                                        } else {
+                                            resolve({ success: false, message: '模式切换失败' });
+                                        }
+                                    }
+                                } catch (e) {
+                                    // 忽略非JSON消息
+                                }
+                            };
+
+                            websocket.send(JSON.stringify(chatMessage));
+                        });
+                    }
+                }
+            ],
+            timeout: [
+                {
+                    id: 'timeout_check_test',
+                    name: '超时检查测试',
+                    description: '测试教学会话超时检查功能',
+                    run: async () => {
+                        return new Promise((resolve) => {
+                            const timeoutMessage = {
+                                type: 'dialogue',
+                                action: 'check_timeout',
+                                user_id: document.getElementById('deviceId').value
+                            };
+
+                            const timeout = setTimeout(() => {
+                                resolve({ success: false, message: '超时检查响应超时' });
+                            }, 5000);
+
+                            const originalOnMessage = websocket.onmessage;
+                            websocket.onmessage = (event) => {
+                                // 跳过二进制数据
+                                if (event.data instanceof ArrayBuffer) {
+                                    return;
+                                }
+                                
+                                try {
+                                    const response = JSON.parse(event.data);
+                                    if (response.type === 'dialogue' && response.success) {
+                                        clearTimeout(timeout);
+                                        websocket.onmessage = originalOnMessage;
+                                        resolve({ success: true, message: '超时检查成功' });
+                                    }
+                                } catch (e) {
+                                    // 忽略非JSON消息
+                                }
+                            };
+
+                            websocket.send(JSON.stringify(timeoutMessage));
+                        });
+                    }
+                }
+            ]
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initEventListeners();
+            updateTestResults();
+        });
+
+        // 事件监听器
+        function initEventListeners() {
+            document.getElementById('connectBtn').addEventListener('click', connectToServer);
+            document.getElementById('disconnectBtn').addEventListener('click', disconnectFromServer);
+            document.getElementById('runAllTestsBtn').addEventListener('click', () => runTests('all'));
+            document.getElementById('runBasicTestsBtn').addEventListener('click', () => runTests('basic'));
+            document.getElementById('runModeTestsBtn').addEventListener('click', () => runTests('modeSwitch'));
+            document.getElementById('runTimeoutTestsBtn').addEventListener('click', () => runTests('timeout'));
+            document.getElementById('stopTestsBtn').addEventListener('click', stopTests);
+            document.getElementById('clearResultsBtn').addEventListener('click', clearResults);
+            
+            // 手动测试
+            document.getElementById('sendManualBtn').addEventListener('click', sendManualMessage);
+            document.getElementById('switchTeachingBtn').addEventListener('click', () => sendModeSwitch('teaching'));
+            document.getElementById('switchFreeBtn').addEventListener('click', () => sendModeSwitch('free'));
+            document.getElementById('checkTimeoutBtn').addEventListener('click', sendTimeoutCheck);
+            
+            // 回车发送
+            document.getElementById('manualInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendManualMessage();
+            });
+        }
+
+        // 连接服务器
+        async function connectToServer() {
+            const url = document.getElementById('serverUrl').value.trim();
+            const deviceId = document.getElementById('deviceId').value.trim();
+            
+            if (!url || !deviceId) {
+                log('请输入服务器地址和设备ID', 'error');
+                return;
+            }
+
+            try {
+                updateConnectionStatus('connecting');
+                
+                // 构建连接URL
+                const connUrl = new URL(url);
+                connUrl.searchParams.append('device-id', deviceId);
+                connUrl.searchParams.append('client-id', 'test_client');
+
+                websocket = new WebSocket(connUrl.toString());
+                websocket.binaryType = 'arraybuffer';
+
+                websocket.onopen = () => {
+                    updateConnectionStatus('connected');
+                    log('WebSocket连接成功', 'success');
+                    enableTestControls();
+                    // 重置消息统计
+                    messageStats = { text: 0, binary: 0, errors: 0 };
+                    updateMessageStats();
+                };
+
+                websocket.onclose = () => {
+                    updateConnectionStatus('disconnected');
+                    log('WebSocket连接断开', 'warning');
+                    disableTestControls();
+                };
+
+                websocket.onerror = (error) => {
+                    updateConnectionStatus('disconnected');
+                    log(`WebSocket连接错误: ${error.message || '未知错误'}`, 'error');
+                    disableTestControls();
+                };
+
+                websocket.onmessage = handleWebSocketMessage;
+
+            } catch (error) {
+                updateConnectionStatus('disconnected');
+                log(`连接错误: ${error.message}`, 'error');
+                disableTestControls();
+            }
+        }
+
+        // 断开连接
+        function disconnectFromServer() {
+            if (websocket) {
+                websocket.close();
+            }
+        }
+
+        // 处理WebSocket消息
+        function handleWebSocketMessage(event) {
+            // 检查消息类型
+            if (event.data instanceof ArrayBuffer) {
+                // 处理二进制数据（音频数据等）
+                messageStats.binary++;
+                log(`收到二进制数据，大小: ${event.data.byteLength} 字节`, 'info');
+                updateMessageStats();
+                return;
+            }
+            
+            // 处理文本消息
+            try {
+                const message = JSON.parse(event.data);
+                messageStats.text++;
+                log(`收到消息 [${message.type}]: ${JSON.stringify(message)}`, 'info');
+
+                if (message.type === 'dialogue') {
+                    handleDialogueMessage(message);
+                } else if (message.type === 'hello') {
+                    log(`Hello响应: ${JSON.stringify(message)}`, 'success');
+                } else if (message.type === 'llm') {
+                    addConversationMessage(message.text, false);
+                } else if (message.type === 'stt') {
+                    addConversationMessage(`[语音识别] ${message.text}`, true);
+                } else if (message.type === 'tts') {
+                    handleTTSMessage(message);
+                } else {
+                    log(`未处理的消息类型: ${message.type}`, 'warning');
+                }
+            } catch (error) {
+                messageStats.errors++;
+                log(`消息解析错误: ${error.message}`, 'error');
+            }
+            
+            updateMessageStats();
+        }
+
+        // 处理对话消息
+        function handleDialogueMessage(message) {
+            if (message.success) {
+                if (message.action === 'mode_switch') {
+                    updateCurrentMode(message.mode);
+                    if (message.ai_message) {
+                        addConversationMessage(message.ai_message, false);
+                    }
+                    log(`模式切换成功: ${message.mode}`, 'success');
+                } else if (message.action === 'start_teaching') {
+                    updateCurrentMode('teaching_mode');
+                    if (message.ai_message) {
+                        addConversationMessage(message.ai_message, false);
+                    }
+                    log(`开始教学模式: ${message.scenario_name}`, 'success');
+                } else if (message.action === 'timeout') {
+                    if (message.ai_message) {
+                        addConversationMessage(message.ai_message, false);
+                    }
+                    log('检测到教学超时', 'warning');
+                } else if (message.action === 'no_timeout') {
+                    log('教学会话未超时', 'info');
+                }
+            } else {
+                log(`对话处理失败: ${message.error || '未知错误'}`, 'error');
+            }
+        }
+
+        // 处理TTS消息
+        function handleTTSMessage(message) {
+            if (message.state === 'start') {
+                log('TTS开始播放', 'info');
+            } else if (message.state === 'sentence_start') {
+                log(`TTS句子开始: ${message.text}`, 'info');
+            } else if (message.state === 'sentence_end') {
+                log('TTS句子结束', 'info');
+            } else if (message.state === 'end') {
+                log('TTS播放结束', 'info');
+            } else {
+                log(`TTS状态: ${message.state}`, 'info');
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            const indicator = document.getElementById('statusIndicator');
+            
+            isConnected = status === 'connected';
+            
+            switch (status) {
+                case 'connected':
+                    statusElement.textContent = '已连接';
+                    indicator.className = 'status-indicator status-connected';
+                    break;
+                case 'connecting':
+                    statusElement.textContent = '连接中...';
+                    indicator.className = 'status-indicator status-connecting';
+                    break;
+                case 'disconnected':
+                    statusElement.textContent = '未连接';
+                    indicator.className = 'status-indicator status-disconnected';
+                    break;
+            }
+        }
+
+        // 更新当前模式
+        function updateCurrentMode(mode) {
+            currentMode = mode;
+            document.getElementById('currentMode').textContent = mode;
+            
+            const badge = document.getElementById('modeBadge');
+            badge.className = 'mode-badge';
+            
+            if (mode === 'teaching_mode') {
+                badge.className += ' mode-teaching';
+                badge.textContent = '教学模式';
+            } else if (mode === 'free_mode') {
+                badge.className += ' mode-free';
+                badge.textContent = '自由模式';
+            } else {
+                badge.className += ' mode-unknown';
+                badge.textContent = '未知';
+            }
+        }
+
+        // 更新消息统计
+        function updateMessageStats() {
+            document.getElementById('textCount').textContent = messageStats.text;
+            document.getElementById('binaryCount').textContent = messageStats.binary;
+            document.getElementById('errorCount').textContent = messageStats.errors;
+        }
+
+        // 启用测试控制
+        function enableTestControls() {
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('disconnectBtn').disabled = false;
+            document.getElementById('runAllTestsBtn').disabled = false;
+            document.getElementById('runBasicTestsBtn').disabled = false;
+            document.getElementById('runModeTestsBtn').disabled = false;
+            document.getElementById('runTimeoutTestsBtn').disabled = false;
+            document.getElementById('manualInput').disabled = false;
+            document.getElementById('sendManualBtn').disabled = false;
+            document.getElementById('switchTeachingBtn').disabled = false;
+            document.getElementById('switchFreeBtn').disabled = false;
+            document.getElementById('checkTimeoutBtn').disabled = false;
+        }
+
+        // 禁用测试控制
+        function disableTestControls() {
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('runAllTestsBtn').disabled = true;
+            document.getElementById('runBasicTestsBtn').disabled = true;
+            document.getElementById('runModeTestsBtn').disabled = true;
+            document.getElementById('runTimeoutTestsBtn').disabled = true;
+            document.getElementById('manualInput').disabled = true;
+            document.getElementById('sendManualBtn').disabled = true;
+            document.getElementById('switchTeachingBtn').disabled = true;
+            document.getElementById('switchFreeBtn').disabled = true;
+            document.getElementById('checkTimeoutBtn').disabled = true;
+        }
+
+        // 运行测试
+        async function runTests(testType) {
+            if (!isConnected) {
+                log('请先连接服务器', 'error');
+                return;
+            }
+
+            if (isTestRunning) {
+                log('测试正在运行中，请等待完成', 'warning');
+                return;
+            }
+
+            isTestRunning = true;
+            document.getElementById('stopTestsBtn').disabled = false;
+
+            let testsToRun = [];
+            
+            if (testType === 'all') {
+                testsToRun = [
+                    ...testCases.basic,
+                    ...testCases.modeSwitch,
+                    ...testCases.timeout
+                ];
+            } else if (testType === 'basic') {
+                testsToRun = testCases.basic;
+            } else if (testType === 'modeSwitch') {
+                testsToRun = testCases.modeSwitch;
+            } else if (testType === 'timeout') {
+                testsToRun = testCases.timeout;
+            }
+
+            // 初始化测试结果
+            testResults = testsToRun.map(test => ({
+                ...test,
+                status: 'pending',
+                result: null,
+                timestamp: null
+            }));
+
+            updateTestResults();
+            updateProgress();
+
+            log(`开始运行 ${testType} 测试，共 ${testsToRun.length} 个测试用例`, 'info');
+
+            // 逐个运行测试
+            for (let i = 0; i < testResults.length; i++) {
+                if (!isTestRunning) break;
+
+                const test = testResults[i];
+                test.status = 'running';
+                test.timestamp = new Date();
+                updateTestResults();
+                updateProgress();
+
+                log(`运行测试: ${test.name}`, 'info');
+
+                try {
+                    const result = await test.run();
+                    test.result = result;
+                    test.status = result.success ? 'passed' : 'failed';
+                    log(`测试 ${test.name}: ${result.success ? '通过' : '失败'} - ${result.message}`, 
+                        result.success ? 'success' : 'error');
+                } catch (error) {
+                    test.result = { success: false, message: error.message };
+                    test.status = 'failed';
+                    log(`测试 ${test.name} 异常: ${error.message}`, 'error');
+                }
+
+                updateTestResults();
+                updateProgress();
+
+                // 测试间隔
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            isTestRunning = false;
+            document.getElementById('stopTestsBtn').disabled = true;
+
+            const passed = testResults.filter(t => t.status === 'passed').length;
+            const failed = testResults.filter(t => t.status === 'failed').length;
+            
+            log(`测试完成: 通过 ${passed} 个，失败 ${failed} 个`, 
+                failed === 0 ? 'success' : 'warning');
+        }
+
+        // 停止测试
+        function stopTests() {
+            isTestRunning = false;
+            document.getElementById('stopTestsBtn').disabled = true;
+            log('测试已停止', 'warning');
+        }
+
+        // 清除结果
+        function clearResults() {
+            testResults = [];
+            updateTestResults();
+            updateProgress();
+            log('测试结果已清除', 'info');
+        }
+
+        // 更新测试结果显示
+        function updateTestResults() {
+            const container = document.getElementById('testResults');
+            container.innerHTML = '';
+
+            testResults.forEach(test => {
+                const testElement = document.createElement('div');
+                testElement.className = `test-case ${test.status}`;
+                
+                const statusText = {
+                    'pending': '等待中',
+                    'running': '运行中',
+                    'passed': '通过',
+                    'failed': '失败'
+                };
+
+                testElement.innerHTML = `
+                    <h4>
+                        <span class="test-status status-${test.status}">${statusText[test.status]}</span>
+                        ${test.name}
+                    </h4>
+                    <div class="test-details">
+                        <div><strong>描述:</strong> ${test.description}</div>
+                        ${test.result ? `<div><strong>结果:</strong> ${test.result.message}</div>` : ''}
+                        ${test.timestamp ? `<div><strong>时间:</strong> ${test.timestamp.toLocaleTimeString()}</div>` : ''}
+                    </div>
+                `;
+
+                container.appendChild(testElement);
+            });
+
+            // 更新统计
+            const total = testResults.length;
+            const passed = testResults.filter(t => t.status === 'passed').length;
+            const failed = testResults.filter(t => t.status === 'failed').length;
+            const running = testResults.filter(t => t.status === 'running').length;
+
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            document.getElementById('runningTests').textContent = running;
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            if (testResults.length === 0) {
+                document.getElementById('progressFill').style.width = '0%';
+                return;
+            }
+
+            const completed = testResults.filter(t => t.status === 'passed' || t.status === 'failed').length;
+            const progress = (completed / testResults.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+        }
+
+        // 手动测试功能
+        function sendManualMessage() {
+            const input = document.getElementById('manualInput');
+            const message = input.value.trim();
+            
+            if (!message || !isConnected) return;
+
+            addConversationMessage(message, true);
+            
+            const listenMessage = {
+                type: 'listen',
+                mode: 'manual',
+                state: 'detect',
+                text: message
+            };
+
+            websocket.send(JSON.stringify(listenMessage));
+            input.value = '';
+        }
+
+        function sendModeSwitch(mode) {
+            if (!isConnected) return;
+
+            const modeText = mode === 'teaching' ? '切换到教学模式' : '切换到自由模式';
+            addConversationMessage(modeText, true);
+
+            const chatMessage = {
+                type: 'dialogue',
+                action: 'chat',
+                user_text: modeText,
+                user_id: document.getElementById('deviceId').value,
+                child_name: '小朋友'
+            };
+
+            websocket.send(JSON.stringify(chatMessage));
+        }
+
+        function sendTimeoutCheck() {
+            if (!isConnected) return;
+
+            addConversationMessage('检查超时', true);
+
+            const timeoutMessage = {
+                type: 'dialogue',
+                action: 'check_timeout',
+                user_id: document.getElementById('deviceId').value
+            };
+
+            websocket.send(JSON.stringify(timeoutMessage));
+        }
+
+        // 添加对话消息
+        function addConversationMessage(text, isUser) {
+            const container = document.getElementById('conversationLog');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'server'}`;
+            messageDiv.textContent = text;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 日志功能
+        function log(message, type = 'info') {
+            const container = document.getElementById('detailedLogContent');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>

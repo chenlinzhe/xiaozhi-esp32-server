@@ -181,7 +181,9 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
     private boolean isStrongPassword(String password) {
         // 弱密码的正则表达式
-        String weakPasswordRegex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).+$";
+//         String weakPasswordRegex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).+$";
+        String weakPasswordRegex = "^.{6,}$";
+
         Pattern pattern = Pattern.compile(weakPasswordRegex);
         Matcher matcher = pattern.matcher(password);
         return matcher.matches();

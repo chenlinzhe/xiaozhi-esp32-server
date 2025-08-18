@@ -59,6 +59,8 @@ def get_config_from_api(config):
         "url": config["manager-api"].get("url", ""),
         "secret": config["manager-api"].get("secret", ""),
     }
+    # 设置manager_api_url，供其他模块使用
+    config_data["manager_api_url"] = config["manager-api"].get("url", "http://localhost:8002")
     # server的配置以本地为准
     if config.get("server"):
         config_data["server"] = {

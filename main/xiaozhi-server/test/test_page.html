@@ -488,6 +488,7 @@
                     placeholder="WebSocket服务器地址，如：ws://127.0.0.1:8000/xiaozhi/v1/" />
                 <button id="connectButton">连接</button>
                 <button id="authTestButton">测试认证</button>
+                <button id="quickConfigButton">快速配置检查</button>
             </div>
         </div>
 
@@ -1376,6 +1377,29 @@
                     const otaResult = await otaResponse.json();
                     log(`OTA检查结果: ${JSON.stringify(otaResult)}`, 'info');
 
+                    // 检查OTA响应中是否有错误信息
+                    if (otaResult.error) {
+                        log(`OTA检查失败: ${otaResult.error}`, 'error');
+                        document.getElementById('otaStatus').textContent = 'ota检查失败';
+                        document.getElementById('otaStatus').style.color = 'red';
+                        
+                        // 提供具体的解决建议
+                        if (otaResult.error.includes('没有找到该设备的版本信息')) {
+                            log('解决方案：', 'info');
+                            log('1. 登录智控台，进入"参数管理"', 'info');
+                            log('2. 配置 server.ota 参数为: http://127.0.0.1:8002/xiaozhi/ota/', 'info');
+                            log('3. 配置 server.websocket 参数为: ws://127.0.0.1:8000/xiaozhi/v1/', 'info');
+                            log('4. 进入"设备管理" → "OTA固件管理"，添加固件类型为"xiaozhi-web-test"的固件', 'info');
+                        }
+                        return;
+                    }
+
+                    // 检查是否有激活码要求
+                    if (otaResult.activation && otaResult.activation.code) {
+                        log(`需要激活码: ${otaResult.activation.code}`, 'warning');
+                        log('这是正常的，因为这是一个新的测试设备', 'info');
+                    }
+
                     log('OTA检查通过，开始连接WebSocket...', 'success');
                     document.getElementById('otaStatus').textContent = 'ota已连接';
                     document.getElementById('otaStatus').style.color = 'green';
@@ -1634,6 +1658,7 @@
         function initEventListeners() {
             connectButton.addEventListener('click', connectToServer);
             document.getElementById('authTestButton').addEventListener('click', testAuthentication);
+            document.getElementById('quickConfigButton').addEventListener('click', quickConfigCheck);
 
             // 设备配置面板折叠/展开
             const toggleButton = document.getElementById('toggleConfig');
@@ -1728,6 +1753,13 @@
             log('2. 如果启用了认证，请确认使用了正确的token', 'info');
             log(`3. 或者在allowed_devices中添加了测试设备MAC：${config.deviceMac}`, 'info');
 
+            // 检查OTA配置
+            log('-------- OTA配置检查 --------', 'info');
+            log('请确认智控台中的配置：', 'info');
+            log('1. 参数管理 → server.ota = http://127.0.0.1:8002/xiaozhi/ota/', 'info');
+            log('2. 参数管理 → server.websocket = ws://127.0.0.1:8000/xiaozhi/v1/', 'info');
+            log('3. 设备管理 → OTA固件管理 → 添加固件类型为"xiaozhi-web-test"的固件', 'info');
+
             const serverUrl = serverUrlInput.value.trim();
             if (!serverUrl) {
                 log('请输入服务器地址', 'error');
@@ -1814,6 +1846,71 @@
             }, 6000);
 
             log('认证测试已启动，请查看测试结果...', 'info');
+        }
+
+        // 快速配置检查
+        async function quickConfigCheck() {
+            log('开始快速配置检查...', 'info');
+            
+            const config = getConfig();
+            
+            // 检查OTA接口
+            const otaUrl = document.getElementById('otaUrl').value.trim();
+            try {
+                log(`检查OTA接口: ${otaUrl}`, 'info');
+                const response = await fetch(otaUrl, { method: 'GET' });
+                const text = await response.text();
+                
+                if (text.includes('OTA接口运行正常')) {
+                    log('✓ OTA接口正常', 'success');
+                } else if (text.includes('缺少ota地址')) {
+                    log('✗ OTA接口配置错误：缺少ota地址', 'error');
+                    log('请在智控台参数管理中配置 server.ota', 'info');
+                } else if (text.includes('缺少websocket地址')) {
+                    log('✗ OTA接口配置错误：缺少websocket地址', 'error');
+                    log('请在智控台参数管理中配置 server.websocket', 'info');
+                } else {
+                    log(`OTA接口响应: ${text}`, 'warning');
+                }
+            } catch (error) {
+                log(`✗ OTA接口检查失败: ${error.message}`, 'error');
+            }
+
+            // 检查WebSocket连接
+            const wsUrl = document.getElementById('serverUrl').value.trim();
+            try {
+                log(`检查WebSocket连接: ${wsUrl}`, 'info');
+                const ws = new WebSocket(wsUrl);
+                
+                const timeout = setTimeout(() => {
+                    log('✗ WebSocket连接超时', 'error');
+                    ws.close();
+                }, 5000);
+
+                ws.onopen = () => {
+                    clearTimeout(timeout);
+                    log('✓ WebSocket连接正常', 'success');
+                    ws.close();
+                };
+
+                ws.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log(`✗ WebSocket连接失败: ${error.message || '连接被拒绝'}`, 'error');
+                };
+            } catch (error) {
+                log(`✗ WebSocket检查失败: ${error.message}`, 'error');
+            }
+
+            // 显示配置建议
+            log('-------- 配置建议 --------', 'info');
+            log('如果上述检查有错误，请按以下步骤配置：', 'info');
+            log('1. 登录智控台（管理后台）', 'info');
+            log('2. 进入"参数管理"', 'info');
+            log('3. 找到 server.ota，设置为: http://127.0.0.1:8002/xiaozhi/ota/', 'info');
+            log('4. 找到 server.websocket，设置为: ws://127.0.0.1:8000/xiaozhi/v1/', 'info');
+            log('5. 进入"设备管理" → "OTA固件管理"', 'info');
+            log('6. 添加固件：类型=xiaozhi-web-test，版本=1.0.1', 'info');
+            log('7. 保存配置后重新测试', 'info');
         }
 
         // 帮助函数：ArrayBuffer转Base64

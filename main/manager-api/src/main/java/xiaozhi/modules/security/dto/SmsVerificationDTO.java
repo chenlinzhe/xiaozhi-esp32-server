@@ -19,10 +19,10 @@ public class SmsVerificationDTO implements Serializable {
     private String phone;
 
     @Schema(description = "验证码")
-    @NotBlank(message = "{sysuser.captcha.require}")
+    // @NotBlank(message = "{sysuser.captcha.require}")
     private String captcha;
 
     @Schema(description = "唯一标识")
-    @NotBlank(message = "{sysuser.uuid.require}")
+    // @NotBlank(message = "{sysuser.uuid.require}")
     private String captchaId;
 }

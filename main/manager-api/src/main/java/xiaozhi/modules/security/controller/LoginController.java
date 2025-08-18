@@ -66,10 +66,10 @@ public class LoginController {
     @Operation(summary = "短信验证码")
     public Result<Void> smsVerification(@RequestBody SmsVerificationDTO dto) {
         // 验证图形验证码
-        boolean validate = captchaService.validate(dto.getCaptchaId(), dto.getCaptcha(), true);
-        if (!validate) {
-            throw new RenException("图形验证码错误");
-        }
+        // boolean validate = captchaService.validate(dto.getCaptchaId(), dto.getCaptcha(), true);
+        // if (!validate) {
+        //     throw new RenException("图形验证码错误");
+        // }
         Boolean isMobileRegister = sysParamsService
                 .getValueObject(Constant.SysMSMParam.SERVER_ENABLE_MOBILE_REGISTER.getValue(), Boolean.class);
         if (!isMobileRegister) {
@@ -84,10 +84,10 @@ public class LoginController {
     @Operation(summary = "登录")
     public Result<TokenDTO> login(@RequestBody LoginDTO login) {
         // 验证是否正确输入验证码
-        boolean validate = captchaService.validate(login.getCaptchaId(), login.getCaptcha(), true);
-        if (!validate) {
-            throw new RenException("图形验证码错误，请重新获取");
-        }
+        // boolean validate = captchaService.validate(login.getCaptchaId(), login.getCaptcha(), true);
+        // if (!validate) {
+        //     throw new RenException("图形验证码错误，请重新获取");
+        // }
         // 按照用户名获取用户
         SysUserDTO userDTO = sysUserService.getByUsername(login.getUsername());
         // 判断用户是否存在
@@ -118,16 +118,18 @@ public class LoginController {
                 throw new RenException("用户名不是手机号码，请重新输入");
             }
             // 验证短信验证码是否正常
-            validate = captchaService.validateSMSValidateCode(login.getUsername(), login.getMobileCaptcha(), false);
-            if (!validate) {
-                throw new RenException("手机验证码错误，请重新获取");
-            }
+            // validate = captchaService.validateSMSValidateCode(login.getUsername(), login.getMobileCaptcha(), false);
+            // if (!validate) {
+            //     throw new RenException("手机验证码错误，请重新获取");
+            // }
+            validate = true; // 跳过短信验证码验证
         } else {
             // 验证是否正确输入验证码
-            validate = captchaService.validate(login.getCaptchaId(), login.getCaptcha(), true);
-            if (!validate) {
-                throw new RenException("图形验证码错误，请重新获取");
-            }
+            // validate = captchaService.validate(login.getCaptchaId(), login.getCaptcha(), true);
+            // if (!validate) {
+            //     throw new RenException("图形验证码错误，请重新获取");
+            // }
+            validate = true; // 跳过图形验证码验证
         }
 
         // 按照用户名获取用户
@@ -184,11 +186,11 @@ public class LoginController {
             throw new RenException("输入的手机号码未注册");
         }
         // 验证短信验证码是否正常
-        boolean validate = captchaService.validateSMSValidateCode(dto.getPhone(), dto.getCode(), false);
+        // boolean validate = captchaService.validateSMSValidateCode(dto.getPhone(), dto.getCode(), false);
         // 判断是否通过验证
-        if (!validate) {
-            throw new RenException("输入的手机验证码错误");
-        }
+        // if (!validate) {
+        //     throw new RenException("输入的手机验证码错误");
+        // }
 
         sysUserService.changePasswordDirectly(userDTO.getId(), dto.getPassword());
         return new Result<>();

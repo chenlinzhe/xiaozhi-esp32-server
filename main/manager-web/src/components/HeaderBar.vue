@@ -34,6 +34,13 @@
             :style="{ filter: $route.path === '/ota-management' ? 'brightness(0) invert(1)' : 'None' }" />
           OTA管理
         </div>
+        <div v-if="isSuperAdmin" class="equipment-management"
+          :class="{ 'active-tab': $route.path === '/scenario-config' || $route.path === '/scenario-create' || $route.path === '/scenario-edit' || $route.path === '/scenario-steps' }" 
+          @click="goScenarioConfig">
+          <img loading="lazy" alt="" src="@/assets/header/param_management.png"
+            :style="{ filter: $route.path === '/scenario-config' || $route.path === '/scenario-create' || $route.path === '/scenario-edit' || $route.path === '/scenario-steps' ? 'brightness(0) invert(1)' : 'None' }" />
+          场景配置
+        </div>
         <el-dropdown v-if="isSuperAdmin" trigger="click" class="equipment-management more-dropdown"
           :class="{ 'active-tab': $route.path === '/dict-management' || $route.path === '/params-management' || $route.path === '/provider-management' || $route.path === '/server-side-management' }"
           @visible-change="handleParamDropdownVisibleChange">
@@ -151,6 +158,9 @@ export default {
     },
     goServerSideManagement() {
       this.$router.push('/server-side-management')
+    },
+    goScenarioConfig() {
+      this.$router.push('/scenario-config')
     },
     // 获取用户信息
     fetchUserInfo() {
