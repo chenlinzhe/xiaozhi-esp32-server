@@ -35,12 +35,13 @@ from plugins_func.register import Action, ActionResponse
 from core.auth import AuthMiddleware, AuthenticationError
 from config.config_loader import get_private_config_from_api
 from core.providers.tts.dto.dto import ContentType, TTSMessageDTO, SentenceType
+
 from config.logger import setup_logging, build_module_string, create_connection_logger
 from config.manage_api_client import DeviceNotFoundException, DeviceBindException
 from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
 from core.utils import textUtils
-from core.scenario.chat_status_manager import ChatStatusManager
+from core.scenario.teaching_handler import TeachingHandler
 
 TAG = __name__
 
@@ -162,8 +163,8 @@ class ConnectionHandler:
         # 初始化提示词管理器
         self.prompt_manager = PromptManager(config, self.logger)
 
-        # 初始化聊天状态管理器
-        self.chat_status_manager = ChatStatusManager()
+        # 初始化场景教学处理器
+        self.teaching_handler = TeachingHandler(self)
         
         # 添加儿童姓名属性
         self.child_name = "小朋友"
@@ -686,304 +687,11 @@ class ConnectionHandler:
 
     def _handle_chat_mode(self, query):
         """处理聊天模式切换和教学模式逻辑"""
-        try:
-            self.logger.bind(tag=TAG).info(f"处理聊天模式切换和教学模式逻辑")
-            # 使用设备ID作为用户ID，如果没有则使用session_id
-            user_id = self.device_id if self.device_id else self.session_id
-            child_name = "小朋友"  # 可以从配置中获取儿童姓名
-            
-            # 检查当前聊天状态
-            current_status = self.chat_status_manager.get_user_chat_status(user_id)
-            self.logger.bind(tag=TAG).info(f"用户 {user_id} 当前聊天状态: {current_status}")
-            
-            # 异步处理用户输入
-            future = asyncio.run_coroutine_threadsafe(
-                self.chat_status_manager.handle_user_input(user_id, query, child_name),
-                self.loop
-            )
-            result = future.result()
-            
-            self.logger.bind(tag=TAG).info(f"聊天模式处理结果: {result}")
-            
-            if result and result.get("success"):
-                action = result.get("action")
-                ai_message = result.get("ai_message", "")
-                
-                if action == "mode_switch":
-                    # 模式切换，直接返回AI消息
-                    self.logger.bind(tag=TAG).info(f"开始处理模式切换: {result.get('mode')}")
-                    self.logger.bind(tag=TAG).info(f"AI消息内容: {ai_message}")
-                    
-                    # 发送TTS消息
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info(f"聊天模式切换完成: {result.get('mode')}")
-                    
-                    # 发送LAST请求结束TTS会话
-                    if self.sentence_id and self.tts:
-                        self.tts.tts_text_queue.put(
-                            TTSMessageDTO(
-                                sentence_id=self.sentence_id,
-                                sentence_type=SentenceType.LAST,
-                                content_type=ContentType.ACTION,
-                            )
-                        )
-                        self.logger.bind(tag=TAG).info("发送TTS LAST请求")
-                    
-                    # 如果切换到教学模式，启动等待超时检查
-                    if result.get('mode') == 'teaching_mode':
-                        wait_time = result.get("wait_time", 20)
-                        self.logger.bind(tag=TAG).info(f"教学模式，等待时间: {wait_time}")
-                        self._start_teaching_timeout_check(user_id, wait_time)
-                    
-                    return True
-                    
-                elif action == "start_teaching":
-                    # 开始教学模式
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
-                    
-                    # 启动等待超时检查
-                    self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
-                    return True
-                    
-                elif action == "next_step" or action == "retry":
-                    # 教学步骤处理
-                    # 首先发送评估反馈
-                    evaluation = result.get("evaluation", {})
-                    feedback = evaluation.get("feedback", "")
-                    if feedback:
-                        self.logger.bind(tag=TAG).info(f"发送评估反馈: {feedback}")
-                        # 使用tts_one_sentence方法发送反馈，更可靠
-                        if self.tts:
-                            self.logger.bind(tag=TAG).info(f"使用tts_one_sentence发送反馈: {feedback}")
-                            self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=feedback)
-                        else:
-                            self.logger.bind(tag=TAG).warning("TTS实例为空，使用_send_tts_message发送反馈")
-                            self._send_tts_message(feedback)
-                        self.dialogue.put(Message(role="assistant", content=feedback))
-                        
-                        # 等待一小段时间再发送下一步消息
-                        time.sleep(1)
-                    
-                    # 然后发送下一步的AI消息
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
-                    
-                    # 重新启动等待超时检查
-                    self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
-                    return True
-                    
-                elif action == "completed":
-                    # 教学完成，切换到自由模式
-                    # 首先发送评估反馈
-                    evaluation = result.get("evaluation", {})
-                    feedback = evaluation.get("feedback", "")
-                    if feedback:
-                        self.logger.bind(tag=TAG).info(f"发送最终评估反馈: {feedback}")
-                        # 使用tts_one_sentence方法发送反馈，更可靠
-                        if self.tts:
-                            self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=feedback)
-                        else:
-                            self._send_tts_message(feedback)
-                        self.dialogue.put(Message(role="assistant", content=feedback))
-                        
-                        # 等待一小段时间再发送完成消息
-                        time.sleep(1)
-                    
-                    # 然后发送完成消息
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info(f"教学完成，最终得分: {result.get('final_score')}")
-                    return True
-                    
-                elif action == "free_chat":
-                    # 自由聊天模式，发送简单回复后继续正常流程
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("自由聊天模式")
-                    # 不返回True，让流程继续到正常的LLM处理
-                    return None
-                    
-                elif action == "warning_reminder":
-                    # 警告提示
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("发出警告提示")
-                    return True
-                    
-                elif action == "final_reminder":
-                    # 最终提醒
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("发出最终提醒")
-                    return True
-                    
-                elif action == "timeout_response":
-                    # 超时自动回复
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("教学超时自动回复")
-                    return True
-            
-            # 如果没有特殊处理，返回None继续正常流程
-            self.logger.bind(tag=TAG).info(f"聊天模式处理完成，返回None继续正常流程")
-            return None
-            
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"处理聊天模式失败: {e}")
-            return None
+        return self.teaching_handler.handle_chat_mode(query)
 
-    def _send_tts_message(self, message):
-        """发送TTS消息"""
-        if not message:
-            self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")
-            return
-            
-        # 等待TTS初始化完成
-        max_wait_time = 10  # 最多等待10秒
-        wait_count = 0
-        while not self.tts and wait_count < max_wait_time:
-            self.logger.bind(tag=TAG).info(f"等待TTS初始化... ({wait_count + 1}/{max_wait_time})")
-            time.sleep(1)
-            wait_count += 1
-            
-        if not self.tts:
-            self.logger.bind(tag=TAG).error("TTS初始化超时，无法发送消息")
-            return
-            
-        try:
-            # 如果没有sentence_id，生成一个新的
-            if not self.sentence_id:
-                self.sentence_id = str(uuid.uuid4().hex)
-                self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.sentence_id}")
-                # 发送FIRST请求
-                self.tts.tts_text_queue.put(
-                    TTSMessageDTO(
-                        sentence_id=self.sentence_id,
-                        sentence_type=SentenceType.FIRST,
-                        content_type=ContentType.ACTION,
-                    )
-                )
-                self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
-            
-            # 发送文本消息到TTS队列
-            self.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=message,
-                )
-            )
-            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
-            
-            # TTS系统会自动处理音频生成和发送
-            # 音频播放线程会从tts_audio_queue获取数据并使用sendAudioHandle发送
-            
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
 
-    def _start_teaching_timeout_check(self, user_id, wait_time):
-        """启动教学超时检查 - 优化版本，支持渐进式提示"""
-        # 如果wait_time为0，不启动超时检查
-        if wait_time <= 0:
-            self.logger.bind(tag=TAG).info("不启动超时检查（立即开始）")
-            return
-            
-        self.logger.bind(tag=TAG).info(f"启动渐进式超时检查，总等待时间: {wait_time}秒")
-        
-        async def progressive_timeout_check():
-            """渐进式超时检查"""
-            try:
-                # 获取超时配置
-                progressive_config = self.chat_status_manager.PROGRESSIVE_TIMEOUT_CONFIG
-                warning_timeout = wait_time * progressive_config.get("warning_timeout", 0.7)
-                final_timeout = wait_time * progressive_config.get("final_timeout", 0.9)
-                
-                self.logger.bind(tag=TAG).info(f"警告时间点: {warning_timeout}秒")
-                self.logger.bind(tag=TAG).info(f"最终提醒时间点: {final_timeout}秒")
-                
-                # 检查警告提示
-                if progressive_config.get("enabled", False):
-                    await asyncio.sleep(warning_timeout)
-                    result = await self.chat_status_manager.check_teaching_timeout(user_id)
-                    if result and result.get("success") and result.get("action") == "warning_reminder":
-                        ai_message = result.get("ai_message", "")
-                        if self.tts:
-                            self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                        else:
-                            self._send_tts_message(ai_message)
-                        self.dialogue.put(Message(role="assistant", content=ai_message))
-                        self.logger.bind(tag=TAG).info("发出警告提示")
-                    
-                    # 检查最终提醒
-                    remaining_time = final_timeout - warning_timeout
-                    if remaining_time > 0:
-                        await asyncio.sleep(remaining_time)
-                        result = await self.chat_status_manager.check_teaching_timeout(user_id)
-                        if result and result.get("success") and result.get("action") == "final_reminder":
-                            ai_message = result.get("ai_message", "")
-                            if self.tts:
-                                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                            else:
-                                self._send_tts_message(ai_message)
-                            self.dialogue.put(Message(role="assistant", content=ai_message))
-                            self.logger.bind(tag=TAG).info("发出最终提醒")
-                
-                # 最终超时检查
-                remaining_time = wait_time - final_timeout
-                if remaining_time > 0:
-                    await asyncio.sleep(remaining_time)
-                
-                result = await self.chat_status_manager.check_teaching_timeout(user_id)
-                if result and result.get("success") and result.get("action") == "timeout_response":
-                    ai_message = result.get("ai_message", "")
-                    if self.tts:
-                        self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=ai_message)
-                    else:
-                        self._send_tts_message(ai_message)
-                    self.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info("教学超时，发送替代提示")
-                    
-            except Exception as e:
-                self.logger.bind(tag=TAG).error(f"渐进式超时检查失败: {e}")
-        
-        # 在事件循环中执行超时检查
-        try:
-            asyncio.create_task(progressive_timeout_check())
-        except RuntimeError as e:
-            if "no running event loop" in str(e):
-                # 如果没有运行的事件循环，使用run_coroutine_threadsafe
-                asyncio.run_coroutine_threadsafe(progressive_timeout_check(), self.loop)
-            else:
-                raise
+
+
 
     def chat(self, query, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
@@ -1278,15 +986,13 @@ class ConnectionHandler:
                         f"清理工具处理器时出错: {cleanup_error}"
                     )
 
-            # 清理聊天会话数据
-            if hasattr(self, "chat_status_manager") and self.chat_status_manager:
+            # 清理教学处理器资源
+            if hasattr(self, "teaching_handler") and self.teaching_handler:
                 try:
-                    user_id = self.device_id if self.device_id else self.session_id
-                    self.chat_status_manager.redis_client.delete_session_data(f"teaching_{user_id}")
-                    self.logger.bind(tag=TAG).info(f"清理用户 {user_id} 的聊天会话数据")
-                except Exception as chat_cleanup_error:
+                    await self.teaching_handler.cleanup()
+                except Exception as teaching_cleanup_error:
                     self.logger.bind(tag=TAG).error(
-                        f"清理聊天会话数据时出错: {chat_cleanup_error}"
+                        f"清理教学处理器资源时出错: {teaching_cleanup_error}"
                     )
 
             # 触发停止事件
