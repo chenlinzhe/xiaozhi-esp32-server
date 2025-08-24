@@ -46,7 +46,12 @@ function sendRequest() {
 
                 if (this._sucCallback) {
                     console.log('调用成功回调');
-                    this._sucCallback(res)  // 传递整个 res 对象
+                    if(res.data.data){
+                        this._sucCallback(res.data)  // 传递整个 res 对象
+                    }else {
+                        this._failCallback(res);
+                    }
+
                 }
             }).catch((res) => {
                 // 打印失败响应

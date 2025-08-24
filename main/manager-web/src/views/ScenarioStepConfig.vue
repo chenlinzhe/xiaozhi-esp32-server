@@ -167,9 +167,26 @@
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="下一步骤ID" class="form-item">
-                    <el-input 
+                    <el-select 
                       v-model="step.nextStepId" 
-                      placeholder="指定下一步骤ID，留空则按顺序执行" />
+                      placeholder="请选择下一步骤，留空则按顺序执行"
+                      clearable
+                      filterable>
+                      <el-option 
+                        v-for="option in getStepOptions(index)" 
+                        :key="option.value" 
+                        :label="option.label" 
+                        :value="option.value">
+                        <div class="step-option">
+                          <span class="step-option-label">{{ option.label.split(' (')[0] }}</span>
+                          <span class="step-option-id">{{ option.label.split(' (')[1].replace(')', '') }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <div class="form-tip">
+                      <i class="el-icon-info"></i>
+                      选择下一步骤可以实现跳转逻辑，留空则按步骤顺序执行
+                    </div>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -228,6 +245,23 @@ export default {
     this.scenarioId = this.$route.params.id;
     this.loadScenarioData();
     this.loadStepTemplates();
+  },
+  computed: {
+    // 计算所有步骤的选项，用于下一步骤选择
+    allStepOptions() {
+      const options = [];
+      this.steps.forEach((step, index) => {
+        const stepName = step.stepName || `步骤${index + 1}`;
+        // 对于已保存的步骤使用ID，对于未保存的步骤使用索引
+        const stepId = step.id || `temp_${index}`;
+        options.push({
+          label: `${stepName} (步骤${index + 1})`,
+          value: stepId,
+          index: index
+        });
+      });
+      return options;
+    }
   },
   methods: {
     async loadScenarioData() {
@@ -400,9 +434,29 @@ export default {
           }
         }
         
+        // 处理临时ID的转换
+        const stepsToSave = this.steps.map(step => {
+          const stepCopy = { ...step };
+          // 如果nextStepId是临时ID，需要转换为实际的步骤索引
+          if (stepCopy.nextStepId && stepCopy.nextStepId.startsWith('temp_')) {
+            const tempIndex = parseInt(stepCopy.nextStepId.replace('temp_', ''));
+            // 临时ID将在保存后被实际ID替换
+            stepCopy.nextStepId = null; // 先设为null，保存后再更新
+          }
+          return stepCopy;
+        });
+        
+        // 记录临时ID到实际步骤的映射关系
+        const tempIdMapping = {};
+        this.steps.forEach((step, index) => {
+          if (step.nextStepId && step.nextStepId.startsWith('temp_')) {
+            tempIdMapping[index] = step.nextStepId;
+          }
+        });
+        
         this.loading = true;
-        await new Promise((resolve, reject) => {
-          Api.saveScenarioSteps(this.scenarioId, this.steps, (res) => {
+        const saveResult = await new Promise((resolve, reject) => {
+          Api.saveScenarioSteps(this.scenarioId, stepsToSave, (res) => {
             if (isApiSuccess(res)) {
               resolve(res);
             } else {
@@ -410,6 +464,12 @@ export default {
             }
           });
         });
+        
+        // 保存成功后，重新加载步骤数据以获取正确的ID
+        await this.loadScenarioData();
+        
+        // 更新临时ID映射
+        this.updateTempIdMapping(tempIdMapping);
         
         this.$message.success('步骤配置保存成功');
         ApiLogger.log('步骤配置保存成功');
@@ -520,6 +580,23 @@ export default {
           const errorMsg = getErrorMessage(res, '步骤数据API测试失败');
           ApiLogger.error('步骤数据API测试失败:', errorMsg);
           this.$message.error(errorMsg);
+        }
+      });
+    },
+
+    getStepOptions(currentStepIndex) {
+      return this.allStepOptions.filter(option => option.index !== currentStepIndex);
+    },
+    
+    // 更新临时ID映射
+    updateTempIdMapping(tempIdMapping) {
+      Object.keys(tempIdMapping).forEach(stepIndex => {
+        const tempId = tempIdMapping[stepIndex];
+        const targetTempIndex = parseInt(tempId.replace('temp_', ''));
+        
+        // 找到对应的实际步骤ID
+        if (this.steps[targetTempIndex] && this.steps[targetTempIndex].id) {
+          this.steps[stepIndex].nextStepId = this.steps[targetTempIndex].id;
         }
       });
     }
@@ -637,5 +714,48 @@ export default {
 
 .el-table .el-table__row:hover {
   background-color: #f5f7fa;
+}
+
+/* 步骤选择下拉框样式 */
+.step-select-dropdown {
+  .el-select-dropdown__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+/* 步骤选项样式 */
+.step-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.step-option-label {
+  font-weight: 500;
+  color: #303133;
+}
+
+.step-option-id {
+  color: #909399;
+  font-size: 12px;
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* 表单提示信息样式 */
+.form-tip {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+}
+
+.form-tip i {
+  margin-right: 4px;
+  color: #409EFF;
 }
 </style> 
