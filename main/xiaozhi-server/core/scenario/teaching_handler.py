@@ -79,8 +79,7 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"聊天模式切换完成: {result.get('mode')}")
                     
-                    # 发送LAST请求结束TTS会话
-                    self._end_tts_session()
+
                     
                     # 如果切换到教学模式，启动等待超时检查
                     if result.get('mode') == 'teaching_mode':
@@ -95,9 +94,6 @@ class TeachingHandler:
                     self._send_tts_message(ai_message)
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
-                    
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
                     
                     # 启动等待超时检查
                     self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
@@ -121,9 +117,6 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
                     
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
-                    
                     # 重新启动等待超时检查
                     self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
                     return True
@@ -146,8 +139,6 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"教学完成，最终得分: {result.get('final_score')}")
                     
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
                     return True
                     
                 elif action == "free_chat":
@@ -164,8 +155,6 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("发出警告提示")
                     
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
                     return True
                     
                 elif action == "final_reminder":
@@ -174,8 +163,6 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("发出最终提醒")
                     
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
                     return True
                     
                 elif action == "timeout_response":
@@ -184,8 +171,6 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("教学超时自动回复")
                     
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
                     return True
             
             # 如果没有特殊处理，返回None继续正常流程
@@ -220,19 +205,19 @@ class TeachingHandler:
             return
             
         try:
-            # 如果没有sentence_id，生成一个新的
-            if not self.connection.sentence_id:
-                self.connection.sentence_id = str(uuid.uuid4().hex)
-                self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")
-                # 发送FIRST请求
-                self.connection.tts.tts_text_queue.put(
-                    TTSMessageDTO(
-                        sentence_id=self.connection.sentence_id,
-                        sentence_type=SentenceType.FIRST,
-                        content_type=ContentType.ACTION,
-                    )
+            # 生成新的sentence_id，确保每次发送都是独立的会话
+            self.connection.sentence_id = str(uuid.uuid4().hex)
+            self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")
+            
+            # 发送FIRST请求开始TTS会话
+            self.connection.tts.tts_text_queue.put(
+                TTSMessageDTO(
+                    sentence_id=self.connection.sentence_id,
+                    sentence_type=SentenceType.FIRST,
+                    content_type=ContentType.ACTION,
                 )
-                self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
+            )
+            self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
             
             # 发送文本消息到TTS队列
             self.connection.tts.tts_text_queue.put(
@@ -245,23 +230,20 @@ class TeachingHandler:
             )
             self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
             
+            # 发送LAST请求结束TTS会话
+            self.connection.tts.tts_text_queue.put(
+                TTSMessageDTO(
+                    sentence_id=self.connection.sentence_id,
+                    sentence_type=SentenceType.LAST,
+                    content_type=ContentType.ACTION,
+                )
+            )
+            self.logger.bind(tag=TAG).info("发送TTS LAST请求")
+            
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
 
-    def _end_tts_session(self):
-        """结束TTS会话"""
-        try:
-            if self.connection.sentence_id and self.connection.tts:
-                self.connection.tts.tts_text_queue.put(
-                    TTSMessageDTO(
-                        sentence_id=self.connection.sentence_id,
-                        sentence_type=SentenceType.LAST,
-                        content_type=ContentType.ACTION,
-                    )
-                )
-                self.logger.bind(tag=TAG).info("发送TTS LAST请求")
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"结束TTS会话失败: {e}")
+
 
     def _start_teaching_timeout_check(self, user_id: str, wait_time: int):
         """
@@ -297,7 +279,6 @@ class TeachingHandler:
                         ai_message = result.get("ai_message", "")
                         self._send_tts_message(ai_message)
                         self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                        self._end_tts_session()  # 结束TTS会话
                         self.logger.bind(tag=TAG).info("发出警告提示")
                     
                     # 检查最终提醒
@@ -309,7 +290,6 @@ class TeachingHandler:
                             ai_message = result.get("ai_message", "")
                             self._send_tts_message(ai_message)
                             self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                            self._end_tts_session()  # 结束TTS会话
                             self.logger.bind(tag=TAG).info("发出最终提醒")
                 
                 # 最终超时检查
@@ -322,7 +302,6 @@ class TeachingHandler:
                     ai_message = result.get("ai_message", "")
                     self._send_tts_message(ai_message)
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                    self._end_tts_session()  # 结束TTS会话
                     self.logger.bind(tag=TAG).info("教学超时，发送替代提示")
                     
             except Exception as e:

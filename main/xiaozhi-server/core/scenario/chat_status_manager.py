@@ -742,12 +742,28 @@ class ChatStatusManager:
         self.logger.info(f"解析后的期望关键词: {expected_keywords}")
         self.logger.info(f"解析后的期望短语: {expected_phrases}")
         
+        # 获取配置中的鼓励话语
+        praise_message = step_config.get("praiseMessage", "")
+        encouragement_message = step_config.get("encouragementMessage", "")
+        
+        # 替换儿童姓名占位符
+        child_name = session_data.get("child_name", "小朋友")
+        if praise_message:
+            praise_message = praise_message.replace("{childName}", child_name)
+            praise_message = praise_message.replace("{文杰}", child_name)
+        if encouragement_message:
+            encouragement_message = encouragement_message.replace("{childName}", child_name)
+            encouragement_message = encouragement_message.replace("{文杰}", child_name)
+        
         # 根据成功条件进行匹配
         if success_condition == "exact":
             # 完全匹配：用户输入与期望短语一模一样
             is_passed = user_text in expected_phrases
             score = 100 if is_passed else 0
-            feedback = "回答完全正确！" if is_passed else "请完全按照要求回答。"
+            if is_passed and praise_message:
+                feedback = praise_message
+            else:
+                feedback = "回答完全正确！" if is_passed else (encouragement_message if encouragement_message else "请完全按照要求回答。")
             
         elif success_condition == "partial":
             # 部分匹配：用户输入包含在期望短语内，或者包含期望关键词
@@ -770,7 +786,10 @@ class ChatStatusManager:
                         score = 70
                         break
             
-            feedback = "回答正确！" if is_passed else "请尝试更完整的回答。"
+            if is_passed and praise_message:
+                feedback = praise_message
+            else:
+                feedback = "回答正确！" if is_passed else (encouragement_message if encouragement_message else "请尝试更完整的回答。")
             
         elif success_condition == "keyword":
             # 关键词匹配：用户输入包含期望关键词中的任何一个
@@ -784,7 +803,10 @@ class ChatStatusManager:
                         score = 60
                         break
             
-            feedback = "包含关键词，回答正确！" if is_passed else "请使用相关的关键词回答。"
+            if is_passed and praise_message:
+                feedback = praise_message
+            else:
+                feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
             
         else:
             # 默认使用关键词匹配
@@ -798,7 +820,10 @@ class ChatStatusManager:
                         score = 60
                         break
             
-            feedback = "包含关键词，回答正确！" if is_passed else "请使用相关的关键词回答。"
+            if is_passed and praise_message:
+                feedback = praise_message
+            else:
+                feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
         
         self.logger.info(f"匹配结果: is_passed={is_passed}, score={score}")
         

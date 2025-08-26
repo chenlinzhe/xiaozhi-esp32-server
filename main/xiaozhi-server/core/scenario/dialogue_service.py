@@ -28,8 +28,6 @@ class DialogueService:
         # 初始化logger
         from config.logger import setup_logging
         self.logger = setup_logging()
-        
-        print(f"DialogueService初始化成功，API地址: {self.api_base_url}")
     
     def _get_server_auth_headers(self) -> Dict[str, str]:
         """获取服务器密钥认证头"""
@@ -56,7 +54,6 @@ class DialogueService:
     async def _login_and_get_token(self) -> bool:
         """登录并获取用户token"""
         try:
-            print("正在登录获取用户token...")
             async with aiohttp.ClientSession() as session:
                 # 尝试使用常见的用户名登录
                 login_attempts = [
@@ -74,11 +71,9 @@ class DialogueService:
                         url = f"{self.api_base_url}/user/login"
                         headers = {"Content-Type": "application/json"}
                         
-                        print(f"尝试登录: username={attempt['username']}")
                         async with session.post(url, json=login_data, headers=headers) as response:
                              if response.status == 200:
                                  data = await response.json()
-                                 print(f"登录响应数据: {data}")
                                  if data.get('code') == 0:
                                      token_data = data.get('data', {})
                                      # 尝试多种可能的token字段名
@@ -90,49 +85,32 @@ class DialogueService:
                                          data.get('accessToken')
                                      )
                                      if self.user_token:
-                                         print(f"登录成功，用户: {attempt['username']}, token: {self.user_token[:20]}...")
                                          return True
                                      else:
-                                         print(f"登录成功但未获取到token，完整响应: {data}")
                                          continue
                                  else:
-                                     print(f"登录失败: {data.get('msg', '未知错误')}")
                                      continue
                              else:
-                                 print(f"登录请求失败: HTTP {response.status}")
                                  continue
                     except Exception as e:
-                        print(f"登录尝试异常: {e}")
                         continue
                 
-                print("所有登录尝试都失败了")
                 return False
         except Exception as e:
-            print(f"登录异常: {e}")
             return False
     
     async def start_scenario(self, session_id: str, scenario_id: str, child_name: str) -> Dict:
         """开始场景对话"""
         try:
-            print(f"开始场景对话: session_id={session_id}, scenario_id={scenario_id}, child_name={child_name}")
-            
             # 获取场景信息
-            print(f"正在获取场景信息: scenario_id={scenario_id}")
             scenario = await self._get_scenario(scenario_id)
             if not scenario:
-                print(f"场景不存在: scenario_id={scenario_id}")
                 return {"success": False, "error": "场景不存在"}
             
-            print(f"获取到场景信息: {scenario.get('scenarioName', 'Unknown')}")
-            
             # 获取场景步骤
-            print(f"正在获取场景步骤: scenario_id={scenario_id}")
             steps = await self._get_scenario_steps(scenario_id)
             if not steps:
-                print(f"场景步骤不存在: scenario_id={scenario_id}")
                 return {"success": False, "error": "场景步骤不存在"}
-            
-            print(f"获取到 {len(steps)} 个场景步骤")
             
             # 创建会话
             self.sessions[session_id] = {
@@ -145,8 +123,6 @@ class DialogueService:
                 "evaluations": []
             }
             
-            print(f"创建会话成功: session_id={session_id}")
-            
             # 返回第一个步骤
             first_step = steps[0] if steps else {}
             result = {
@@ -157,11 +133,9 @@ class DialogueService:
                 "total_steps": len(steps)
             }
             
-            print(f"场景对话开始成功: {result}")
             return result
             
         except Exception as e:
-            print(f"开始场景对话失败: {e}")
             import traceback
             traceback.print_exc()
             return {"success": False, "error": str(e)}
@@ -398,50 +372,28 @@ class DialogueService:
     async def _get_scenario(self, scenario_id: str) -> Optional[Dict]:
         """获取场景信息"""
         try:
-            print(f"正在获取场景信息: scenario_id={scenario_id}")
-            
             # 确保有用户token
             if not self.user_token:
                 if not await self._login_and_get_token():
-                    print("无法获取用户token，无法调用场景API")
                     return None
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario/{scenario_id}"
                 headers = self._get_user_auth_headers()
-                print(f"请求场景信息URL: {url}")
-                print(f"请求头: {headers}")
                 
                 async with session.get(url, headers=headers) as response:
-                    print(f"场景信息API响应状态: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print(f"场景信息API响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             scenario = data.get("data")
-                            if scenario:
-                                print(f"获取到场景信息: {scenario.get('scenarioName', 'Unknown')}")
-                                print("\n=== 场景详细信息 ===")
-                                print(f"场景ID: {scenario.get('scenarioId', 'N/A')}")
-                                print(f"场景名称: {scenario.get('scenarioName', 'N/A')}")
-                                print(f"描述: {scenario.get('description', 'N/A')}")
-                                print(f"是否活跃: {scenario.get('isActive', False)}")
-                                print(f"创建时间: {scenario.get('createdAt', 'N/A')}")
-                                print(f"更新时间: {scenario.get('updatedAt', 'N/A')}")
-                                print(f"完整数据: {scenario}")
-                            else:
-                                print("没有获取到场景信息数据")
                             return scenario
                         else:
-                            print(f"API返回错误: {data.get('msg', '未知错误')}")
                             return None
                     else:
-                        print(f"获取场景信息失败: HTTP {response.status}")
                         return None
         except Exception as e:
-            print(f"获取场景信息失败: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -449,55 +401,28 @@ class DialogueService:
     async def _get_scenario_steps(self, scenario_id: str) -> List[Dict]:
         """获取场景步骤"""
         try:
-            print(f"正在获取场景步骤: scenario_id={scenario_id}")
-            
             # 确保有用户token
             if not self.user_token:
                 if not await self._login_and_get_token():
-                    print("无法获取用户token，无法调用场景API")
                     return []
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario-step/list/{scenario_id}"
                 headers = self._get_user_auth_headers()
-                print(f"请求场景步骤URL: {url}")
-                print(f"请求头: {headers}")
                 
                 async with session.get(url, headers=headers) as response:
-                    print(f"场景步骤API响应状态: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print(f"场景步骤API响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             steps = data.get("data", [])
-                            print(f"获取到 {len(steps)} 个场景步骤")
-                            
-                            # 详细输出步骤数据
-                            print("\n=== 场景步骤详细信息 ===")
-                            for i, step in enumerate(steps):
-                                print(f"\n步骤 {i+1}:")
-                                print(f"  步骤ID: {step.get('stepId', 'N/A')}")
-                                print(f"  步骤名称: {step.get('stepName', 'N/A')}")
-                                print(f"  步骤顺序: {step.get('stepOrder', 'N/A')}")
-                                print(f"  AI消息: {step.get('aiMessage', 'N/A')}")
-                                print(f"  期望关键词: {step.get('expectedKeywords', 'N/A')}")
-                                print(f"  替代提示: {step.get('alternativeMessage', 'N/A')}")
-                                print(f"  是否活跃: {step.get('isActive', False)}")
-                                print(f"  创建时间: {step.get('createdAt', 'N/A')}")
-                                print(f"  更新时间: {step.get('updatedAt', 'N/A')}")
-                                print(f"  完整数据: {step}")
-                            
                             return steps
                         else:
-                            print(f"API返回错误: {data.get('msg', '未知错误')}")
                             return []
                     else:
-                        print(f"获取场景步骤失败: HTTP {response.status}")
                         return []
         except Exception as e:
-            print(f"获取场景步骤失败: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -522,60 +447,35 @@ class DialogueService:
                 await session_client.post(url, json=record_data, headers=headers)
                 
         except Exception as e:
-            print(f"完成场景失败: {e}")
+            pass
     
     async def get_scenarios(self) -> List[Dict]:
         """获取场景列表"""
         try:
-            print(f"正在获取场景列表，API地址: {self.api_base_url}")
-            
             # 确保有用户token
             if not self.user_token:
                 if not await self._login_and_get_token():
-                    print("无法获取用户token，无法调用场景API")
                     return []
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario/list"
                 params = {"page": 1, "limit": 100}
                 headers = self._get_user_auth_headers()
-                print(f"请求URL: {url}, 参数: {params}")
-                print(f"请求头: {headers}")
                 
                 async with session.get(url, params=params, headers=headers) as response:
-                    print(f"场景列表API响应状态: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print(f"场景列表API响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             scenarios = data.get("data", {}).get("list", [])
                             active_scenarios = [s for s in scenarios if s.get("isActive", False)]
-                            print(f"获取到 {len(scenarios)} 个场景，其中 {len(active_scenarios)} 个活跃场景")
-                            
-                            # 详细输出场景数据
-                            print("\n=== 场景详细信息 ===")
-                            for i, scenario in enumerate(scenarios):
-                                print(f"\n场景 {i+1}:")
-                                print(f"  数据库ID: {scenario.get('id', 'N/A')}")
-                                print(f"  场景ID: {scenario.get('scenarioId', 'N/A')}")
-                                print(f"  场景名称: {scenario.get('scenarioName', 'N/A')}")
-                                print(f"  是否活跃: {scenario.get('isActive', False)}")
-                                print(f"  描述: {scenario.get('description', 'N/A')}")
-                                print(f"  创建时间: {scenario.get('createDate', 'N/A')}")
-                                print(f"  更新时间: {scenario.get('updateDate', 'N/A')}")
-                                print(f"  完整数据: {scenario}")
-                            
                             return active_scenarios
                         else:
-                            print(f"API返回错误: {data.get('msg', '未知错误')}")
                             return []
                     else:
-                        print(f"获取场景列表失败: HTTP {response.status}")
                         return []
         except Exception as e:
-            print(f"获取场景列表失败: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -583,12 +483,9 @@ class DialogueService:
     async def get_default_teaching_scenario(self) -> Optional[Dict]:
         """获取默认教学场景"""
         try:
-            print(f"正在获取默认教学场景，API地址: {self.api_base_url}")
-            
             # 确保有用户token
             if not self.user_token:
                 if not await self._login_and_get_token():
-                    print("无法获取用户token，无法调用场景API")
                     return None
             
             async with aiohttp.ClientSession() as session:
@@ -596,14 +493,10 @@ class DialogueService:
                 url = f"{self.api_base_url}/xiaozhi/scenario/list"
                 params = {"page": 1, "limit": 100, "isDefaultTeaching": 1}
                 headers = self._get_user_auth_headers()
-                print(f"请求URL: {url}, 参数: {params}")
-                print(f"请求头: {headers}")
                 
                 async with session.get(url, params=params, headers=headers) as response:
-                    print(f"默认教学场景API响应状态: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print(f"默认教学场景API响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
@@ -613,27 +506,14 @@ class DialogueService:
                             
                             if default_scenarios:
                                 default_scenario = default_scenarios[0]  # 取第一个默认教学场景
-                                print(f"获取到默认教学场景: {default_scenario.get('scenarioName', 'Unknown')}")
-                                print("\n=== 默认教学场景详细信息 ===")
-                                print(f"场景ID: {default_scenario.get('scenarioId', 'N/A')}")
-                                print(f"场景名称: {default_scenario.get('scenarioName', 'N/A')}")
-                                print(f"描述: {default_scenario.get('description', 'N/A')}")
-                                print(f"是否活跃: {default_scenario.get('isActive', False)}")
-                                print(f"创建时间: {default_scenario.get('createDate', 'N/A')}")
-                                print(f"更新时间: {default_scenario.get('updateDate', 'N/A')}")
-                                print(f"完整数据: {default_scenario}")
                                 return default_scenario
                             else:
-                                print("没有找到默认教学场景")
                                 return None
                         else:
-                            print(f"API返回错误: {data.get('msg', '未知错误')}")
                             return None
                     else:
-                        print(f"获取默认教学场景失败: HTTP {response.status}")
                         return None
         except Exception as e:
-            print(f"获取默认教学场景失败: {e}")
             import traceback
             traceback.print_exc()
             return None
