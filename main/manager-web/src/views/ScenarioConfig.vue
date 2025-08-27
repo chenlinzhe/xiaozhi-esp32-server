@@ -134,12 +134,18 @@ export default {
         this.loading = false;
         ApiLogger.log('场景列表响应数据:', data);
         
+        // 确保使用data.data的数据结构
         if (isApiSuccess(data)) {
           const businessData = getBusinessData(data);
           if (businessData && businessData.list) {
             this.scenarios = businessData.list;
             this.total = businessData.total || 0;
             ApiLogger.log('场景数据设置成功:', this.scenarios);
+          } else if (businessData && Array.isArray(businessData)) {
+            // 如果businessData直接是数组，说明没有分页结构
+            this.scenarios = businessData;
+            this.total = businessData.length;
+            ApiLogger.log('场景数据设置成功（数组格式）:', this.scenarios);
           } else {
             ApiLogger.error('响应数据格式不正确，缺少list字段');
             this.scenarios = [];

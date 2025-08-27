@@ -117,7 +117,8 @@
 </template>
 
 <script>
-import Api from '@/apis/api';
+import Api from '@/apis/module/scenario';
+import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
 
 export default {
@@ -165,38 +166,42 @@ export default {
       this.$router.go(-1);
     },
     
-    async saveScenario() {
-      try {
-        await this.$refs.scenarioForm.validate();
-        
-        // 处理触发关键词格式
-        if (this.scenarioForm.triggerKeywords) {
-          const keywords = this.scenarioForm.triggerKeywords.split(',').map(k => k.trim());
-          this.scenarioForm.triggerKeywords = JSON.stringify(keywords);
-        }
-        
-        // 处理视觉卡片格式
-        if (this.scenarioForm.triggerCards) {
-          try {
-            const cards = JSON.parse(this.scenarioForm.triggerCards);
-            this.scenarioForm.triggerCards = JSON.stringify(cards);
-          } catch (e) {
-            this.$message.error('视觉卡片格式错误，请使用JSON格式');
-            return;
+    saveScenario() {
+      this.$refs.scenarioForm.validate((valid) => {
+        if (valid) {
+          // 处理触发关键词格式
+          if (this.scenarioForm.triggerKeywords) {
+            const keywords = this.scenarioForm.triggerKeywords.split(',').map(k => k.trim());
+            this.scenarioForm.triggerKeywords = JSON.stringify(keywords);
           }
-        }
-        
-        await Api.scenario.saveScenario(this.scenarioForm);
-        this.$message.success('场景创建成功');
-        this.$router.push('/scenario-config');
-      } catch (error) {
-        if (error.message) {
-          this.$message.error(error.message);
+          
+          // 处理视觉卡片格式
+          if (this.scenarioForm.triggerCards) {
+            try {
+              const cards = JSON.parse(this.scenarioForm.triggerCards);
+              this.scenarioForm.triggerCards = JSON.stringify(cards);
+            } catch (e) {
+              this.$message.error('视觉卡片格式错误，请使用JSON格式');
+              return;
+            }
+          }
+          
+          Api.saveScenario(this.scenarioForm, (data) => {
+            ApiLogger.log('创建场景响应:', data);
+            
+            if (isApiSuccess(data)) {
+              this.$message.success('场景创建成功');
+              this.$router.push('/scenario-config');
+            } else {
+              const errorMsg = getErrorMessage(data, '保存失败');
+              this.$message.error(errorMsg);
+              ApiLogger.error('创建场景失败:', errorMsg);
+            }
+          });
         } else {
-          this.$message.error('保存失败');
+          this.$message.error('请检查表单填写是否正确');
         }
-        console.error('保存场景失败:', error);
-      }
+      });
     }
   }
 }

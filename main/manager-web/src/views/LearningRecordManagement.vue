@@ -174,7 +174,8 @@
 </template>
 
 <script>
-import Api from '@/apis/api';
+import Api from '@/apis/module/scenario';
+import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
 
 export default {
@@ -210,36 +211,56 @@ export default {
     this.loadStatistics();
   },
   methods: {
-    async loadRecords() {
-      try {
-        this.loading = true;
-        const params = {
-          page: this.currentPage,
-          limit: this.pageSize,
-          ...this.searchForm
-        };
-        
-        const response = await Api.scenario.getLearningRecords(params);
-        this.records = response.data.list;
-        this.total = response.data.total;
-      } catch (error) {
-        this.$message.error('获取学习记录失败');
-        console.error('获取学习记录失败:', error);
-      } finally {
+    loadRecords() {
+      this.loading = true;
+      const params = {
+        page: this.currentPage,
+        limit: this.pageSize,
+        ...this.searchForm
+      };
+      
+      Api.getLearningRecords(params, (data) => {
         this.loading = false;
-      }
+        ApiLogger.log('学习记录响应数据:', data);
+        
+        if (isApiSuccess(data)) {
+          const businessData = getBusinessData(data);
+          if (businessData && businessData.list) {
+            this.records = businessData.list;
+            this.total = businessData.total || 0;
+            ApiLogger.log('学习记录数据设置成功:', this.records);
+          } else if (businessData && Array.isArray(businessData)) {
+            // 如果businessData直接是数组，说明没有分页结构
+            this.records = businessData;
+            this.total = businessData.length;
+            ApiLogger.log('学习记录数据设置成功（数组格式）:', this.records);
+          } else {
+            ApiLogger.error('响应数据格式不正确，缺少list字段');
+            this.records = [];
+            this.total = 0;
+            this.$message.error('响应数据格式不正确');
+          }
+        } else {
+          const errorMsg = getErrorMessage(data, '获取学习记录失败');
+          ApiLogger.error('学习记录请求失败:', errorMsg);
+          this.records = [];
+          this.total = 0;
+          this.$message.error(errorMsg);
+        }
+      });
     },
     
-    async loadAgents() {
-      try {
-        const response = await Api.agent.getAgentList();
-        this.agents = response.data.list || [];
-      } catch (error) {
-        console.error('获取智能体列表失败:', error);
-      }
+    loadAgents() {
+      // 这里需要根据实际的智能体API来调用
+      // 暂时使用模拟数据
+      this.agents = [
+        { id: 'agent_001', agentName: '智能体1' },
+        { id: 'agent_002', agentName: '智能体2' },
+        { id: 'agent_003', agentName: '智能体3' }
+      ];
     },
     
-    async loadStatistics() {
+    loadStatistics() {
       try {
         // 这里可以调用统计API，暂时使用模拟数据
         this.statistics = {
@@ -249,7 +270,7 @@ export default {
           activeChildren: 12
         };
       } catch (error) {
-        console.error('获取统计数据失败:', error);
+        ApiLogger.error('获取统计数据失败:', error);
       }
     },
     
@@ -285,22 +306,27 @@ export default {
       this.detailDialogVisible = true;
     },
     
-    async deleteRecord(record) {
-      try {
-        await this.$confirm('确定要删除这条学习记录吗？', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
+    deleteRecord(record) {
+      this.$confirm('确定要删除这条学习记录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        Api.deleteLearningRecord(record.id, (data) => {
+          ApiLogger.log('删除学习记录响应:', data);
+          
+          if (isApiSuccess(data)) {
+            this.$message.success('删除成功');
+            this.loadRecords();
+          } else {
+            const errorMsg = getErrorMessage(data, '删除失败');
+            this.$message.error(errorMsg);
+            ApiLogger.error('删除学习记录失败:', errorMsg);
+          }
         });
-        
-        await Api.scenario.deleteLearningRecord(record.id);
-        this.$message.success('删除成功');
-        this.loadRecords();
-      } catch (error) {
-        if (error !== 'cancel') {
-          this.$message.error('删除失败');
-        }
-      }
+      }).catch(() => {
+        // 用户取消删除
+      });
     },
     
     exportRecords() {

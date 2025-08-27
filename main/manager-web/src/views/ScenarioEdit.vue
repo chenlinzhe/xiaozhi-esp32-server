@@ -117,7 +117,8 @@
 </template>
 
 <script>
-import Api from '@/apis/api';
+import Api from '@/apis/module/scenario';
+import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
 
 export default {
@@ -167,34 +168,42 @@ export default {
   },
   methods: {
     loadScenarioData() {
-      Api.scenario.getScenario(this.scenarioId, (response) => {
-        console.log('获取场景详情响应:', response);
-        if (response && response.code === 0) {
-          const scenario = response.data;
+      Api.getScenario(this.scenarioId, (data) => {
+        ApiLogger.log('获取场景详情响应:', data);
+        
+        if (isApiSuccess(data)) {
+          const scenario = getBusinessData(data);
           
-          // 处理JSON格式的数据
-          if (scenario.triggerKeywords) {
-            try {
-              const keywords = JSON.parse(scenario.triggerKeywords);
-              scenario.triggerKeywords = keywords.join(', ');
-            } catch (e) {
-              // 如果不是JSON格式，直接使用
+          if (scenario) {
+            // 处理JSON格式的数据
+            if (scenario.triggerKeywords) {
+              try {
+                const keywords = JSON.parse(scenario.triggerKeywords);
+                scenario.triggerKeywords = keywords.join(', ');
+              } catch (e) {
+                // 如果不是JSON格式，直接使用
+              }
             }
-          }
-          
-          if (scenario.triggerCards) {
-            try {
-              const cards = JSON.parse(scenario.triggerCards);
-              scenario.triggerCards = JSON.stringify(cards, null, 2);
-            } catch (e) {
-              // 如果不是JSON格式，直接使用
+            
+            if (scenario.triggerCards) {
+              try {
+                const cards = JSON.parse(scenario.triggerCards);
+                scenario.triggerCards = JSON.stringify(cards, null, 2);
+              } catch (e) {
+                // 如果不是JSON格式，直接使用
+              }
             }
+            
+            this.scenarioForm = { ...scenario };
+            ApiLogger.log('场景数据加载成功:', this.scenarioForm);
+          } else {
+            this.$message.error('场景数据为空');
+            ApiLogger.error('场景数据为空');
           }
-          
-          this.scenarioForm = { ...scenario };
         } else {
-          this.$message.error('加载场景数据失败: ' + (response ? response.msg : '未知错误'));
-          console.error('加载场景数据失败:', response);
+          const errorMsg = getErrorMessage(data, '加载场景数据失败');
+          this.$message.error(errorMsg);
+          ApiLogger.error('加载场景数据失败:', errorMsg);
         }
       });
     },
@@ -223,14 +232,16 @@ export default {
             }
           }
           
-          Api.scenario.updateScenario(this.scenarioId, this.scenarioForm, (response) => {
-            console.log('更新场景响应:', response);
-            if (response && response.code === 0) {
+          Api.updateScenario(this.scenarioId, this.scenarioForm, (data) => {
+            ApiLogger.log('更新场景响应:', data);
+            
+            if (isApiSuccess(data)) {
               this.$message.success('场景更新成功');
               this.$router.push('/scenario-config');
             } else {
-              this.$message.error('保存失败: ' + (response ? response.msg : '未知错误'));
-              console.error('保存场景失败:', response);
+              const errorMsg = getErrorMessage(data, '保存失败');
+              this.$message.error(errorMsg);
+              ApiLogger.error('保存场景失败:', errorMsg);
             }
           });
         } else {
