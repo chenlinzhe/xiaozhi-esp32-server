@@ -31,12 +31,12 @@ class DialogueStepExecutor:
         """初始化执行器"""
         try:
             # 获取场景信息
-            self.scenario = await scenario_manager.get_scenario(self.scenario_id)
+            self.scenario = scenario_manager.get_scenario(self.scenario_id)
             if not self.scenario:
                 raise Exception(f"场景不存在: {self.scenario_id}")
             
             # 获取步骤列表
-            self.steps = await step_manager.get_scenario_steps(self.scenario_id)
+            self.steps = step_manager.get_scenario_steps(self.scenario_id)
             self.total_steps = len(self.steps)
             
             # 重置状态
@@ -213,20 +213,20 @@ class ScenarioTrigger:
     def __init__(self):
         self.scenario_manager = scenario_manager
     
-    async def detect_trigger(self, user_input: str, input_type: str = "voice") -> Optional[Dict]:
+    def detect_trigger(self, user_input: str, input_type: str = "voice") -> Optional[Dict]:
         """检测场景触发"""
         if input_type == "voice":
-            return await self.detect_voice_trigger(user_input)
+            return self.detect_voice_trigger(user_input)
         elif input_type == "visual":
-            return await self.detect_visual_trigger(user_input)
+            return self.detect_visual_trigger(user_input)
         elif input_type == "button":
-            return await self.detect_button_trigger(user_input)
+            return self.detect_button_trigger(user_input)
         return None
     
-    async def detect_voice_trigger(self, text: str) -> Optional[Dict]:
+    def detect_voice_trigger(self, text: str) -> Optional[Dict]:
         """语音触发检测"""
         try:
-            scenarios = await self.scenario_manager.get_active_scenarios()
+            scenarios = self.scenario_manager.get_active_scenarios()
             for scenario in scenarios:
                 trigger_keywords = json.loads(scenario.get('triggerKeywords', '[]'))
                 if any(keyword in text for keyword in trigger_keywords):
@@ -236,10 +236,10 @@ class ScenarioTrigger:
             print(f"语音触发检测失败: {e}")
             return None
     
-    async def detect_visual_trigger(self, card_id: str) -> Optional[Dict]:
+    def detect_visual_trigger(self, card_id: str) -> Optional[Dict]:
         """视觉触发检测"""
         try:
-            scenarios = await self.scenario_manager.get_active_scenarios()
+            scenarios = self.scenario_manager.get_active_scenarios()
             for scenario in scenarios:
                 trigger_cards = json.loads(scenario.get('triggerCards', '[]'))
                 if card_id in trigger_cards:
@@ -249,10 +249,10 @@ class ScenarioTrigger:
             print(f"视觉触发检测失败: {e}")
             return None
     
-    async def detect_button_trigger(self, button_id: str) -> Optional[Dict]:
+    def detect_button_trigger(self, button_id: str) -> Optional[Dict]:
         """按钮触发检测"""
         try:
-            scenarios = await self.scenario_manager.get_active_scenarios()
+            scenarios = self.scenario_manager.get_active_scenarios()
             for scenario in scenarios:
                 if scenario.get('triggerType') == 'button' and scenario.get('scenarioCode') == button_id:
                     return scenario

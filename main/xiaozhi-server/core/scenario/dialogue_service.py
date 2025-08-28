@@ -449,70 +449,39 @@ class DialogueService:
         except Exception as e:
             pass
     
-    async def get_scenarios(self) -> List[Dict]:
+    def get_scenarios(self) -> List[Dict]:
         """获取场景列表"""
         try:
-            # 确保有用户token
-            if not self.user_token:
-                if not await self._login_and_get_token():
-                    return []
-            
-            async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/scenario/list"
-                params = {"page": 1, "limit": 100}
-                headers = self._get_user_auth_headers()
-                
-                async with session.get(url, params=params, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # 检查API返回的错误码，与项目中其他地方保持一致
-                        if data.get('code') == 0:
-                            scenarios = data.get("data", {}).get("list", [])
-                            active_scenarios = [s for s in scenarios if s.get("isActive", False)]
-                            return active_scenarios
-                        else:
-                            return []
-                    else:
-                        return []
+            from config.manage_api_client import get_scenario_list
+            result = get_scenario_list(page=1, limit=100, is_active=True)
+            if result:
+                scenarios = result.get("list", [])
+                active_scenarios = [s for s in scenarios if s.get("isActive", False)]
+                return active_scenarios
+            else:
+                return []
         except Exception as e:
             import traceback
             traceback.print_exc()
             return []
     
-    async def get_default_teaching_scenario(self) -> Optional[Dict]:
+    def get_default_teaching_scenario(self) -> Optional[Dict]:
         """获取默认教学场景"""
         try:
-            # 确保有用户token
-            if not self.user_token:
-                if not await self._login_and_get_token():
-                    return None
-            
-            async with aiohttp.ClientSession() as session:
-                # 通过查询is_default_teaching=1来获取默认教学场景
-                url = f"{self.api_base_url}/xiaozhi/scenario/list"
-                params = {"page": 1, "limit": 100, "isDefaultTeaching": 1}
-                headers = self._get_user_auth_headers()
+            from config.manage_api_client import get_scenario_list
+            result = get_scenario_list(page=1, limit=100)
+            if result:
+                scenarios = result.get("list", [])
+                # 查找is_default_teaching=1的场景
+                default_scenarios = [s for s in scenarios if s.get("isDefaultTeaching", 0) == 1]
                 
-                async with session.get(url, params=params, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # 检查API返回的错误码，与项目中其他地方保持一致
-                        if data.get('code') == 0:
-                            scenarios = data.get("data", {}).get("list", [])
-                            # 查找is_default_teaching=1的场景
-                            default_scenarios = [s for s in scenarios if s.get("isDefaultTeaching", 0) == 1]
-                            
-                            if default_scenarios:
-                                default_scenario = default_scenarios[0]  # 取第一个默认教学场景
-                                return default_scenario
-                            else:
-                                return None
-                        else:
-                            return None
-                    else:
-                        return None
+                if default_scenarios:
+                    default_scenario = default_scenarios[0]  # 取第一个默认教学场景
+                    return default_scenario
+                else:
+                    return None
+            else:
+                return None
         except Exception as e:
             import traceback
             traceback.print_exc()

@@ -30,12 +30,12 @@ class ScenarioDialogueService:
         """开始场景对话"""
         try:
             # 获取场景信息
-            scenario = await self.scenario_manager.get_scenario(scenario_id)
+            scenario = self.scenario_manager.get_scenario(scenario_id)
             if not scenario:
                 return {"success": False, "error": "场景不存在"}
             
             # 获取场景步骤
-            steps = await self.step_manager.get_scenario_steps(scenario_id)
+            steps = self.step_manager.get_scenario_steps(scenario_id)
             if not steps:
                 return {"success": False, "error": "场景步骤不存在"}
             
@@ -205,7 +205,7 @@ class ScenarioDialogueService:
     async def get_available_scenarios(self, agent_id: str = None) -> List[Dict]:
         """获取可用的场景列表"""
         try:
-            scenarios = await self.scenario_manager.list_scenarios(agent_id=agent_id)
+            scenarios = self.scenario_manager.list_scenarios(agent_id=agent_id)
             if scenarios:
                 # 只返回启用的场景
                 return [s for s in scenarios if s.get("isActive", False)]
