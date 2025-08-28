@@ -380,12 +380,20 @@ class ChatStatusManager:
             # 获取默认教学场景
             self.logger.info("正在获取默认教学场景...")
             default_scenario = self.dialogue_service.get_default_teaching_scenario()
+            print(f"默认教学场景获取结果: {default_scenario}")
+            
             if default_scenario:
                 self.logger.info(f"获取到默认教学场景: {default_scenario.get('scenarioName', 'Unknown')}")
+                print(f"默认场景详情:")
+                print(f"  - 场景ID: {default_scenario.get('id', 'N/A')}")
+                print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
+                print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
+                print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
             else:
                 self.logger.warning("没有获取到默认教学场景，尝试获取第一个可用场景")
                 # 如果没有默认教学场景，获取第一个可用场景
                 scenarios = self.dialogue_service.get_scenarios()
+                print(f"获取到的所有场景: {scenarios}")
                 self.logger.info(f"获取到 {len(scenarios) if scenarios else 0} 个场景")
                 
                 if not scenarios or len(scenarios) == 0:
@@ -395,6 +403,11 @@ class ChatStatusManager:
                         "error": "没有可用的教学场景，请联系管理员配置教学场景"
                     }
                 default_scenario = scenarios[0]
+                print(f"选择第一个场景详情:")
+                print(f"  - 场景ID: {default_scenario.get('id', 'N/A')}")
+                print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
+                print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
+                print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
                 self.logger.info(f"使用第一个场景: {default_scenario.get('scenarioName', 'Unknown')}")
             
             # 使用数据库ID而不是scenarioId，因为API期望数字ID

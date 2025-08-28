@@ -102,15 +102,43 @@ class DialogueService:
     async def start_scenario(self, session_id: str, scenario_id: str, child_name: str) -> Dict:
         """开始场景对话"""
         try:
+            print(f"=== 开始场景对话调试 ===")
+            print(f"会话ID: {session_id}")
+            print(f"场景ID: {scenario_id}")
+            print(f"儿童姓名: {child_name}")
+            
             # 获取场景信息
+            print(f"正在获取场景信息: {scenario_id}")
             scenario = await self._get_scenario(scenario_id)
+            print(f"场景获取结果: {scenario}")
+            
             if not scenario:
+                print(f"场景不存在: {scenario_id}")
                 return {"success": False, "error": "场景不存在"}
             
+            print(f"场景信息详情:")
+            print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+            print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+            print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+            print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+            
             # 获取场景步骤
+            print(f"正在获取场景步骤: {scenario_id}")
             steps = await self._get_scenario_steps(scenario_id)
+            print(f"步骤获取结果: {steps}")
+            
             if not steps:
+                print(f"场景步骤不存在: {scenario_id}")
                 return {"success": False, "error": "场景步骤不存在"}
+            
+            print(f"步骤信息详情:")
+            print(f"  - 步骤数量: {len(steps)}")
+            for i, step in enumerate(steps):
+                print(f"  - 步骤 {i+1}:")
+                print(f"    * 步骤ID: {step.get('id', 'N/A')}")
+                print(f"    * 步骤名称: {step.get('stepName', 'N/A')}")
+                print(f"    * 步骤顺序: {step.get('stepOrder', 'N/A')}")
+                print(f"    * AI消息: {step.get('aiMessage', 'N/A')}")
             
             # 创建会话
             self.sessions[session_id] = {
@@ -372,28 +400,47 @@ class DialogueService:
     async def _get_scenario(self, scenario_id: str) -> Optional[Dict]:
         """获取场景信息"""
         try:
+            print(f"=== _get_scenario 调试 ===")
+            print(f"场景ID: {scenario_id}")
+            
             # 确保有用户token
             if not self.user_token:
+                print("用户token不存在，尝试登录获取")
                 if not await self._login_and_get_token():
+                    print("登录获取token失败")
                     return None
+                print(f"登录成功，获取到token: {self.user_token[:20]}...")
+            else:
+                print(f"已有用户token: {self.user_token[:20]}...")
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario/{scenario_id}"
                 headers = self._get_user_auth_headers()
+                print(f"请求URL: {url}")
+                print(f"请求头: {headers}")
                 
                 async with session.get(url, headers=headers) as response:
+                    print(f"响应状态码: {response.status}")
+                    
                     if response.status == 200:
                         data = await response.json()
+                        print(f"响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             scenario = data.get("data")
+                            print(f"获取到场景数据: {scenario}")
                             return scenario
                         else:
+                            print(f"API返回错误码: {data.get('code')}, 错误信息: {data.get('message', 'N/A')}")
                             return None
                     else:
+                        print(f"HTTP请求失败，状态码: {response.status}")
+                        response_text = await response.text()
+                        print(f"响应内容: {response_text}")
                         return None
         except Exception as e:
+            print(f"_get_scenario 异常: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -401,28 +448,48 @@ class DialogueService:
     async def _get_scenario_steps(self, scenario_id: str) -> List[Dict]:
         """获取场景步骤"""
         try:
+            print(f"=== _get_scenario_steps 调试 ===")
+            print(f"场景ID: {scenario_id}")
+            
             # 确保有用户token
             if not self.user_token:
+                print("用户token不存在，尝试登录获取")
                 if not await self._login_and_get_token():
+                    print("登录获取token失败")
                     return []
+                print(f"登录成功，获取到token: {self.user_token[:20]}...")
+            else:
+                print(f"已有用户token: {self.user_token[:20]}...")
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario-step/list/{scenario_id}"
                 headers = self._get_user_auth_headers()
+                print(f"请求URL: {url}")
+                print(f"请求头: {headers}")
                 
                 async with session.get(url, headers=headers) as response:
+                    print(f"响应状态码: {response.status}")
+                    
                     if response.status == 200:
                         data = await response.json()
+                        print(f"响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             steps = data.get("data", [])
+                            print(f"获取到步骤数据: {steps}")
+                            print(f"步骤数量: {len(steps)}")
                             return steps
                         else:
+                            print(f"API返回错误码: {data.get('code')}, 错误信息: {data.get('message', 'N/A')}")
                             return []
                     else:
+                        print(f"HTTP请求失败，状态码: {response.status}")
+                        response_text = await response.text()
+                        print(f"响应内容: {response_text}")
                         return []
         except Exception as e:
+            print(f"_get_scenario_steps 异常: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -452,15 +519,30 @@ class DialogueService:
     def get_scenarios(self) -> List[Dict]:
         """获取场景列表"""
         try:
+            print(f"=== get_scenarios 调试 ===")
             from config.manage_api_client import get_scenario_list
             result = get_scenario_list(page=1, limit=100, is_active=True)
+            print(f"API调用结果: {result}")
+            
             if result:
                 scenarios = result.get("list", [])
+                print(f"原始场景列表: {scenarios}")
                 active_scenarios = [s for s in scenarios if s.get("isActive", False)]
+                print(f"活跃场景列表: {active_scenarios}")
+                
+                for i, scenario in enumerate(active_scenarios):
+                    print(f"活跃场景 {i+1}:")
+                    print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+                    print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+                    print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+                    print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                
                 return active_scenarios
             else:
+                print("API返回None或空结果")
                 return []
         except Exception as e:
+            print(f"get_scenarios 异常: {e}")
             import traceback
             traceback.print_exc()
             return []

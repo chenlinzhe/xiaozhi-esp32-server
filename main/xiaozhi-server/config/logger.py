@@ -2,7 +2,7 @@ import os
 import sys
 from loguru import logger
 from config.config_loader import load_config
-# from config.settings import check_config_file
+from config.settings import check_config_file
 from datetime import datetime
 
 SERVER_VERSION = "0.7.3"
@@ -25,13 +25,13 @@ def get_module_abbreviation(module_name, module_dict):
 def build_module_string(selected_module):
     """构建模块字符串"""
     return (
-        get_module_abbreviation("VAD", selected_module)
-        + get_module_abbreviation("ASR", selected_module)
-        + get_module_abbreviation("LLM", selected_module)
-        + get_module_abbreviation("TTS", selected_module)
-        + get_module_abbreviation("Memory", selected_module)
-        + get_module_abbreviation("Intent", selected_module)
-        + get_module_abbreviation("VLLM", selected_module)
+            get_module_abbreviation("VAD", selected_module)
+            + get_module_abbreviation("ASR", selected_module)
+            + get_module_abbreviation("LLM", selected_module)
+            + get_module_abbreviation("TTS", selected_module)
+            + get_module_abbreviation("Memory", selected_module)
+            + get_module_abbreviation("Intent", selected_module)
+            + get_module_abbreviation("VLLM", selected_module)
     )
 
 
@@ -46,9 +46,10 @@ def formatter(record):
 
 
 def setup_logging():
+    check_config_file()
     """从配置文件中读取日志配置，并设置日志输出格式和级别"""
     config = load_config()
-    log_config = config.get("log", {})
+    log_config = config["log"]
     global _logger_initialized
 
     # 第一次初始化时配置日志
@@ -58,7 +59,7 @@ def setup_logging():
             extra={
                 "selected_module": log_config.get("selected_module", "00000000000000"),
             })
-        
+
         log_format = log_config.get(
             "log_format",
             "<green>{time:YYMMDD HH:mm:ss}</green>[{version}_{extra[selected_module]}][<light-blue>{extra[tag]}</light-blue>]-<level>{level}</level>-<light-green>{message}</light-green>",

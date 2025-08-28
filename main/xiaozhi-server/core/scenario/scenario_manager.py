@@ -21,17 +21,30 @@ class ScenarioManager:
     def get_active_scenarios(self, agent_id: str = None) -> List[Dict]:
         """获取活跃的场景列表"""
         try:
+            print(f"=== get_active_scenarios 调试 ===")
+            print(f"代理ID: {agent_id}")
             print(f"正在获取活跃场景列表")
             
             result = get_scenario_list(agent_id=agent_id, page=1, limit=100, is_active=True)
+            print(f"API调用结果: {result}")
             
             if result:
                 scenarios = result.get("list", [])
+                print(f"原始场景列表: {scenarios}")
                 active_scenarios = [s for s in scenarios if s.get("isActive", False)]
+                print(f"活跃场景列表: {active_scenarios}")
                 print(f"获取到 {len(scenarios)} 个场景，其中 {len(active_scenarios)} 个活跃场景")
+                
+                for i, scenario in enumerate(active_scenarios):
+                    print(f"活跃场景 {i+1}:")
+                    print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+                    print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+                    print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+                    print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                
                 return active_scenarios
             else:
-                print("获取活跃场景列表失败")
+                print("获取活跃场景列表失败，API返回None")
                 return []
                 
         except Exception as e:
@@ -43,9 +56,26 @@ class ScenarioManager:
     def get_scenario(self, scenario_id: str) -> Optional[Dict]:
         """获取场景信息"""
         try:
-            return get_scenario_by_id(scenario_id)
+            print(f"=== scenario_manager.get_scenario 调试 ===")
+            print(f"场景ID: {scenario_id}")
+            
+            result = get_scenario_by_id(scenario_id)
+            print(f"API调用结果: {result}")
+            
+            if result:
+                print(f"场景详情:")
+                print(f"  - 场景ID: {result.get('id', 'N/A')}")
+                print(f"  - 场景名称: {result.get('scenarioName', 'N/A')}")
+                print(f"  - 是否活跃: {result.get('isActive', 'N/A')}")
+                print(f"  - 代理ID: {result.get('agentId', 'N/A')}")
+            else:
+                print("场景获取失败，返回None")
+            
+            return result
         except Exception as e:
             print(f"获取场景失败: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def create_scenario(self, scenario_data: Dict) -> Optional[str]:

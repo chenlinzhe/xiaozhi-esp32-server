@@ -88,10 +88,6 @@ class ManageApiClient:
             login_attempts = [
                 {"username": "ningwenjie", "password": "310113Nm."},  # 用户提供的凭据
                 {"username": "admin", "password": "admin"},
-                {"username": "admin", "password": "123456"},
-                {"username": "admin", "password": "password"},
-                {"username": "xiaozhi", "password": "xiaozhi"},
-                {"username": "xiaozhi", "password": "123456"},
             ]
             
             for attempt in login_attempts:
@@ -149,22 +145,43 @@ class ManageApiClient:
     @classmethod
     def _request(cls, method: str, endpoint: str, **kwargs) -> Dict:
         """发送单次HTTP请求并处理响应"""
+        print(f"=== _request 调试 ===")
+        print(f"请求方法: {method}")
+        print(f"请求端点: {endpoint}")
+        print(f"请求参数: {kwargs}")
+        
         endpoint = endpoint.lstrip("/")
-        response = cls._client.request(method, endpoint, **kwargs)
-        response.raise_for_status()
-
-        result = response.json()
-
-        # 处理API返回的业务错误
-        if result.get("code") == 10041:
-            raise DeviceNotFoundException(result.get("msg"))
-        elif result.get("code") == 10042:
-            raise DeviceBindException(result.get("msg"))
-        elif result.get("code") != 0:
-            raise Exception(f"API返回错误: {result.get('msg', '未知错误')}")
-
-        # 返回成功数据
-        return result.get("data") if result.get("code") == 0 else None
+        print(f"处理后的端点: {endpoint}")
+        
+        try:
+            response = cls._client.request(method, endpoint, **kwargs)
+            print(f"响应状态码: {response.status_code}")
+            print(f"响应头: {dict(response.headers)}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            print(f"响应JSON: {result}")
+            
+            # 处理API返回的业务错误
+            if result.get("code") == 10041:
+                print(f"设备未找到错误: {result.get('msg')}")
+                raise DeviceNotFoundException(result.get("msg"))
+            elif result.get("code") == 10042:
+                print(f"设备绑定错误: {result.get('msg')}")
+                raise DeviceBindException(result.get("msg"))
+            elif result.get("code") != 0:
+                print(f"API业务错误: {result.get('msg', '未知错误')}")
+                raise Exception(f"API返回错误: {result.get('msg', '未知错误')}")
+            
+            # 返回成功数据
+            data = result.get("data") if result.get("code") == 0 else None
+            print(f"返回数据: {data}")
+            return data
+            
+        except Exception as e:
+            print(f"_request 异常: {e}")
+            raise
 
     @classmethod
     def _should_retry(cls, exception: Exception) -> bool:
@@ -287,12 +304,19 @@ def _ensure_client_initialized():
 def get_scenario_list(agent_id: str = None, page: int = 1, limit: int = 100, is_active: bool = None) -> Optional[Dict]:
     """获取场景列表"""
     try:
+        print(f"=== get_scenario_list 调试 ===")
+        print(f"参数: agent_id={agent_id}, page={page}, limit={limit}, is_active={is_active}")
+        
         _ensure_client_initialized()
+        print("客户端已初始化")
+        
         params = {"page": page, "limit": limit}
         if agent_id:
             params["agentId"] = agent_id
         if is_active is not None:
             params["isActive"] = 1 if is_active else 0
+        
+        print(f"请求参数: {params}")
         
         # 使用用户token认证的客户端
         user_client = ManageApiClient._instance._get_user_client()
@@ -300,29 +324,58 @@ def get_scenario_list(agent_id: str = None, page: int = 1, limit: int = 100, is_
             print("无法获取用户认证客户端")
             return None
         
+        print("获取到用户认证客户端")
         response = user_client.get("/xiaozhi/scenario/list", params=params)
+        print(f"响应状态码: {response.status_code}")
+        
         response.raise_for_status()
         
         result = response.json()
+        print(f"响应JSON: {result}")
+        
         if result.get("code") != 0:
+            print(f"API返回错误码: {result.get('code')}, 错误信息: {result.get('msg', '未知错误')}")
             raise Exception(f"API返回错误: {result.get('msg', '未知错误')}")
         
-        return result.get("data")
+        data = result.get("data")
+        print(f"返回数据: {data}")
+        return data
     except Exception as e:
         print(f"获取场景列表失败: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
 def get_scenario_by_id(scenario_id: str) -> Optional[Dict]:
     """根据ID获取场景"""
     try:
+        print(f"=== get_scenario_by_id 调试 ===")
+        print(f"场景ID: {scenario_id}")
+        
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request(
+        print("客户端已初始化")
+        
+        result = ManageApiClient._instance._execute_request(
             "GET",
             f"/xiaozhi/scenario/{scenario_id}"
         )
+        print(f"API请求结果: {result}")
+        
+        if result:
+            print(f"场景数据详情:")
+            print(f"  - 场景ID: {result.get('id', 'N/A')}")
+            print(f"  - 场景名称: {result.get('scenarioName', 'N/A')}")
+            print(f"  - 是否活跃: {result.get('isActive', 'N/A')}")
+            print(f"  - 代理ID: {result.get('agentId', 'N/A')}")
+        else:
+            print("API返回None")
+        
+        return result
     except Exception as e:
         print(f"获取场景失败: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
