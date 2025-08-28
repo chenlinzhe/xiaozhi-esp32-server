@@ -22,7 +22,7 @@ import java.util.Map;
  * @since 2024-12-01
  */
 @RestController
-@RequestMapping("/xiaozhi/scenario")
+@RequestMapping("/scenario")
 @Tag(name = "场景配置管理")
 @Slf4j
 public class ScenarioController {

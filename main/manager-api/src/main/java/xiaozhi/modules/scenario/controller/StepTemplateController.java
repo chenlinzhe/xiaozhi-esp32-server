@@ -17,7 +17,7 @@ import java.util.List;
  * @since 2024-12-01
  */
 @RestController
-@RequestMapping("/xiaozhi/step-template")
+@RequestMapping("/step-template")
 @Tag(name = "步骤模板管理")
 public class StepTemplateController {
 

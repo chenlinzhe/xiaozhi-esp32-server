@@ -41,14 +41,12 @@ class DialogueService:
         return headers
     
     def _get_user_auth_headers(self) -> Dict[str, str]:
-        """获取用户token认证头"""
+        """获取用户token认证头 - 场景API无需认证"""
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
-        # 使用用户token进行认证
-        if self.user_token:
-            headers["Authorization"] = f"Bearer {self.user_token}"
+        # 场景相关API无需token认证，直接返回基础headers
         return headers
     
     async def _login_and_get_token(self) -> bool:
@@ -440,16 +438,6 @@ class DialogueService:
             print(f"=== _get_scenario 调试 ===")
             print(f"场景ID: {scenario_id}")
             
-            # 确保有用户token
-            if not self.user_token:
-                print("用户token不存在，尝试登录获取")
-                if not await self._login_and_get_token():
-                    print("登录获取token失败")
-                    return None
-                print(f"登录成功，获取到token: {self.user_token[:20]}...")
-            else:
-                print(f"已有用户token: {self.user_token[:20]}...")
-            
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario/{scenario_id}"
                 headers = self._get_user_auth_headers()
@@ -500,16 +488,6 @@ class DialogueService:
         try:
             print(f"=== _get_scenario_steps 调试 ===")
             print(f"场景ID: {scenario_id}")
-            
-            # 确保有用户token
-            if not self.user_token:
-                print("用户token不存在，尝试登录获取")
-                if not await self._login_and_get_token():
-                    print("登录获取token失败")
-                    return []
-                print(f"登录成功，获取到token: {self.user_token[:20]}...")
-            else:
-                print(f"已有用户token: {self.user_token[:20]}...")
             
             async with aiohttp.ClientSession() as session:
                 url = f"{self.api_base_url}/xiaozhi/scenario-step/list/{scenario_id}"

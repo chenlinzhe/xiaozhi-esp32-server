@@ -74,6 +74,11 @@ class TeachingHandler:
                     self.logger.bind(tag=TAG).info(f"开始处理模式切换: {result.get('mode')}")
                     self.logger.bind(tag=TAG).info(f"AI消息内容: {ai_message}")
                     
+                    # 确保TTS已准备就绪
+                    if not self._ensure_tts_ready():
+                        self.logger.bind(tag=TAG).error("TTS未准备就绪，无法进行教学模式切换")
+                        return True  # 返回True避免继续处理
+                    
                     # 发送TTS消息
                     self._send_tts_message(ai_message)
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
@@ -91,6 +96,11 @@ class TeachingHandler:
                     
                 elif action == "start_teaching":
                     # 开始教学模式
+                    # 确保TTS已准备就绪
+                    if not self._ensure_tts_ready():
+                        self.logger.bind(tag=TAG).error("TTS未准备就绪，无法开始教学模式")
+                        return True
+                    
                     self._send_tts_message(ai_message)
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
@@ -192,57 +202,47 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")
             return
             
-        # 等待TTS初始化完成
-        max_wait_time = 10  # 最多等待10秒
-        wait_count = 0
-        while not self.connection.tts and wait_count < max_wait_time:
-            self.logger.bind(tag=TAG).info(f"等待TTS初始化... ({wait_count + 1}/{max_wait_time})")
-            time.sleep(1)
-            wait_count += 1
-            
+        # 检查TTS是否可用
         if not self.connection.tts:
-            self.logger.bind(tag=TAG).error("TTS初始化超时，无法发送消息")
+            self.logger.bind(tag=TAG).error("TTS实例不存在，无法发送消息")
             return
             
         try:
-            # 生成新的sentence_id，确保每次发送都是独立的会话
-            self.connection.sentence_id = str(uuid.uuid4().hex)
-            self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")
-            
-            # 发送FIRST请求开始TTS会话
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.connection.sentence_id,
-                    sentence_type=SentenceType.FIRST,
-                    content_type=ContentType.ACTION,
-                )
+            # 使用简化的TTS发送方式
+            self.connection.tts.tts_one_sentence(
+                self.connection, 
+                ContentType.TEXT, 
+                content_detail=message
             )
-            self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
-            
-            # 发送文本消息到TTS队列
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.connection.sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=message,
-                )
-            )
-            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
-            
-            # 发送LAST请求结束TTS会话
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.connection.sentence_id,
-                    sentence_type=SentenceType.LAST,
-                    content_type=ContentType.ACTION,
-                )
-            )
-            self.logger.bind(tag=TAG).info("发送TTS LAST请求")
+            self.logger.bind(tag=TAG).info(f"TTS消息已发送: {message[:50]}...")
             
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
 
+    def _ensure_tts_ready(self):
+        """
+        确保TTS实例已完全初始化并准备就绪
+        
+        Returns:
+            bool: TTS是否准备就绪
+        """
+        # 由于TTS在连接建立时就已初始化，这里只需要简单检查
+        if not self.connection.tts:
+            self.logger.bind(tag=TAG).error("TTS实例不存在")
+            return False
+        
+        # 检查TTS线程是否正常运行
+        try:
+            if (hasattr(self.connection.tts, 'tts_priority_thread') and 
+                self.connection.tts.tts_priority_thread.is_alive()):
+                self.logger.bind(tag=TAG).info("TTS已准备就绪")
+                return True
+            else:
+                self.logger.bind(tag=TAG).error("TTS文本处理线程未运行")
+                return False
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"检查TTS状态时出错: {e}")
+            return False
 
 
     def _start_teaching_timeout_check(self, user_id: str, wait_time: int):

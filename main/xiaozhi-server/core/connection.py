@@ -231,8 +231,8 @@ class ConnectionHandler:
 
             # 获取差异化配置
             self._initialize_private_config()
-            # 异步初始化
-            self.executor.submit(self._initialize_components)
+            # 立即初始化组件（包括TTS）
+            self._initialize_components()
 
             try:
                 async for message in self.websocket:
@@ -383,15 +383,9 @@ class ConnectionHandler:
             asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
             )
-            if self.tts is None:
-                self.logger.bind(tag=TAG).info("开始初始化TTS...")
-                self.tts = self._initialize_tts()
-                self.logger.bind(tag=TAG).info(f"TTS初始化完成: {type(self.tts).__name__}")
-            # 打开语音合成通道
-            asyncio.run_coroutine_threadsafe(
-                self.tts.open_audio_channels(self), self.loop
-            )
-            self.logger.bind(tag=TAG).info("TTS音频通道已打开")
+            
+            # 立即初始化TTS并确保完全就绪
+            self._initialize_tts_complete()
 
             """加载记忆"""
             self._initialize_memory()
@@ -438,6 +432,68 @@ class ConnectionHandler:
             tts = DefaultTTS(self.config, delete_audio_file=True)
 
         return tts
+
+    def _initialize_tts_complete(self):
+        """完整初始化TTS并确保就绪"""
+        try:
+            if self.tts is None:
+                self.logger.bind(tag=TAG).info("开始初始化TTS...")
+                self.tts = self._initialize_tts()
+                self.logger.bind(tag=TAG).info(f"TTS实例创建完成: {type(self.tts).__name__}")
+            
+                            # 确保TTS音频通道已打开
+                if not hasattr(self.tts, 'conn') or self.tts.conn is None:
+                    self.logger.bind(tag=TAG).info("开始打开TTS音频通道...")
+                    try:
+                        # 使用同步方式等待TTS音频通道打开
+                        future = asyncio.run_coroutine_threadsafe(
+                            self.tts.open_audio_channels(self), self.loop
+                        )
+                        # 等待异步操作完成，最多等待5秒
+                        future.result(timeout=5)
+                        self.logger.bind(tag=TAG).info("TTS音频通道已打开")
+                        
+                    except Exception as e:
+                        self.logger.bind(tag=TAG).warning(f"TTS音频通道打开失败: {e}")
+                        # 即使音频通道打开失败，也继续使用TTS实例
+                        self.logger.bind(tag=TAG).info("继续使用TTS实例，音频通道将在需要时重新初始化")
+            else:
+                self.logger.bind(tag=TAG).info("TTS音频通道已存在")
+                
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"TTS完整初始化失败: {e}")
+
+    def _wait_tts_threads_ready(self):
+        """等待TTS线程启动就绪"""
+        max_wait_time = 10  # 最多等待10秒
+        wait_count = 0
+        
+        while wait_count < max_wait_time:
+            try:
+                # 检查TTS文本处理线程是否已启动
+                if (hasattr(self.tts, 'tts_priority_thread') and 
+                    self.tts.tts_priority_thread.is_alive()):
+                    self.logger.bind(tag=TAG).info("TTS文本处理线程已就绪")
+                    
+                    # 检查TTS音频播放线程是否已启动
+                    if (hasattr(self.tts, 'audio_play_priority_thread') and 
+                        self.tts.audio_play_priority_thread.is_alive()):
+                        self.logger.bind(tag=TAG).info("TTS音频播放线程已就绪")
+                        self.logger.bind(tag=TAG).info("TTS完全初始化完成")
+                        return True
+                    else:
+                        self.logger.bind(tag=TAG).info(f"等待TTS音频播放线程启动... ({wait_count + 1}/{max_wait_time})")
+                else:
+                    self.logger.bind(tag=TAG).info(f"等待TTS文本处理线程启动... ({wait_count + 1}/{max_wait_time})")
+                    
+            except Exception as e:
+                self.logger.bind(tag=TAG).warning(f"检查TTS线程状态时出错: {e}")
+            
+            time.sleep(1)
+            wait_count += 1
+        
+        self.logger.bind(tag=TAG).warning("TTS线程启动超时，但继续使用")
+        return False
 
     def _initialize_asr(self):
         """初始化ASR"""

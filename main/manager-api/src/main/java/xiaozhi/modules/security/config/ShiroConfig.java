@@ -85,6 +85,11 @@ public class ShiroConfig {
         filterMap.put("/user/pub-config", "anon");
         filterMap.put("/user/register", "anon");
         filterMap.put("/user/retrieve-password", "anon");
+        // 场景相关API无需认证
+        filterMap.put("/scenario/**", "anon");
+        filterMap.put("/scenario-step/**", "anon");
+        filterMap.put("/step-template/**", "anon");
+        filterMap.put("/child-learning-record/**", "anon");
         // 将config路径使用server服务过滤器
         filterMap.put("/config/**", "server");
         filterMap.put("/agent/chat-history/report", "server");

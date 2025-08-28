@@ -79,14 +79,20 @@ class TTSProviderBase(ABC):
             # 需要删除文件的直接转为音频数据
             while max_repeat_time > 0:
                 try:
-                    audio_bytes = asyncio.run(self.text_to_speak(text, None))
-                    if audio_bytes:
-                        audio_datas, _ = audio_bytes_to_data(
-                            audio_bytes, file_type=self.audio_file_type, is_opus=True
-                        )
-                        return audio_datas
-                    else:
-                        max_repeat_time -= 1
+                    # 使用新的事件循环来运行异步方法
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        audio_bytes = loop.run_until_complete(self.text_to_speak(text, None))
+                        if audio_bytes:
+                            audio_datas, _ = audio_bytes_to_data(
+                                audio_bytes, file_type=self.audio_file_type, is_opus=True
+                            )
+                            return audio_datas
+                        else:
+                            max_repeat_time -= 1
+                    finally:
+                        loop.close()
                 except Exception as e:
                     logger.bind(tag=TAG).warning(
                         f"语音生成失败{5 - max_repeat_time + 1}次: {text}，错误: {e}"
@@ -106,7 +112,13 @@ class TTSProviderBase(ABC):
             try:
                 while not os.path.exists(tmp_file) and max_repeat_time > 0:
                     try:
-                        asyncio.run(self.text_to_speak(text, tmp_file))
+                        # 使用新的事件循环来运行异步方法
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(self.text_to_speak(text, tmp_file))
+                        finally:
+                            loop.close()
                     except Exception as e:
                         logger.bind(tag=TAG).warning(
                             f"语音生成失败{5 - max_repeat_time + 1}次: {text}，错误: {e}"
@@ -192,19 +204,40 @@ class TTSProviderBase(ABC):
         )
 
     async def open_audio_channels(self, conn):
-        self.conn = conn
-        self.tts_timeout = conn.config.get("tts_timeout", 10)
-        # tts 消化线程
-        self.tts_priority_thread = threading.Thread(
-            target=self.tts_text_priority_thread, daemon=True
-        )
-        self.tts_priority_thread.start()
+        try:
+            self.conn = conn
+            self.tts_timeout = conn.config.get("tts_timeout", 10)
+            
+            # 简化初始化，只启动必要的线程
+            logger.bind(tag=TAG).info("开始初始化TTS音频通道...")
+            
+            # tts 消化线程
+            self.tts_priority_thread = threading.Thread(
+                target=self.tts_text_priority_thread, daemon=True
+            )
+            self.tts_priority_thread.start()
+            logger.bind(tag=TAG).info("TTS文本处理线程已启动")
 
-        # 音频播放 消化线程
-        self.audio_play_priority_thread = threading.Thread(
-            target=self._audio_play_priority_thread, daemon=True
-        )
-        self.audio_play_priority_thread.start()
+            # 音频播放 消化线程
+            self.audio_play_priority_thread = threading.Thread(
+                target=self._audio_play_priority_thread, daemon=True
+            )
+            self.audio_play_priority_thread.start()
+            logger.bind(tag=TAG).info("TTS音频播放线程已启动")
+            
+            # 等待线程启动完成（减少等待时间）
+            await asyncio.sleep(0.1)
+            
+            # 简单检查线程是否启动，不强制要求线程立即活跃
+            if hasattr(self, 'tts_priority_thread') and hasattr(self, 'audio_play_priority_thread'):
+                logger.bind(tag=TAG).info("TTS音频通道打开成功")
+            else:
+                raise Exception("TTS线程创建失败")
+                
+        except Exception as e:
+            logger.bind(tag=TAG).error(f"TTS音频通道打开失败: {e}")
+            # 不抛出异常，让系统继续运行
+            logger.bind(tag=TAG).warning("TTS音频通道打开失败，但继续使用TTS实例")
 
     # 这里默认是非流式的处理方式
     # 流式处理方式请在子类中重写

@@ -19,7 +19,7 @@ import java.util.List;
  * @since 2024-12-01
  */
 @RestController
-@RequestMapping("/xiaozhi/scenario-step")
+@RequestMapping("/scenario-step")
 @Tag(name = "场景步骤管理")
 @Slf4j
 public class ScenarioStepController {
