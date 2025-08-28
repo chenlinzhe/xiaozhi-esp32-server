@@ -6,8 +6,41 @@
 import json
 import asyncio
 import aiohttp
+import os
+import yaml
 from typing import Dict, List, Optional
 from config.config_loader import load_config
+
+
+def read_config(config_path):
+    """读取配置文件"""
+    with open(config_path, "r", encoding="utf-8") as file:
+        return yaml.safe_load(file)
+
+
+def get_api_config():
+    """获取API配置信息"""
+    config_path = "data/.config.yaml"
+    if not os.path.exists(config_path):
+        print(f"配置文件不存在: {config_path}")
+        return None, None
+    
+    try:
+        config = read_config(config_path)
+        api_url = config.get("manager-api", {}).get("url", "")
+        server_secret = config.get("manager-api", {}).get("secret", "")
+        
+        if not api_url:
+            print("未配置manager-api地址")
+            return None, None
+        
+        # 构建基础URL
+        base_url = api_url.replace("/xiaozhi", "")
+        
+        return base_url, server_secret
+    except Exception as e:
+        print(f"读取配置文件失败: {e}")
+        return None, None
 
 
 class ScenarioManager:
@@ -15,11 +48,10 @@ class ScenarioManager:
     
     def __init__(self):
         self.config = load_config()
-        self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
-        # Java API的context-path是/xiaozhi，Controller的RequestMapping是/xiaozhi/scenario
-        # 所以完整路径是 /xiaozhi + /xiaozhi/scenario = /xiaozhi/xiaozhi/scenario
-        # 获取服务器密钥（用于配置API）
-        self.server_secret = self.config.get("manager-api", {}).get("secret", "")
+        # 使用update_token.py中的方法获取API配置
+        self.api_base_url, self.server_secret = get_api_config()
+        if not self.api_base_url:
+            self.api_base_url = "http://localhost:8002"  # 默认地址
         # 用户token（用于场景API）
         self.user_token = None
     
@@ -66,7 +98,8 @@ class ScenarioManager:
                             "captcha": "123456"   # 跳过验证码验证
                         }
                         
-                        url = f"{self.api_base_url}/user/login"
+                        # 使用update_token.py中的登录URL构建方式
+                        url = f"{self.api_base_url}/xiaozhi/auth/login"
                         headers = {"Content-Type": "application/json"}
                         
                         print(f"尝试登录: username={attempt['username']}")
@@ -292,11 +325,10 @@ class StepManager:
     
     def __init__(self):
         self.config = load_config()
-        self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
-        # Java API的context-path是/xiaozhi，Controller的RequestMapping是/xiaozhi/scenario
-        # 所以完整路径是 /xiaozhi + /xiaozhi/scenario = /xiaozhi/xiaozhi/scenario
-        # 获取服务器密钥（用于配置API）
-        self.server_secret = self.config.get("manager-api", {}).get("secret", "")
+        # 使用update_token.py中的方法获取API配置
+        self.api_base_url, self.server_secret = get_api_config()
+        if not self.api_base_url:
+            self.api_base_url = "http://localhost:8002"  # 默认地址
         # 用户token（用于场景API）
         self.user_token = None
     
@@ -343,7 +375,8 @@ class StepManager:
                             "captcha": "123456"   # 跳过验证码验证
                         }
                         
-                        url = f"{self.api_base_url}/user/login"
+                        # 使用update_token.py中的登录URL构建方式
+                        url = f"{self.api_base_url}/xiaozhi/auth/login"
                         headers = {"Content-Type": "application/json"}
                         
                         print(f"尝试登录: username={attempt['username']}")
