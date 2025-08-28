@@ -3,7 +3,7 @@ import uuid
 import signal
 import asyncio
 from aioconsole import ainput
-from config.config_loader import load_config
+from config.settings import load_config
 from config.logger import setup_logging
 from core.utils.util import get_local_ip, validate_mcp_endpoint
 from core.http_server import SimpleHttpServer
