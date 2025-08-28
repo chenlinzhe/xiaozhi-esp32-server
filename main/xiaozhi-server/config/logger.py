@@ -2,7 +2,7 @@ import os
 import sys
 from loguru import logger
 from config.config_loader import load_config
-from config.settings import check_config_file
+# from config.settings import check_config_file
 from datetime import datetime
 
 SERVER_VERSION = "0.7.3"
@@ -46,10 +46,9 @@ def formatter(record):
 
 
 def setup_logging():
-    check_config_file()
     """从配置文件中读取日志配置，并设置日志输出格式和级别"""
     config = load_config()
-    log_config = config["log"]
+    log_config = config.get("log", {})
     global _logger_initialized
 
     # 第一次初始化时配置日志

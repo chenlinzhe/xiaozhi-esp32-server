@@ -35,7 +35,7 @@ async def handle_user_intent(conn, text):
 
     # 检查场景触发
     if not hasattr(conn, 'scenario_executor') or not conn.scenario_executor:
-        triggered_scenario = await scenario_trigger.detect_trigger(text, "voice")
+        triggered_scenario = scenario_trigger.detect_trigger(text, "voice")
         if triggered_scenario:
             await start_scenario_dialogue(conn, triggered_scenario['id'])
             return True

@@ -379,13 +379,13 @@ class ChatStatusManager:
             
             # 获取默认教学场景
             self.logger.info("正在获取默认教学场景...")
-            default_scenario = await self.dialogue_service.get_default_teaching_scenario()
+            default_scenario = self.dialogue_service.get_default_teaching_scenario()
             if default_scenario:
                 self.logger.info(f"获取到默认教学场景: {default_scenario.get('scenarioName', 'Unknown')}")
             else:
                 self.logger.warning("没有获取到默认教学场景，尝试获取第一个可用场景")
                 # 如果没有默认教学场景，获取第一个可用场景
-                scenarios = await self.dialogue_service.get_scenarios()
+                scenarios = self.dialogue_service.get_scenarios()
                 self.logger.info(f"获取到 {len(scenarios) if scenarios else 0} 个场景")
                 
                 if not scenarios or len(scenarios) == 0:
