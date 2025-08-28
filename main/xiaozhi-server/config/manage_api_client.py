@@ -87,7 +87,7 @@ class ManageApiClient:
             # 尝试使用常见的用户名登录
             login_attempts = [
                 {"username": "ningwenjie", "password": "310113Nm."},  # 用户提供的凭据
-                {"username": "admin", "password": "admin"},
+                {"username": "admin", "password": "Chen1234@"},
             ]
             
             for attempt in login_attempts:

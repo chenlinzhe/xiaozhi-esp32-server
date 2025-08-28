@@ -389,6 +389,10 @@ class ChatStatusManager:
                 print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
                 print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
                 print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
+                print(f"  - 是否默认教学: {default_scenario.get('isDefaultTeaching', 'N/A')}")
+                print(f"  - 创建时间: {default_scenario.get('createTime', 'N/A')}")
+                print(f"  - 更新时间: {default_scenario.get('updateTime', 'N/A')}")
+                print(f"  - 完整默认场景数据: {default_scenario}")
             else:
                 self.logger.warning("没有获取到默认教学场景，尝试获取第一个可用场景")
                 # 如果没有默认教学场景，获取第一个可用场景
@@ -408,6 +412,10 @@ class ChatStatusManager:
                 print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
                 print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
                 print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
+                print(f"  - 是否默认教学: {default_scenario.get('isDefaultTeaching', 'N/A')}")
+                print(f"  - 创建时间: {default_scenario.get('createTime', 'N/A')}")
+                print(f"  - 更新时间: {default_scenario.get('updateTime', 'N/A')}")
+                print(f"  - 完整第一个场景数据: {default_scenario}")
                 self.logger.info(f"使用第一个场景: {default_scenario.get('scenarioName', 'Unknown')}")
             
             # 使用数据库ID而不是scenarioId，因为API期望数字ID

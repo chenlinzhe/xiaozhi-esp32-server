@@ -430,6 +430,19 @@ class DialogueService:
                         if data.get('code') == 0:
                             scenario = data.get("data")
                             print(f"获取到场景数据: {scenario}")
+                            
+                            # 详细打印场景数据
+                            if scenario:
+                                print(f"\n=== 详细场景数据 ===")
+                                print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+                                print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+                                print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+                                print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                                print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
+                                print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
+                                print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
+                                print(f"  - 完整场景数据: {scenario}")
+                            
                             return scenario
                         else:
                             print(f"API返回错误码: {data.get('code')}, 错误信息: {data.get('message', 'N/A')}")
@@ -479,6 +492,23 @@ class DialogueService:
                             steps = data.get("data", [])
                             print(f"获取到步骤数据: {steps}")
                             print(f"步骤数量: {len(steps)}")
+                            
+                            # 详细打印每个步骤的数据
+                            print(f"\n=== 详细步骤数据 ===")
+                            for i, step in enumerate(steps):
+                                print(f"\n步骤 {i+1}:")
+                                print(f"  - 步骤ID: {step.get('id', 'N/A')}")
+                                print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
+                                print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
+                                print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
+                                print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
+                                print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
+                                print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")
+                                print(f"  - 场景ID: {step.get('scenarioId', 'N/A')}")
+                                print(f"  - 创建时间: {step.get('createTime', 'N/A')}")
+                                print(f"  - 更新时间: {step.get('updateTime', 'N/A')}")
+                                print(f"  - 完整步骤数据: {step}")
+                            
                             return steps
                         else:
                             print(f"API返回错误码: {data.get('code')}, 错误信息: {data.get('message', 'N/A')}")
@@ -530,12 +560,17 @@ class DialogueService:
                 active_scenarios = [s for s in scenarios if s.get("isActive", False)]
                 print(f"活跃场景列表: {active_scenarios}")
                 
+                print(f"\n=== 详细场景数据 ===")
                 for i, scenario in enumerate(active_scenarios):
-                    print(f"活跃场景 {i+1}:")
+                    print(f"\n活跃场景 {i+1}:")
                     print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
                     print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
                     print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
                     print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                    print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
+                    print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
+                    print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
+                    print(f"  - 完整场景数据: {scenario}")
                 
                 return active_scenarios
             else:
