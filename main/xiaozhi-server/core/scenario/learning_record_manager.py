@@ -16,9 +16,11 @@ class LearningRecordManager:
     
     def __init__(self):
         self.config = load_config()
-        self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
+        # 使用配置文件中的manager-api.url，如果不存在则使用默认值
+        manager_api_config = self.config.get("manager-api", {})
+        self.api_base_url = manager_api_config.get("url", "http://localhost:8002")
         # 获取认证token
-        self.auth_token = self.config.get("manager-api", {}).get("secret", "")
+        self.auth_token = manager_api_config.get("secret", "")
     
     def _get_auth_headers(self) -> Dict[str, str]:
         """获取认证头"""
@@ -34,7 +36,8 @@ class LearningRecordManager:
         """保存学习记录"""
         try:
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/learning-record"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/learning-record
+                url = f"{self.api_base_url}/learning-record"
                 headers = self._get_auth_headers()
                 
                 async with session.post(url, json=record_data, headers=headers) as response:
@@ -62,7 +65,8 @@ class LearningRecordManager:
                 params["scenarioId"] = scenario_id
             
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/learning-record/list"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/learning-record/list
+                url = f"{self.api_base_url}/learning-record/list"
                 headers = self._get_auth_headers()
                 
                 async with session.get(url, params=params, headers=headers) as response:
@@ -79,7 +83,8 @@ class LearningRecordManager:
         """获取儿童学习统计"""
         try:
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/learning-record/statistics"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/learning-record/statistics
+                url = f"{self.api_base_url}/learning-record/statistics"
                 params = {"childName": child_name}
                 headers = self._get_auth_headers()
                 

@@ -7,7 +7,7 @@ export default {
     // 获取场景列表
     getScenarioList(params, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/list`)
+            .url(`${getServiceUrl()}/scenario/list`)
             .method('GET')
             .data(params)
             .success((res) => {
@@ -24,7 +24,7 @@ export default {
     // 获取场景详情
     getScenario(scenarioId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario/${scenarioId}`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -40,7 +40,7 @@ export default {
     // 保存场景
     saveScenario(scenarioData, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario`)
+            .url(`${getServiceUrl()}/scenario`)
             .method('POST')
             .data(scenarioData)
             .success((res) => {
@@ -57,7 +57,7 @@ export default {
     // 更新场景
     updateScenario(scenarioId, scenarioData, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario/${scenarioId}`)
             .method('PUT')
             .data(scenarioData)
             .success((res) => {
@@ -74,7 +74,7 @@ export default {
     // 删除场景
     deleteScenario(scenarioId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario/${scenarioId}`)
             .method('DELETE')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -90,7 +90,7 @@ export default {
     // 启用/禁用场景
     toggleScenario(scenarioId, isActive, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/${scenarioId}/toggle`)
+            .url(`${getServiceUrl()}/scenario/${scenarioId}/toggle`)
             .method('PUT')
             .data({ isActive: isActive })
             .success((res) => {
@@ -107,7 +107,7 @@ export default {
     // 根据智能体ID获取场景列表
     getScenariosByAgentId(agentId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/agent/${agentId}`)
+            .url(`${getServiceUrl()}/scenario/agent/${agentId}`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -123,7 +123,7 @@ export default {
     // 根据场景类型获取活跃场景列表
     getActiveScenariosByType(scenarioType, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario/active/${scenarioType}`)
+            .url(`${getServiceUrl()}/scenario/active/${scenarioType}`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -141,7 +141,7 @@ export default {
     // 获取场景步骤列表
     getScenarioSteps(scenarioId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario-step/list/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario-step/list/${scenarioId}`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -157,7 +157,7 @@ export default {
     // 批量保存场景步骤
     saveScenarioSteps(scenarioId, stepsData, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario-step/batch-save/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario-step/batch-save/${scenarioId}`)
             .method('POST')
             .data(stepsData)
             .success((res) => {
@@ -174,7 +174,7 @@ export default {
     // 删除步骤
     deleteScenarioStep(stepId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario-step/${stepId}`)
+            .url(`${getServiceUrl()}/scenario-step/${stepId}`)
             .method('DELETE')
             .success((res) => {
                 RequestService.clearRequestTime();
@@ -190,7 +190,7 @@ export default {
     // 获取场景步骤数量
     getScenarioStepCount(scenarioId, callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/scenario-step/count/${scenarioId}`)
+            .url(`${getServiceUrl()}/scenario-step/count/${scenarioId}`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();

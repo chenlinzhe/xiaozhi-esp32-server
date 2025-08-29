@@ -15,12 +15,11 @@ class DialogueService:
     
     def __init__(self):
         self.config = load_config()
-        # 使用与项目中其他地方一致的配置路径
-        self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
-        # Java API的context-path是/xiaozhi，Controller的RequestMapping是/xiaozhi/scenario
-        # 所以完整路径是 /xiaozhi + /xiaozhi/scenario = /xiaozhi/xiaozhi/scenario
+        # 使用配置文件中的manager-api.url，如果不存在则使用默认值
+        manager_api_config = self.config.get("manager-api", {})
+        self.api_base_url = manager_api_config.get("url", "http://localhost:8002")
         # 获取服务器密钥（用于配置API）
-        self.server_secret = self.config.get("manager-api", {}).get("secret", "")
+        self.server_secret = manager_api_config.get("secret", "")
         # 用户token（用于场景API）
         self.user_token = None
         self.sessions = {}
@@ -439,7 +438,8 @@ class DialogueService:
             print(f"场景ID: {scenario_id}")
             
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/scenario/{scenario_id}"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/scenario/{scenario_id}
+                url = f"{self.api_base_url}/scenario/{scenario_id}"
                 headers = self._get_user_auth_headers()
                 print(f"请求URL: {url}")
                 print(f"请求头: {headers}")
@@ -490,7 +490,8 @@ class DialogueService:
             print(f"场景ID: {scenario_id}")
             
             async with aiohttp.ClientSession() as session:
-                url = f"{self.api_base_url}/xiaozhi/scenario-step/list/{scenario_id}"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/scenario-step/list/{scenario_id}
+                url = f"{self.api_base_url}/scenario-step/list/{scenario_id}"
                 headers = self._get_user_auth_headers()
                 print(f"请求URL: {url}")
                 print(f"请求头: {headers}")
@@ -554,7 +555,8 @@ class DialogueService:
             }
             
             async with aiohttp.ClientSession() as session_client:
-                url = f"{self.api_base_url}/xiaozhi/learning-record"
+                # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/learning-record
+                url = f"{self.api_base_url}/learning-record"
                 headers = self._get_server_auth_headers()
                 await session_client.post(url, json=record_data, headers=headers)
                 

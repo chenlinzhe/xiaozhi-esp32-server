@@ -18,7 +18,9 @@ class ScenarioDialogueService:
     
     def __init__(self):
         self.config = load_config()
-        self.api_base_url = self.config.get("manager_api_url", "http://localhost:8002")
+        # 使用配置文件中的manager-api.url，如果不存在则使用默认值
+        manager_api_config = self.config.get("manager-api", {})
+        self.api_base_url = manager_api_config.get("url", "http://localhost:8002")
         self.scenario_manager = ScenarioManager()
         self.step_manager = StepManager()
         self.learning_manager = LearningRecordManager()
