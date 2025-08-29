@@ -19,7 +19,7 @@ import java.util.Map;
  * @since 2024-12-01
  */
 @RestController
-@RequestMapping("/xiaozhi/learning-record")
+@RequestMapping("/child-learning-record")
 @Tag(name = "儿童学习记录管理")
 public class ChildLearningRecordController {
 

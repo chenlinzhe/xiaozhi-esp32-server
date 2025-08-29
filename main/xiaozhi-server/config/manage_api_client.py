@@ -22,7 +22,6 @@ class ManageApiClient:
     _instance = None
     _client = None
     _secret = None
-    _user_token = None
 
     def __new__(cls, config):
         """单例模式确保全局唯一实例，并支持传入配置参数"""
@@ -60,87 +59,7 @@ class ManageApiClient:
             timeout=cls.config.get("timeout", 30),  # 默认超时时间30秒
         )
     
-    @classmethod
-    def _get_user_client(cls):
-        """获取用户token认证的客户端"""
-        if not cls._user_token:
-            cls._login_and_get_token()
-        
-        if cls._user_token:
-            return httpx.Client(
-                base_url=cls.config.get("url"),
-                headers={
-                    "User-Agent": f"PythonClient/2.0 (PID:{os.getpid()})",
-                    "Accept": "application/json",
-                    "Authorization": "Bearer " + cls._user_token,
-                },
-                timeout=cls.config.get("timeout", 30),
-            )
-        return None
-    
-    @classmethod
-    def _login_and_get_token(cls):
-        """登录并获取用户token"""
-        try:
-            print("正在登录获取用户token...")
-            
-            # 尝试使用常见的用户名登录
-            login_attempts = [
-                {"username": "ningwenjie", "password": "310113Nm."},  # 用户提供的凭据
-                {"username": "admin", "password": "Chen1234@"},
-            ]
-            
-            for attempt in login_attempts:
-                try:
-                    login_data = {
-                        "username": attempt["username"],
-                        "password": attempt["password"],
-                        "captcha": "123456"   # 跳过验证码验证
-                    }
-                    
-                    # 构建登录URL
-                    base_url = cls.config.get("url").replace("/xiaozhi", "")
-                    login_url = f"{base_url}/xiaozhi/user/login"
-                    
-                    print(f"尝试登录: username={attempt['username']}")
-                    
-                    # 使用基础客户端发送登录请求
-                    response = cls._client.post(login_url, json=login_data)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        print(f"登录响应数据: {data}")
-                        if data.get('code') == 0:
-                            token_data = data.get('data', {})
-                            # 尝试多种可能的token字段名
-                            cls._user_token = (
-                                token_data.get('accessToken') or 
-                                token_data.get('token') or 
-                                token_data.get('access_token') or
-                                data.get('token') or
-                                data.get('accessToken')
-                            )
-                            if cls._user_token:
-                                print(f"登录成功，用户: {attempt['username']}, token: {cls._user_token[:20]}...")
-                                return True
-                            else:
-                                print(f"登录成功但未获取到token，完整响应: {data}")
-                                continue
-                        else:
-                            print(f"登录失败: {data.get('msg', '未知错误')}")
-                            continue
-                    else:
-                        print(f"登录请求失败: HTTP {response.status_code}")
-                        continue
-                except Exception as e:
-                    print(f"登录尝试异常: {e}")
-                    continue
-            
-            print("所有登录尝试都失败了")
-            return False
-        except Exception as e:
-            print(f"登录异常: {e}")
-            return False
+
 
     @classmethod
     def _request(cls, method: str, endpoint: str, **kwargs) -> Dict:
@@ -221,33 +140,7 @@ class ManageApiClient:
                     # 不重试，直接抛出异常
                     raise
 
-    @classmethod
-    def _execute_request_no_auth(cls, method: str, endpoint: str, **kwargs) -> Dict:
-        """无需认证的请求执行器"""
-        try:
-            # 创建无需认证的客户端
-            no_auth_client = httpx.Client(
-                base_url=cls.config.get("url"),
-                headers={
-                    "User-Agent": f"PythonClient/2.0 (PID:{os.getpid()})",
-                    "Accept": "application/json",
-                },
-                timeout=cls.config.get("timeout", 30),
-            )
-            
-            # 确保endpoint以/开头
-            if not endpoint.startswith("/"):
-                endpoint = "/" + endpoint
-            
-            print(f"无需认证请求: {method} {cls.config.get('url')}{endpoint}")
-            response = no_auth_client.request(method, endpoint, **kwargs)
-            print(f"响应状态码: {response.status_code}")
-            
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"无需认证请求失败: {e}")
-            return None
+
 
     @classmethod
     def safe_close(cls):
@@ -346,29 +239,26 @@ def get_scenario_list(agent_id: str = None, page: int = 1, limit: int = 100, is_
         
         print(f"请求参数: {params}")
         
-        # 场景API无需认证，直接使用无需认证的客户端
-        response = ManageApiClient._instance._execute_request_no_auth(
+        # 场景API使用密钥认证
+        response = ManageApiClient._instance._execute_request(
             "GET",
             "/scenario/list",
             params=params
         )
-        print(f"响应状态码: {response}")
+        print(f"响应数据: {response}")
         
-        if response and response.get("code") == 404:
-            print(f"API返回404，没有找到资源，返回空列表")
+        if response is None:
+            print(f"API请求失败或返回None")
+            # 返回空列表而不是None，避免后续处理出错
             return {"list": [], "total": 0}
-        elif response and response.get("code") != 0:
-            print(f"API返回错误码: {response.get('code')}, 错误信息: {response.get('msg', '未知错误')}")
-            raise Exception(f"API返回错误: {response.get('msg', '未知错误')}")
         
-        data = response.get("data") if response else None
-        print(f"返回数据: {data}")
-        return data
+        return response
     except Exception as e:
         print(f"获取场景列表失败: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        # 返回空列表而不是None，避免后续处理出错
+        return {"list": [], "total": 0}
 
 
 def get_scenario_by_id(scenario_id: str) -> Optional[Dict]:
@@ -380,26 +270,22 @@ def get_scenario_by_id(scenario_id: str) -> Optional[Dict]:
         _ensure_client_initialized()
         print("客户端已初始化")
         
-        result = ManageApiClient._instance._execute_request_no_auth(
+        result = ManageApiClient._instance._execute_request(
             "GET",
             f"/scenario/{scenario_id}"
         )
         print(f"API请求结果: {result}")
         
-        if result and result.get("code") == 404:
-            print("API返回404，场景不存在")
+        if result is None:
+            print("API返回None，场景不存在或认证失败")
             return None
-        elif result and result.get("code") == 0:
-            scenario_data = result.get("data")
-            print(f"场景数据详情:")
-            print(f"  - 场景ID: {scenario_data.get('id', 'N/A')}")
-            print(f"  - 场景名称: {scenario_data.get('scenarioName', 'N/A')}")
-            print(f"  - 是否活跃: {scenario_data.get('isActive', 'N/A')}")
-            print(f"  - 代理ID: {scenario_data.get('agentId', 'N/A')}")
-            return scenario_data
-        else:
-            print("API返回错误或None")
-            return None
+        
+        print(f"场景数据详情:")
+        print(f"  - 场景ID: {result.get('id', 'N/A')}")
+        print(f"  - 场景名称: {result.get('scenarioName', 'N/A')}")
+        print(f"  - 是否活跃: {result.get('isActive', 'N/A')}")
+        print(f"  - 代理ID: {result.get('agentId', 'N/A')}")
+        return result
     except Exception as e:
         print(f"获取场景失败: {e}")
         import traceback
@@ -411,7 +297,7 @@ def create_scenario(scenario_data: Dict) -> Optional[Dict]:
     """创建场景"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "POST",
             "/scenario",
             json=scenario_data
@@ -425,7 +311,7 @@ def update_scenario(scenario_id: str, scenario_data: Dict) -> Optional[Dict]:
     """更新场景"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "PUT",
             f"/scenario/{scenario_id}",
             json=scenario_data
@@ -439,7 +325,7 @@ def delete_scenario(scenario_id: str) -> Optional[Dict]:
     """删除场景"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "DELETE",
             f"/scenario/{scenario_id}"
         )
@@ -452,12 +338,12 @@ def get_scenario_steps(scenario_id: str) -> Optional[List[Dict]]:
     """获取场景步骤列表"""
     try:
         _ensure_client_initialized()
-        result = ManageApiClient._instance._execute_request_no_auth(
+        result = ManageApiClient._instance._execute_request(
             "GET",
             f"/scenario-step/list/{scenario_id}"
         )
-        if result and result.get("code") == 0:
-            steps = result.get("data", [])
+        if result:
+            steps = result if isinstance(result, list) else result.get("data", [])
             if isinstance(steps, list):
                 # 按stepOrder字段排序
                 steps.sort(key=lambda x: x.get('stepOrder', 0))
@@ -472,7 +358,7 @@ def get_step_by_id(step_id: str) -> Optional[Dict]:
     """根据ID获取步骤"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "GET",
             f"/step/{step_id}"
         )
@@ -485,7 +371,7 @@ def create_step(step_data: Dict) -> Optional[Dict]:
     """创建步骤"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "POST",
             "/step",
             json=step_data
@@ -499,7 +385,7 @@ def update_step(step_id: str, step_data: Dict) -> Optional[Dict]:
     """更新步骤"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "PUT",
             f"/step/{step_id}",
             json=step_data
@@ -513,7 +399,7 @@ def delete_step(step_id: str) -> Optional[Dict]:
     """删除步骤"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "DELETE",
             f"/step/{step_id}"
         )
@@ -526,13 +412,283 @@ def reorder_scenario_steps(scenario_id: str, step_orders: List[Dict]) -> Optiona
     """重新排序场景步骤"""
     try:
         _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request_no_auth(
+        return ManageApiClient._instance._execute_request(
             "PUT",
             f"/scenario/{scenario_id}/steps/reorder",
             json={"stepOrders": step_orders}
         )
     except Exception as e:
         print(f"重新排序步骤失败: {e}")
+        return None
+
+
+def batch_save_scenario_steps(scenario_id: str, steps: List[Dict]) -> Optional[Dict]:
+    """批量保存场景步骤"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "POST",
+            f"/scenario-step/batch-save/{scenario_id}",
+            json=steps
+        )
+    except Exception as e:
+        print(f"批量保存场景步骤失败: {e}")
+        return None
+
+
+def delete_scenario_step(step_id: str) -> Optional[Dict]:
+    """删除场景步骤"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "DELETE",
+            f"/scenario-step/{step_id}"
+        )
+    except Exception as e:
+        print(f"删除场景步骤失败: {e}")
+        return None
+
+
+def count_scenario_steps(scenario_id: str) -> Optional[int]:
+    """获取场景步骤数量"""
+    try:
+        _ensure_client_initialized()
+        result = ManageApiClient._instance._execute_request(
+            "GET",
+            f"/scenario-step/count/{scenario_id}"
+        )
+        return result if isinstance(result, int) else None
+    except Exception as e:
+        print(f"获取场景步骤数量失败: {e}")
+        return None
+
+
+# 步骤模板相关API
+def get_step_templates() -> Optional[List[Dict]]:
+    """获取步骤模板列表"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            "/step-template/list"
+        )
+    except Exception as e:
+        print(f"获取步骤模板列表失败: {e}")
+        return None
+
+
+def get_step_template_by_id(template_id: str) -> Optional[Dict]:
+    """根据ID获取步骤模板"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/step-template/{template_id}"
+        )
+    except Exception as e:
+        print(f"获取步骤模板失败: {e}")
+        return None
+
+
+def create_step_template(template_data: Dict) -> Optional[Dict]:
+    """创建步骤模板"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "POST",
+            "/step-template",
+            json=template_data
+        )
+    except Exception as e:
+        print(f"创建步骤模板失败: {e}")
+        return None
+
+
+def update_step_template(template_id: str, template_data: Dict) -> Optional[Dict]:
+    """更新步骤模板"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "PUT",
+            f"/step-template/{template_id}",
+            json=template_data
+        )
+    except Exception as e:
+        print(f"更新步骤模板失败: {e}")
+        return None
+
+
+def delete_step_template(template_id: str) -> Optional[Dict]:
+    """删除步骤模板"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "DELETE",
+            f"/step-template/{template_id}"
+        )
+    except Exception as e:
+        print(f"删除步骤模板失败: {e}")
+        return None
+
+
+def get_step_templates_by_type(template_type: str) -> Optional[List[Dict]]:
+    """根据类型获取步骤模板列表"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/step-template/type/{template_type}"
+        )
+    except Exception as e:
+        print(f"根据类型获取步骤模板失败: {e}")
+        return None
+
+
+def get_default_step_templates() -> Optional[List[Dict]]:
+    """获取默认步骤模板列表"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            "/step-template/default"
+        )
+    except Exception as e:
+        print(f"获取默认步骤模板失败: {e}")
+        return None
+
+
+def get_default_step_template_by_type(template_type: str) -> Optional[Dict]:
+    """根据类型获取默认步骤模板"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/step-template/default/{template_type}"
+        )
+    except Exception as e:
+        print(f"根据类型获取默认步骤模板失败: {e}")
+        return None
+
+
+# 儿童学习记录相关API
+def get_learning_records(params: Dict = None) -> Optional[Dict]:
+    """获取学习记录列表"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            "/child-learning-record/list",
+            params=params or {}
+        )
+    except Exception as e:
+        print(f"获取学习记录列表失败: {e}")
+        return None
+
+
+def get_learning_record_by_id(record_id: str) -> Optional[Dict]:
+    """根据ID获取学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/child-learning-record/{record_id}"
+        )
+    except Exception as e:
+        print(f"获取学习记录失败: {e}")
+        return None
+
+
+def create_learning_record(record_data: Dict) -> Optional[Dict]:
+    """创建学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "POST",
+            "/child-learning-record",
+            json=record_data
+        )
+    except Exception as e:
+        print(f"创建学习记录失败: {e}")
+        return None
+
+
+def update_learning_record(record_id: str, record_data: Dict) -> Optional[Dict]:
+    """更新学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "PUT",
+            f"/child-learning-record/{record_id}",
+            json=record_data
+        )
+    except Exception as e:
+        print(f"更新学习记录失败: {e}")
+        return None
+
+
+def delete_learning_record(record_id: str) -> Optional[Dict]:
+    """删除学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "DELETE",
+            f"/child-learning-record/{record_id}"
+        )
+    except Exception as e:
+        print(f"删除学习记录失败: {e}")
+        return None
+
+
+def get_learning_records_by_agent(agent_id: str) -> Optional[List[Dict]]:
+    """根据智能体ID获取学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/child-learning-record/agent/{agent_id}"
+        )
+    except Exception as e:
+        print(f"根据智能体ID获取学习记录失败: {e}")
+        return None
+
+
+def get_learning_records_by_scenario(scenario_id: str) -> Optional[List[Dict]]:
+    """根据场景ID获取学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/child-learning-record/scenario/{scenario_id}"
+        )
+    except Exception as e:
+        print(f"根据场景ID获取学习记录失败: {e}")
+        return None
+
+
+def get_learning_records_by_child(child_name: str) -> Optional[List[Dict]]:
+    """根据儿童姓名获取学习记录"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            f"/child-learning-record/child/{child_name}"
+        )
+    except Exception as e:
+        print(f"根据儿童姓名获取学习记录失败: {e}")
+        return None
+
+
+def get_learning_statistics(agent_id: str, child_name: str) -> Optional[Dict]:
+    """获取学习统计信息"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "GET",
+            "/child-learning-record/statistics",
+            params={"agentId": agent_id, "childName": child_name}
+        )
+    except Exception as e:
+        print(f"获取学习统计信息失败: {e}")
         return None
 
 

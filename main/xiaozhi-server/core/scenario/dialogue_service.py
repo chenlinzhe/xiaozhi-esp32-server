@@ -20,8 +20,6 @@ class DialogueService:
         self.api_base_url = manager_api_config.get("url", "http://localhost:8002")
         # 获取服务器密钥（用于配置API）
         self.server_secret = manager_api_config.get("secret", "")
-        # 用户token（用于场景API）
-        self.user_token = None
         self.sessions = {}
         
         # 初始化logger
@@ -39,77 +37,7 @@ class DialogueService:
             headers["Authorization"] = f"Bearer {self.server_secret}"
         return headers
     
-    def _get_user_auth_headers(self) -> Dict[str, str]:
-        """获取用户token认证头 - 场景API无需认证"""
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        # 场景相关API无需token认证，直接返回基础headers
-        return headers
-    
-    async def _login_and_get_token(self) -> bool:
-        """登录并获取用户token"""
-        try:
-            print("=== 开始登录获取token ===")
-            async with aiohttp.ClientSession() as session:
-                # 尝试使用常见的用户名登录
-                login_attempts = [
-                    {"username": "ningwenjie", "password": "310113Nm."},  # 用户提供的凭据
-                    {"username": "admin", "password": "Chen1234@"},  # 备用凭据
-                ]
-                
-                for attempt in login_attempts:
-                    try:
-                        print(f"尝试登录: username={attempt['username']}")
-                        login_data = {
-                            "username": attempt["username"],
-                            "password": attempt["password"],
-                            "captcha": "123456"   # 跳过验证码验证
-                        }
-                        
-                        url = f"{self.api_base_url}/user/login"
-                        headers = {"Content-Type": "application/json"}
-                        
-                        print(f"登录URL: {url}")
-                        print(f"登录数据: {login_data}")
-                        
-                        async with session.post(url, json=login_data, headers=headers) as response:
-                             print(f"登录响应状态码: {response.status}")
-                             if response.status == 200:
-                                 data = await response.json()
-                                 print(f"登录响应数据: {data}")
-                                 if data.get('code') == 0:
-                                     token_data = data.get('data', {})
-                                     # 尝试多种可能的token字段名
-                                     self.user_token = (
-                                         token_data.get('accessToken') or 
-                                         token_data.get('token') or 
-                                         token_data.get('access_token') or
-                                         data.get('token') or
-                                         data.get('accessToken')
-                                     )
-                                     if self.user_token:
-                                         print(f"登录成功，用户: {attempt['username']}, token: {self.user_token[:20]}...")
-                                         return True
-                                     else:
-                                         print(f"登录成功但未获取到token")
-                                         continue
-                                 else:
-                                     print(f"登录失败: {data.get('msg', '未知错误')}")
-                                     continue
-                             else:
-                                 print(f"登录HTTP请求失败，状态码: {response.status}")
-                                 continue
-                    except Exception as e:
-                        print(f"登录异常: {e}")
-                        continue
-                
-                print("所有登录尝试都失败了")
-                return False
-        except Exception as e:
-            print(f"登录过程异常: {e}")
-            return False
+
     
     async def start_scenario(self, session_id: str, scenario_id: str, child_name: str) -> Dict:
         """开始场景对话"""
@@ -440,7 +368,7 @@ class DialogueService:
             async with aiohttp.ClientSession() as session:
                 # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/scenario/{scenario_id}
                 url = f"{self.api_base_url}/scenario/{scenario_id}"
-                headers = self._get_user_auth_headers()
+                headers = self._get_server_auth_headers()
                 print(f"请求URL: {url}")
                 print(f"请求头: {headers}")
                 
@@ -492,7 +420,7 @@ class DialogueService:
             async with aiohttp.ClientSession() as session:
                 # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/scenario-step/list/{scenario_id}
                 url = f"{self.api_base_url}/scenario-step/list/{scenario_id}"
-                headers = self._get_user_auth_headers()
+                headers = self._get_server_auth_headers()
                 print(f"请求URL: {url}")
                 print(f"请求头: {headers}")
                 
