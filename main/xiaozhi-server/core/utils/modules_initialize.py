@@ -104,12 +104,22 @@ def initialize_tts(config):
     tts_config = config["TTS"][select_tts_module]
     tts_type = tts_config.get("type", select_tts_module)
     
-    new_tts = tts.create_instance(
-        tts_type,
-        tts_config,
-        str(config.get("delete_audio", True)).lower() in ("true", "1", "yes"),
-    )
-    return new_tts
+    logger.bind(tag=TAG).info(f"初始化TTS模块: {select_tts_module}, type: {tts_type}")
+    
+    try:
+        new_tts = tts.create_instance(
+            tts_type,
+            tts_config,
+            str(config.get("delete_audio", True)).lower() in ("true", "1", "yes"),
+        )
+        logger.bind(tag=TAG).info(f"TTS模块初始化成功: {type(new_tts).__name__}")
+        return new_tts
+    except Exception as e:
+        logger.bind(tag=TAG).error(f"TTS模块初始化失败: {str(e)}")
+        logger.bind(tag=TAG).error(f"TTS模块: {select_tts_module}, type: {tts_type}")
+        import traceback
+        logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+        raise
 
 
 def initialize_asr(config):
