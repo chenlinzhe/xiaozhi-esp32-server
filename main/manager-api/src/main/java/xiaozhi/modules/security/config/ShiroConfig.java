@@ -19,6 +19,7 @@ import jakarta.servlet.Filter;
 import xiaozhi.modules.security.oauth2.Oauth2Filter;
 import xiaozhi.modules.security.oauth2.Oauth2Realm;
 import xiaozhi.modules.security.secret.ServerSecretFilter;
+import xiaozhi.modules.security.secret.DualAuthFilter;
 import xiaozhi.modules.sys.service.SysParamsService;
 
 /**
@@ -61,6 +62,8 @@ public class ShiroConfig {
         filters.put("oauth2", new Oauth2Filter());
         // 服务密钥过滤
         filters.put("server", new ServerSecretFilter(sysParamsService));
+        // 双重认证过滤
+        filters.put("dual", new DualAuthFilter(sysParamsService));
         shiroFilter.setFilters(filters);
 
         // 添加Shiro的内置过滤器
@@ -85,11 +88,11 @@ public class ShiroConfig {
         filterMap.put("/user/pub-config", "anon");
         filterMap.put("/user/register", "anon");
         filterMap.put("/user/retrieve-password", "anon");
-        // 场景相关API使用服务器密钥认证
-        filterMap.put("/scenario/**", "server");
-        filterMap.put("/scenario-step/**", "server");
-        filterMap.put("/step-template/**", "server");
-        filterMap.put("/child-learning-record/**", "server");
+        // 场景相关API使用双重认证（支持服务器密钥和用户token）
+        filterMap.put("/scenario/**", "dual");
+        filterMap.put("/scenario-step/**", "dual");
+        filterMap.put("/step-template/**", "dual");
+        filterMap.put("/child-learning-record/**", "dual");
         // 将config路径使用server服务过滤器
         filterMap.put("/config/**", "server");
         filterMap.put("/agent/chat-history/report", "server");
