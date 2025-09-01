@@ -66,9 +66,11 @@ class Dialogue:
         dialogue = []
 
         # 添加系统提示和记忆
-        system_message = next(
-            (msg for msg in self.dialogue if msg.role == "system"), None
-        )
+        # system_message = next(
+        #     (msg for msg in self.dialogue if msg.role == "system"), None
+        # )
+
+        system_message = None
 
         if system_message:
             # 基础系统提示

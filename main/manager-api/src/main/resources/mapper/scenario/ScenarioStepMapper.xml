@@ -17,6 +17,10 @@
         <result column="max_attempts" property="maxAttempts" jdbcType="INTEGER"/>
         <result column="timeout_seconds" property="timeoutSeconds" jdbcType="INTEGER"/>
         <result column="success_condition" property="successCondition" jdbcType="VARCHAR"/>
+        <result column="speech_rate" property="speechRate" jdbcType="DECIMAL"/>
+        <result column="exact_match_step_id" property="exactMatchStepId" jdbcType="VARCHAR"/>
+        <result column="partial_match_step_id" property="partialMatchStepId" jdbcType="VARCHAR"/>
+        <result column="no_match_step_id" property="noMatchStepId" jdbcType="VARCHAR"/>
         <result column="next_step_id" property="nextStepId" jdbcType="VARCHAR"/>
         <result column="retry_step_id" property="retryStepId" jdbcType="VARCHAR"/>
         <result column="alternative_message" property="alternativeMessage" jdbcType="LONGVARCHAR"/>
@@ -39,13 +43,17 @@
         <result column="scenario_name" property="scenarioName" jdbcType="VARCHAR"/>
         <result column="next_step_name" property="nextStepName" jdbcType="VARCHAR"/>
         <result column="retry_step_name" property="retryStepName" jdbcType="VARCHAR"/>
+        <result column="exact_match_step_name" property="exactMatchStepName" jdbcType="VARCHAR"/>
+        <result column="partial_match_step_name" property="partialMatchStepName" jdbcType="VARCHAR"/>
+        <result column="no_match_step_name" property="noMatchStepName" jdbcType="VARCHAR"/>
     </resultMap>
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
         id, step_id, scenario_id, step_code, step_name, step_order, step_type, ai_message, 
         expected_keywords, expected_phrases, max_attempts, timeout_seconds,
-        success_condition, next_step_id, retry_step_id, alternative_message,
+        success_condition, speech_rate, exact_match_step_id, partial_match_step_id, no_match_step_id,
+        next_step_id, retry_step_id, alternative_message,
         correct_response, praise_message, encouragement_message, auto_reply_on_timeout,
         wait_time_seconds, gesture_hint, music_effect, is_optional, branch_condition,
         create_date, updater, update_date
@@ -65,7 +73,8 @@
         SELECT 
             st.id, st.step_id, st.scenario_id, st.step_code, st.step_name, st.step_order,
             st.step_type, st.ai_message, st.expected_keywords, st.expected_phrases,
-            st.max_attempts, st.timeout_seconds, st.success_condition,
+            st.max_attempts, st.timeout_seconds, st.success_condition, st.speech_rate,
+            st.exact_match_step_id, st.partial_match_step_id, st.no_match_step_id,
             st.next_step_id, st.retry_step_id, st.alternative_message,
             st.correct_response, st.praise_message, st.encouragement_message,
             st.auto_reply_on_timeout, st.wait_time_seconds,
@@ -73,11 +82,17 @@
             st.branch_condition, st.create_date, st.updater, st.update_date,
             s.scenario_name,
             next_st.step_name as next_step_name,
-            retry_st.step_name as retry_step_name
+            retry_st.step_name as retry_step_name,
+            exact_st.step_name as exact_match_step_name,
+            partial_st.step_name as partial_match_step_name,
+            no_match_st.step_name as no_match_step_name
         FROM ai_scenario_step st
         LEFT JOIN ai_scenario s ON st.scenario_id = s.scenario_id
         LEFT JOIN ai_scenario_step next_st ON st.next_step_id = next_st.step_id
         LEFT JOIN ai_scenario_step retry_st ON st.retry_step_id = retry_st.step_id
+        LEFT JOIN ai_scenario_step exact_st ON st.exact_match_step_id = exact_st.step_id
+        LEFT JOIN ai_scenario_step partial_st ON st.partial_match_step_id = partial_st.step_id
+        LEFT JOIN ai_scenario_step no_match_st ON st.no_match_step_id = no_match_st.step_id
         WHERE st.scenario_id = #{scenarioId}
         ORDER BY st.step_order ASC
     </select>

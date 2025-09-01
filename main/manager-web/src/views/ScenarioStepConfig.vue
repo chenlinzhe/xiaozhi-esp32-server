@@ -109,7 +109,7 @@
               </el-row>
               
               <el-row :gutter="20">
-                <el-col :span="8">
+                <el-col :span="6">
                   <el-form-item label="最大尝试次数" class="form-item">
                     <el-input-number 
                       v-model="step.maxAttempts" 
@@ -118,7 +118,7 @@
                       size="small" />
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="6">
                   <el-form-item label="超时时间(秒)" class="form-item">
                     <el-input-number 
                       v-model="step.timeoutSeconds" 
@@ -127,7 +127,19 @@
                       size="small" />
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="6">
+                  <el-form-item label="语速配置" class="form-item">
+                    <el-select v-model="step.speechRate" placeholder="请选择语速" size="small">
+                      <el-option label="0.5倍速(慢)" :value="0.5" />
+                      <el-option label="0.8倍速(稍慢)" :value="0.8" />
+                      <el-option label="1.0倍速(正常)" :value="1.0" />
+                      <el-option label="1.2倍速(稍快)" :value="1.2" />
+                      <el-option label="1.5倍速(快)" :value="1.5" />
+                      <el-option label="2.0倍速(很快)" :value="2.0" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="6">
                   <el-form-item label="步骤类型" class="form-item">
                     <el-select v-model="step.stepType" placeholder="请选择步骤类型">
                       <el-option label="普通步骤" value="normal" />
@@ -153,6 +165,143 @@
                     <el-input 
                       v-model="step.gestureHint" 
                       placeholder="如：指嘴巴、指肚子、指眼睛等" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <!-- 教学相关配置 -->
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="正确答案" class="form-item">
+                    <el-input 
+                      v-model="step.correctResponse" 
+                      placeholder="正确答案，用于教学模式判断" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="等待时间(秒)" class="form-item">
+                    <el-input-number 
+                      v-model="step.waitTimeSeconds" 
+                      :min="5" 
+                      :max="60"
+                      size="small" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="夸奖消息" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.praiseMessage" 
+                      :rows="2"
+                      placeholder="回答正确时的夸奖消息" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="鼓励消息" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.encouragementMessage" 
+                      :rows="2"
+                      placeholder="回答错误时的鼓励消息" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="24">
+                  <el-form-item label="超时自动回复" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.autoReplyOnTimeout" 
+                      :rows="2"
+                      placeholder="超时时的自动回复内容" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <!-- 成功条件分支配置 -->
+              <el-row :gutter="20">
+                <el-col :span="24">
+                  <el-divider content-position="left">
+                    <span class="divider-title">成功条件分支配置</span>
+                  </el-divider>
+                </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="完全匹配分支" class="form-item">
+                    <el-select 
+                      v-model="step.exactMatchStepId" 
+                      placeholder="请选择完全匹配时的下一步骤"
+                      clearable
+                      filterable>
+                      <el-option 
+                        v-for="option in getStepOptions(index)" 
+                        :key="option.value" 
+                        :label="option.label" 
+                        :value="option.value">
+                        <div class="step-option">
+                          <span class="step-option-label">{{ option.label.split(' (')[0] }}</span>
+                          <span class="step-option-id">{{ option.label.split(' (')[1].replace(')', '') }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <div class="form-tip">
+                      <i class="el-icon-success"></i>
+                      用户回答完全正确时跳转的步骤
+                    </div>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="部分匹配分支" class="form-item">
+                    <el-select 
+                      v-model="step.partialMatchStepId" 
+                      placeholder="请选择部分匹配时的下一步骤"
+                      clearable
+                      filterable>
+                      <el-option 
+                        v-for="option in getStepOptions(index)" 
+                        :key="option.value" 
+                        :label="option.label" 
+                        :value="option.value">
+                        <div class="step-option">
+                          <span class="step-option-label">{{ option.label.split(' (')[0] }}</span>
+                          <span class="step-option-id">{{ option.label.split(' (')[1].replace(')', '') }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <div class="form-tip">
+                      <i class="el-icon-warning"></i>
+                      用户回答部分正确时跳转的步骤
+                    </div>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="完全不匹配分支" class="form-item">
+                    <el-select 
+                      v-model="step.noMatchStepId" 
+                      placeholder="请选择完全不匹配时的下一步骤"
+                      clearable
+                      filterable>
+                      <el-option 
+                        v-for="option in getStepOptions(index)" 
+                        :key="option.value" 
+                        :label="option.label" 
+                        :value="option.value">
+                        <div class="step-option">
+                          <span class="step-option-label">{{ option.label.split(' (')[0] }}</span>
+                          <span class="step-option-id">{{ option.label.split(' (')[1].replace(')', '') }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                    <div class="form-tip">
+                      <i class="el-icon-error"></i>
+                      用户回答完全错误时跳转的步骤
+                    </div>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -185,7 +334,7 @@
                     </el-select>
                     <div class="form-tip">
                       <i class="el-icon-info"></i>
-                      选择下一步骤可以实现跳转逻辑，留空则按步骤顺序执行
+                      选择下一步骤可以实现跳转逻辑，留空则按步骤顺序执行（兼容旧版本）
                     </div>
                   </el-form-item>
                 </el-col>
@@ -343,15 +492,26 @@ export default {
           expectedKeywords: '[]',
           expectedPhrases: '[]',
           successCondition: 'partial',
+          speechRate: 1.0, // 默认正常语速
+          exactMatchStepId: '', // 完全匹配分支
+          partialMatchStepId: '', // 部分匹配分支
+          noMatchStepId: '', // 完全不匹配分支
           maxAttempts: 3,
           timeoutSeconds: 10,
           alternativeMessage: '',
+          correctResponse: '', // 正确答案
+          praiseMessage: '', // 夸奖消息
+          encouragementMessage: '', // 鼓励消息
+          autoReplyOnTimeout: '', // 超时自动回复
+          waitTimeSeconds: 10, // 等待时间
           gestureHint: '',
           musicEffect: '',
           stepType: 'normal',
           stepOrder: this.steps.length + 1,
-          nextStepId: '',
-          retryStepId: ''
+          nextStepId: '', // 兼容旧版本
+          retryStepId: '',
+          isOptional: 0, // 默认必需步骤
+          branchCondition: '' // 分支条件
         };
         this.steps.push(newStep);
         this.$message.success('步骤添加成功');
@@ -757,5 +917,44 @@ export default {
 .form-tip i {
   margin-right: 4px;
   color: #409EFF;
+}
+
+/* 新增字段样式 */
+.divider-title {
+  font-weight: 600;
+  color: #409EFF;
+  font-size: 14px;
+}
+
+/* 分支配置区域样式 */
+.branch-config-section {
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  padding: 15px;
+  margin: 15px 0;
+  border-left: 4px solid #409EFF;
+}
+
+/* 教学配置区域样式 */
+.teaching-config-section {
+  background-color: #f0f9ff;
+  border-radius: 6px;
+  padding: 15px;
+  margin: 15px 0;
+  border-left: 4px solid #67c23a;
+}
+
+/* 语速配置样式 */
+.speech-rate-config {
+  .el-select {
+    width: 100%;
+  }
+}
+
+/* 成功条件分支样式 */
+.success-condition-branch {
+  .el-form-item {
+    margin-bottom: 20px;
+  }
 }
 </style> 

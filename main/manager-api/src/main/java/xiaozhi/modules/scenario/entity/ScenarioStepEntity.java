@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xiaozhi.common.entity.BaseEntity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -63,11 +64,27 @@ public class ScenarioStepEntity extends BaseEntity {
     @TableField("timeout_seconds")
     private Integer timeoutSeconds;
 
-    @Schema(description = "成功条件：exact/partial/keyword")
+    @Schema(description = "成功条件：exact/partial/none")
     @TableField("success_condition")
     private String successCondition;
 
-    @Schema(description = "成功后的下一步ID")
+    @Schema(description = "语速配置：0.5-2.0倍速，1.0为正常语速")
+    @TableField("speech_rate")
+    private BigDecimal speechRate;
+
+    @Schema(description = "完全匹配时的下一步ID")
+    @TableField("exact_match_step_id")
+    private String exactMatchStepId;
+
+    @Schema(description = "部分匹配时的下一步ID")
+    @TableField("partial_match_step_id")
+    private String partialMatchStepId;
+
+    @Schema(description = "完全不匹配时的下一步ID")
+    @TableField("no_match_step_id")
+    private String noMatchStepId;
+
+    @Schema(description = "成功后的下一步ID（兼容旧版本）")
     @TableField("next_step_id")
     private String nextStepId;
 
@@ -141,4 +158,16 @@ public class ScenarioStepEntity extends BaseEntity {
     @Schema(description = "重试步骤名称")
     @TableField(exist = false)
     private String retryStepName;
+
+    @Schema(description = "完全匹配步骤名称")
+    @TableField(exist = false)
+    private String exactMatchStepName;
+
+    @Schema(description = "部分匹配步骤名称")
+    @TableField(exist = false)
+    private String partialMatchStepName;
+
+    @Schema(description = "完全不匹配步骤名称")
+    @TableField(exist = false)
+    private String noMatchStepName;
 } 

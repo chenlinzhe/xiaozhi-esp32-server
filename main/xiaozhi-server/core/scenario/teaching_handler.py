@@ -84,13 +84,12 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"聊天模式切换完成: {result.get('mode')}")
                     
-
-                    
-                    # 如果切换到教学模式，启动等待超时检查
+                    # 如果切换到教学模式，在TTS消息发送完成后启动等待超时检查
                     if result.get('mode') == 'teaching_mode':
                         wait_time = result.get("wait_time", 20)
                         self.logger.bind(tag=TAG).info(f"教学模式，等待时间: {wait_time}")
-                        self._start_teaching_timeout_check(user_id, wait_time)
+                        # 延迟启动超时检查，确保TTS消息发送完成
+                        self._start_teaching_timeout_check_after_tts(user_id, wait_time)
                     
                     return True
                     
@@ -105,8 +104,8 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
                     
-                    # 启动等待超时检查
-                    self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
+                    # 在TTS消息发送完成后启动等待超时检查
+                    self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
                     return True
                     
                 elif action == "next_step" or action == "retry":
@@ -127,8 +126,8 @@ class TeachingHandler:
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
                     
-                    # 重新启动等待超时检查
-                    self._start_teaching_timeout_check(user_id, result.get("timeoutSeconds", 20))
+                    # 在TTS消息发送完成后重新启动等待超时检查
+                    self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
                     return True
                     
                 elif action == "completed":
@@ -244,6 +243,32 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).error(f"检查TTS状态时出错: {e}")
             return False
 
+
+    def _start_teaching_timeout_check_after_tts(self, user_id: str, wait_time: int):
+        """
+        在TTS消息发送完成后启动教学超时检查
+        
+        Args:
+            user_id: 用户ID
+            wait_time: 等待时间（秒）
+        """
+        # 如果wait_time为0，不启动超时检查
+        if wait_time <= 0:
+            self.logger.bind(tag=TAG).info("不启动超时检查（立即开始）")
+            return
+            
+        self.logger.bind(tag=TAG).info(f"TTS消息发送完成，延迟启动超时检查，总等待时间: {wait_time}秒")
+        
+        # 延迟启动超时检查，确保TTS消息完全发送完成
+        def delayed_start():
+            # 等待TTS消息发送完成（通常需要1-2秒）
+            time.sleep(2)
+            # 更新等待开始时间
+            self.chat_status_manager.update_wait_start_time(user_id)
+            self._start_teaching_timeout_check(user_id, wait_time)
+        
+        # 在新线程中执行延迟启动
+        threading.Thread(target=delayed_start, daemon=True).start()
 
     def _start_teaching_timeout_check(self, user_id: str, wait_time: int):
         """

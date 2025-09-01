@@ -232,7 +232,8 @@ class ConnectionHandler:
             # 获取差异化配置
             self._initialize_private_config()
             # 立即初始化组件（包括TTS）
-            self._initialize_components()
+            #            # 异步初始化
+            self.executor.submit(self._initialize_components)
 
             try:
                 async for message in self.websocket:
@@ -375,17 +376,26 @@ class ConnectionHandler:
                 self.vad = self._vad
             if self.asr is None:
                 self.asr = self._initialize_asr()
-
             # 初始化声纹识别
             self._initialize_voiceprint()
-
             # 打开语音识别通道
             asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
             )
-            
             # 立即初始化TTS并确保完全就绪
-            self._initialize_tts_complete()
+            # 立即初始化TTS并确保完全就绪
+            if self.tts is None:
+                self.tts = self._initialize_tts()
+
+            # 打开语音合成通道
+            asyncio.run_coroutine_threadsafe(
+                self.tts.open_audio_channels(self), self.loop
+            )
+            
+            # 新增：打印 TTS、ASR、VAD 初始化情况
+            self.logger.bind(tag=TAG).info(f"TTS 实例: {self.tts}, 类型: {type(self.tts)}")
+            self.logger.bind(tag=TAG).info(f"ASR 实例: {self.asr}, 类型: {type(self.asr)}")
+            self.logger.bind(tag=TAG).info(f"VAD 实例: {self.vad}, 类型: {type(self.vad)}")
 
             """加载记忆"""
             self._initialize_memory()
@@ -395,6 +405,9 @@ class ConnectionHandler:
             self._init_report_threads()
             """更新系统提示词"""
             self._init_prompt_enhancement()
+
+            # 新增：打印 LLM 初始化情况
+            self.logger.bind(tag=TAG).info(f"LLM 实例: {self.llm}, 类型: {type(self.llm)}")
 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
@@ -425,6 +438,8 @@ class ConnectionHandler:
     def _initialize_tts(self):
         """初始化TTS"""
         tts = None
+
+
         if not self.need_bind:
             tts = initialize_tts(self.config)
 
@@ -523,6 +538,7 @@ class ConnectionHandler:
     def _initialize_private_config(self):
         """如果是从配置文件获取，则进行二次实例化"""
         if not self.read_config_from_api:
+            self.logger.info("[TTS调试] read_config_from_api=False，跳过差异化配置拉取")
             return
         """从接口获取差异化的配置进行二次实例化，非全量重新实例化"""
         try:
@@ -533,19 +549,19 @@ class ConnectionHandler:
                 self.headers.get("client-id", self.headers.get("device-id")),
             )
             private_config["delete_audio"] = bool(self.config.get("delete_audio", True))
-            self.logger.bind(tag=TAG).info(
-                f"{time.time() - begin_time} 秒，获取差异化配置成功: {json.dumps(filter_sensitive_info(private_config), ensure_ascii=False)}"
-            )
+            self.logger.info(f"[TTS调试] {time.time() - begin_time} 秒，获取差异化配置成功: {json.dumps(filter_sensitive_info(private_config), ensure_ascii=False)}")
         except DeviceNotFoundException as e:
             self.need_bind = True
             private_config = {}
+            self.logger.warning(f"[TTS调试] DeviceNotFoundException, need_bind=True")
         except DeviceBindException as e:
             self.need_bind = True
             self.bind_code = e.bind_code
             private_config = {}
+            self.logger.warning(f"[TTS调试] DeviceBindException, need_bind=True, bind_code={self.bind_code}")
         except Exception as e:
             self.need_bind = True
-            self.logger.bind(tag=TAG).error(f"获取差异化配置失败: {e}")
+            self.logger.error(f"[TTS调试] 获取差异化配置失败: {e}")
             private_config = {}
 
         init_llm, init_tts, init_memory, init_intent = (
@@ -560,26 +576,22 @@ class ConnectionHandler:
 
         if init_vad:
             self.config["VAD"] = private_config["VAD"]
-            self.config["selected_module"]["VAD"] = private_config["selected_module"][
-                "VAD"
-            ]
+            self.config["selected_module"]["VAD"] = private_config["selected_module"]["VAD"]
         if init_asr:
             self.config["ASR"] = private_config["ASR"]
-            self.config["selected_module"]["ASR"] = private_config["selected_module"][
-                "ASR"
-            ]
+            self.config["selected_module"]["ASR"] = private_config["selected_module"]["ASR"]
         if private_config.get("TTS", None) is not None:
             init_tts = True
             self.config["TTS"] = private_config["TTS"]
-            self.config["selected_module"]["TTS"] = private_config["selected_module"][
-                "TTS"
-            ]
+            self.config["selected_module"]["TTS"] = private_config["selected_module"]["TTS"]
+            self.logger.info(f"[TTS调试] 检测到TTS差异化配置，init_tts={init_tts}, TTS配置: {json.dumps(self.config['TTS'], ensure_ascii=False)}")
         if private_config.get("LLM", None) is not None:
             init_llm = True
             self.config["LLM"] = private_config["LLM"]
-            self.config["selected_module"]["LLM"] = private_config["selected_module"][
-                "LLM"
-            ]
+            self.config["selected_module"]["LLM"] = private_config["selected_module"]["LLM"]
+
+        self.logger.info(f"[TTS调试] 差异化配置流程结束, init_tts={init_tts}, need_bind={self.need_bind}")
+
         if private_config.get("VLLM", None) is not None:
             self.config["VLLM"] = private_config["VLLM"]
             self.config["selected_module"]["VLLM"] = private_config["selected_module"][
@@ -634,12 +646,19 @@ class ConnectionHandler:
             modules = {}
         if modules.get("tts", None) is not None:
             self.tts = modules["tts"]
+            self.logger.info(f"[TTS调试] self.tts 被赋值于配置初始化阶段: {self.tts}, type: {type(self.tts)}, conn: {getattr(self.tts, 'conn', None)}, tts_priority_thread: {getattr(self.tts, 'tts_priority_thread', None)}")
         if modules.get("vad", None) is not None:
             self.vad = modules["vad"]
         if modules.get("asr", None) is not None:
             self.asr = modules["asr"]
         if modules.get("llm", None) is not None:
             self.llm = modules["llm"]
+        # 新增：打印各模块初始化情况
+        self.logger.bind(tag=TAG).info(f"[modules] TTS: {self.tts}, type: {type(self.tts)}")
+        self.logger.info(f"[TTS调试] [modules] TTS.conn: {getattr(self.tts, 'conn', None)}, tts_priority_thread: {getattr(self.tts, 'tts_priority_thread', None)}")
+        self.logger.bind(tag=TAG).info(f"[modules] VAD: {self.vad}, type: {type(self.vad)}")
+        self.logger.bind(tag=TAG).info(f"[modules] ASR: {self.asr}, type: {type(self.asr)}")
+        self.logger.bind(tag=TAG).info(f"[modules] LLM: {self.llm}, type: {type(self.llm)}")
         if modules.get("intent", None) is not None:
             self.intent = modules["intent"]
         if modules.get("memory", None) is not None:
@@ -751,6 +770,10 @@ class ConnectionHandler:
 
     def chat(self, query, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
+        # 打印当前 LLM 实例类型和 LLM 配置
+        self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")
+        self.logger.bind(tag=TAG).info(f"当前 LLM 配置: {self.config.get('LLM')}")
+        self.logger.bind(tag=TAG).info(f"当前选中 LLM: {self.config.get('selected_module', {}).get('LLM')}")
         self.llm_finish_task = False
         depth = 0
         # 检查聊天模式（只在最顶层调用时检查）
@@ -789,7 +812,7 @@ class ConnectionHandler:
                 memory_str = future.result()
 
             if self.intent_type == "function_call" and functions is not None:
-                # 使用支持functions的streaming接口
+                self.logger.bind(tag=TAG).info("调用 LLM response_with_functions ...")
                 llm_responses = self.llm.response_with_functions(
                     self.session_id,
                     self.dialogue.get_llm_dialogue_with_memory(
@@ -798,6 +821,7 @@ class ConnectionHandler:
                     functions=functions,
                 )
             else:
+                self.logger.bind(tag=TAG).info("调用 LLM response ...")
                 llm_responses = self.llm.response(
                     self.session_id,
                     self.dialogue.get_llm_dialogue_with_memory(
@@ -817,6 +841,10 @@ class ConnectionHandler:
         self.client_abort = False
         emotion_flag = True
         for response in llm_responses:
+
+            # self.logger.info(f"[LLM消费] 收到response: {response}")
+
+            
             if self.client_abort:
                 break
             if self.intent_type == "function_call" and functions is not None:
@@ -855,6 +883,13 @@ class ConnectionHandler:
                     self.loop,
                 )
                 emotion_flag = False
+
+
+            # 在推送到TTS队列前，先打印TTS实例和队列状态
+            # self.logger.info(
+            #     f"[TTS调试] chat前 self.tts: {self.tts}, conn: {getattr(self.tts, 'conn', None)}, tts_text_queue: {getattr(self.tts, 'tts_text_queue', None)}"
+            # )
+
 
             if content is not None and len(content) > 0:
                 if not tool_call_flag:

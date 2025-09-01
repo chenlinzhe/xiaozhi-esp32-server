@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import xiaozhi.common.entity.BaseEntity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -54,6 +55,10 @@ public class StepTemplateEntity extends BaseEntity {
     @Schema(description = "替代提示模板")
     @TableField("alternative_message")
     private String alternativeMessage;
+
+    @Schema(description = "语速配置：0.5-2.0倍速，1.0为正常语速")
+    @TableField("speech_rate")
+    private BigDecimal speechRate;
 
     @Schema(description = "模板描述")
     @TableField("description")

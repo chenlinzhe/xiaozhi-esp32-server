@@ -49,6 +49,7 @@ class LLMProvider(LLMProviderBase):
         self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=httpx.Timeout(self.timeout))
 
     def response(self, session_id, dialogue, **kwargs):
+        logger.info(f'OpenAI LLMProvider.response called, session_id={session_id}, dialogue={dialogue}, kwargs={kwargs}')
         try:
             logger.bind(tag=TAG).info(f"开始OpenAI请求 - 模型: {self.model_name}, 会话ID: {session_id}")
             logger.bind(tag=TAG).debug(f"对话长度: {len(dialogue)}, 参数: {kwargs}")
@@ -118,22 +119,13 @@ class LLMProvider(LLMProviderBase):
                 yield "【OpenAI service response error】"
 
     def response_with_functions(self, session_id, dialogue, functions=None):
+        logger.info(f'OpenAI LLMProvider.response_with_functions called, session_id={session_id}, dialogue={dialogue}, functions={functions}')
         try:
             logger.bind(tag=TAG).info(f"开始OpenAI函数调用请求 - 模型: {self.model_name}, 会话ID: {session_id}")
             logger.bind(tag=TAG).debug(f"对话长度: {len(dialogue)}, 函数数量: {len(functions) if functions else 0}")
             if functions:
                 function_names = [f.get('function', {}).get('name', 'unknown') for f in functions]
                 logger.bind(tag=TAG).debug(f"可用函数: {function_names}")
-            
-            # 确保dialogue中的所有消息都是UTF-8编码
-            for message in dialogue:
-                if isinstance(message.get('content'), str):
-                    try:
-                        # 测试并确保内容可以正确编码
-                        message['content'].encode('utf-8')
-                    except UnicodeEncodeError:
-                        # 如果编码失败，使用错误处理
-                        message['content'] = message['content'].encode('utf-8', errors='replace').decode('utf-8')
             
             stream = self.client.chat.completions.create(
                 model=self.model_name,
@@ -153,23 +145,21 @@ class LLMProvider(LLMProviderBase):
                     if getattr(chunk, "choices", None):
                         content = chunk.choices[0].delta.content
                         tool_calls = chunk.choices[0].delta.tool_calls
+
+                        # logger.info(f"[OpenAI监控] chunk: {content}")
+                        # logger.info(f"[OpenAI监控] content: {content}, tool_calls: {tool_calls}")
                         
-                        # 确保content是UTF-8编码的字符串
+                        
+                        # 检查content的编码
                         if content is not None:
-                            try:
-                                # 如果content是bytes，解码为UTF-8
-                                if isinstance(content, bytes):
-                                    content = content.decode('utf-8', errors='replace')
-                                # 确保可以正确编码
-                                content.encode('utf-8')
-                            except (UnicodeEncodeError, UnicodeDecodeError) as encode_error:
-                                logger.bind(tag=TAG).warning(f"Content编码错误，使用错误处理: {encode_error}")
-                                if isinstance(content, str):
-                                    content = content.encode('utf-8', errors='replace').decode('utf-8')
-                                else:
-                                    content = str(content).encode('utf-8', errors='replace').decode('utf-8')
-                            
                             logger.bind(tag=TAG).debug(f"Content类型: {type(content)}, 长度: {len(content)}")
+                            if isinstance(content, str):
+                                try:
+                                    # 测试编码
+                                    content.encode('ascii')
+                                    logger.bind(tag=TAG).debug("Content可以ASCII编码")
+                                except UnicodeEncodeError:
+                                    logger.bind(tag=TAG).debug("Content包含非ASCII字符，需要UTF-8编码")
                         
                         if chunk_count % 10 == 0:  # 每10个chunk记录一次日志
                             logger.bind(tag=TAG).debug(f"函数调用已处理 {chunk_count} 个chunk, content长度: {len(content) if content else 0}, tool_calls: {bool(tool_calls)}")
@@ -186,7 +176,7 @@ class LLMProvider(LLMProviderBase):
                 except Exception as chunk_error:
                     logger.bind(tag=TAG).error(f"处理chunk {chunk_count} 时出错: {chunk_error}")
                     logger.bind(tag=TAG).error(f"Chunk错误类型: {type(chunk_error).__name__}")
-                    continue  # 继续处理下一个chunk而不是抛出异常
+                    raise
 
         except Exception as e:
             logger.bind(tag=TAG).error(f"OpenAI函数调用流式响应错误: {e}")
@@ -199,8 +189,6 @@ class LLMProvider(LLMProviderBase):
                 if isinstance(error_msg, bytes):
                     error_msg = error_msg.decode('utf-8', errors='replace')
                     logger.bind(tag=TAG).debug(f"函数调用错误消息已从bytes解码: {error_msg}")
-                # 确保错误消息可以正确编码
-                error_msg = error_msg.encode('utf-8', errors='replace').decode('utf-8')
                 yield f"【OpenAI服务响应异常: {error_msg}】", None
             except (UnicodeEncodeError, UnicodeDecodeError) as encode_error:
                 logger.bind(tag=TAG).error(f"函数调用编码错误: {encode_error}")

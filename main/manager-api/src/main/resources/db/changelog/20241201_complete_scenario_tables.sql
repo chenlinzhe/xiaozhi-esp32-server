@@ -75,8 +75,12 @@ CREATE TABLE `ai_scenario_step` (
   `expected_phrases` text COMMENT '期望的完整短语，JSON格式',
   `max_attempts` int(11) DEFAULT 3 COMMENT '最大尝试次数',
   `timeout_seconds` int(11) DEFAULT 30 COMMENT '等待超时时间(秒)',
-  `success_condition` varchar(20) DEFAULT 'exact' COMMENT '成功条件：exact/partial/keyword',
-  `next_step_id` varchar(64) DEFAULT NULL COMMENT '成功后的下一步ID',
+  `success_condition` varchar(20) DEFAULT 'exact' COMMENT '成功条件：exact/partial/none',
+  `speech_rate` decimal(3,1) DEFAULT 1.0 COMMENT '语速配置：0.5-2.0倍速，1.0为正常语速',
+  `exact_match_step_id` varchar(64) DEFAULT NULL COMMENT '完全匹配时的下一步ID',
+  `partial_match_step_id` varchar(64) DEFAULT NULL COMMENT '部分匹配时的下一步ID',
+  `no_match_step_id` varchar(64) DEFAULT NULL COMMENT '完全不匹配时的下一步ID',
+  `next_step_id` varchar(64) DEFAULT NULL COMMENT '成功后的下一步ID（兼容旧版本）',
   `retry_step_id` varchar(64) DEFAULT NULL COMMENT '失败后的重试步骤ID',
   `alternative_message` text COMMENT '失败时的替代提示',
   `correct_response` text COMMENT '正确答案，用于教学模式判断',
@@ -98,6 +102,11 @@ CREATE TABLE `ai_scenario_step` (
   KEY `idx_scenario_id` (`scenario_id`),
   KEY `idx_step_order` (`step_order`),
   KEY `idx_step_type` (`step_type`),
+  KEY `idx_success_condition` (`success_condition`),
+  KEY `idx_speech_rate` (`speech_rate`),
+  KEY `idx_exact_match_step_id` (`exact_match_step_id`),
+  KEY `idx_partial_match_step_id` (`partial_match_step_id`),
+  KEY `idx_no_match_step_id` (`no_match_step_id`),
   KEY `idx_next_step_id` (`next_step_id`),
   KEY `idx_retry_step_id` (`retry_step_id`),
   KEY `idx_scenario_order` (`scenario_id`, `step_order`),
@@ -145,6 +154,7 @@ CREATE TABLE `ai_step_template` (
   `expected_keywords` text COMMENT '期望的关键词模板',
   `expected_phrases` text COMMENT '期望的完整短语模板',
   `alternative_message` text COMMENT '替代提示模板',
+  `speech_rate` decimal(3,1) DEFAULT 1.0 COMMENT '语速配置：0.5-2.0倍速，1.0为正常语速',
   `description` text COMMENT '模板描述',
   `is_default` tinyint(1) DEFAULT 0 COMMENT '是否默认模板',
   `sort_order` int(11) DEFAULT 0 COMMENT '排序权重',
@@ -156,6 +166,7 @@ CREATE TABLE `ai_step_template` (
   KEY `idx_template_type` (`template_type`),
   KEY `idx_is_default` (`is_default`),
   KEY `idx_sort_order` (`sort_order`),
+  KEY `idx_speech_rate` (`speech_rate`),
   KEY `idx_type_default` (`template_type`, `is_default`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='步骤模板表';
 
@@ -164,10 +175,10 @@ CREATE TABLE `ai_step_template` (
 -- =====================================================
 
 -- 插入默认步骤模板
-INSERT INTO `ai_step_template` (`template_id`, `template_code`, `template_name`, `template_type`, `ai_message`, `expected_keywords`, `expected_phrases`, `alternative_message`, `description`, `is_default`, `sort_order`) VALUES
-('TEMPLATE_20241201000001', 'greeting_001', '问候模板', 'greeting', '你好！很高兴见到你！', '["你好", "早上好", "下午好"]', '["你好", "早上好", "下午好"]', '没关系，我们可以重新开始。', '基础问候模板', 1, 1),
-('TEMPLATE_20241201000002', 'instruction_001', '指令模板', 'instruction', '请按照我的指示来做。', '["好的", "明白了", "知道了"]', '["好的", "明白了", "知道了"]', '没关系，我再解释一遍。', '基础指令模板', 1, 2),
-('TEMPLATE_20241201000003', 'encouragement_001', '鼓励模板', 'encouragement', '做得很好！继续加油！', '["谢谢", "好的", "我会的"]', '["谢谢", "好的", "我会的"]', '没关系，下次会更好的。', '基础鼓励模板', 1, 3);
+INSERT INTO `ai_step_template` (`template_id`, `template_code`, `template_name`, `template_type`, `ai_message`, `expected_keywords`, `expected_phrases`, `alternative_message`, `speech_rate`, `description`, `is_default`, `sort_order`) VALUES
+('TEMPLATE_20241201000001', 'greeting_001', '问候模板', 'greeting', '你好！很高兴见到你！', '["你好", "早上好", "下午好"]', '["你好", "早上好", "下午好"]', '没关系，我们可以重新开始。', 1.0, '基础问候模板', 1, 1),
+('TEMPLATE_20241201000002', 'instruction_001', '指令模板', 'instruction', '请按照我的指示来做。', '["好的", "明白了", "知道了"]', '["好的", "明白了", "知道了"]', '没关系，我再解释一遍。', 0.8, '基础指令模板（稍慢语速）', 1, 2),
+('TEMPLATE_20241201000003', 'encouragement_001', '鼓励模板', 'encouragement', '做得很好！继续加油！', '["谢谢", "好的", "我会的"]', '["谢谢", "好的", "我会的"]', '没关系，下次会更好的。', 1.2, '基础鼓励模板（稍快语速）', 1, 3);
 
 -- =====================================================
 -- 第三部分：创建视图
@@ -203,6 +214,25 @@ SELECT
 FROM ai_child_learning_record
 GROUP BY child_name, agent_id;
 
+-- 步骤分支关系视图
+CREATE VIEW `v_step_branch_relationship` AS
+SELECT 
+    st1.step_id as current_step_id,
+    st1.step_name as current_step_name,
+    st1.scenario_id,
+    st1.success_condition,
+    st1.speech_rate,
+    st1.exact_match_step_id,
+    st1.partial_match_step_id,
+    st1.no_match_step_id,
+    st2.step_name as exact_match_step_name,
+    st3.step_name as partial_match_step_name,
+    st4.step_name as no_match_step_name
+FROM ai_scenario_step st1
+LEFT JOIN ai_scenario_step st2 ON st1.exact_match_step_id = st2.step_id
+LEFT JOIN ai_scenario_step st3 ON st1.partial_match_step_id = st3.step_id
+LEFT JOIN ai_scenario_step st4 ON st1.no_match_step_id = st4.step_id;
+
 -- =====================================================
 -- 第四部分：验证表结构完整性
 -- =====================================================
@@ -219,14 +249,14 @@ SELECT
     'ai_scenario_step' as table_name,
     COUNT(*) as total_records,
     COUNT(correct_response) as records_with_correct_response,
-    COUNT(praise_message) as records_with_praise_message
+    COUNT(speech_rate) as records_with_speech_rate
 FROM ai_scenario_step
 UNION ALL
 SELECT 
     'ai_step_template' as table_name,
     COUNT(*) as total_records,
     COUNT(template_id) as records_with_template_id,
-    0 as records_with_mode_config
+    COUNT(speech_rate) as records_with_speech_rate
 FROM ai_step_template
 UNION ALL
 SELECT 
@@ -268,9 +298,33 @@ SELECT
 UNION ALL
 SELECT 
     'ScenarioStepEntity' as entity_name,
-    'correct_response' as db_field,
-    'correctResponse' as java_field,
-    'TEXT' as db_type,
+    'speech_rate' as db_field,
+    'speechRate' as java_field,
+    'DECIMAL' as db_type,
+    'BigDecimal' as java_type,
+    '✅ 匹配' as status
+UNION ALL
+SELECT 
+    'ScenarioStepEntity' as entity_name,
+    'exact_match_step_id' as db_field,
+    'exactMatchStepId' as java_field,
+    'VARCHAR' as db_type,
+    'String' as java_type,
+    '✅ 匹配' as status
+UNION ALL
+SELECT 
+    'ScenarioStepEntity' as entity_name,
+    'partial_match_step_id' as db_field,
+    'partialMatchStepId' as java_field,
+    'VARCHAR' as db_type,
+    'String' as java_type,
+    '✅ 匹配' as status
+UNION ALL
+SELECT 
+    'ScenarioStepEntity' as entity_name,
+    'no_match_step_id' as db_field,
+    'noMatchStepId' as java_field,
+    'VARCHAR' as db_type,
     'String' as java_type,
     '✅ 匹配' as status
 UNION ALL
@@ -280,6 +334,14 @@ SELECT
     'templateId' as java_field,
     'VARCHAR' as db_type,
     'String' as java_type,
+    '✅ 匹配' as status
+UNION ALL
+SELECT 
+    'StepTemplateEntity' as entity_name,
+    'speech_rate' as db_field,
+    'speechRate' as java_field,
+    'DECIMAL' as db_type,
+    'BigDecimal' as java_type,
     '✅ 匹配' as status
 UNION ALL
 SELECT 
@@ -299,8 +361,58 @@ SELECT
     '✅ 匹配' as status;
 
 -- =====================================================
+-- 第六部分：成功条件分支配置示例
+-- =====================================================
+
+-- 插入示例场景步骤，展示三种成功条件的分支配置
+INSERT INTO `ai_scenario_step` (
+    `step_id`, `scenario_id`, `step_code`, `step_name`, `step_order`, 
+    `step_type`, `ai_message`, `expected_keywords`, `expected_phrases`,
+    `success_condition`, `speech_rate`, `exact_match_step_id`, 
+    `partial_match_step_id`, `no_match_step_id`, `max_attempts`, 
+    `timeout_seconds`, `correct_response`, `praise_message`, 
+    `encouragement_message`, `alternative_message`
+) VALUES
+-- 示例步骤1：问候步骤
+('STEP_20241201000001', 'SCENARIO_001', 'greeting_step', '问候步骤', 1, 
+ 'start', '你好！请说"你好"', '["你好"]', '["你好"]',
+ 'exact', 1.0, 'STEP_20241201000002', 'STEP_20241201000003', 'STEP_20241201000004',
+ 3, 30, '你好', '说得很好！', '没关系，请再说一遍"你好"', '请说"你好"'),
+
+-- 示例步骤2：完全匹配分支
+('STEP_20241201000002', 'SCENARIO_001', 'exact_match_step', '完全匹配分支', 2,
+ 'normal', '太棒了！你完全说对了！', '["谢谢", "好的"]', '["谢谢", "好的"]',
+ 'exact', 1.2, 'STEP_20241201000005', 'STEP_20241201000005', 'STEP_20241201000005',
+ 1, 20, '谢谢', '继续加油！', '没关系', '请说"谢谢"'),
+
+-- 示例步骤3：部分匹配分支
+('STEP_20241201000003', 'SCENARIO_001', 'partial_match_step', '部分匹配分支', 3,
+ 'normal', '接近了！请再说一遍"你好"', '["你好"]', '["你好"]',
+ 'exact', 0.9, 'STEP_20241201000002', 'STEP_20241201000004', 'STEP_20241201000004',
+ 2, 25, '你好', '这次说对了！', '再试一次', '请说"你好"'),
+
+-- 示例步骤4：完全不匹配分支
+('STEP_20241201000004', 'SCENARIO_001', 'no_match_step', '完全不匹配分支', 4,
+ 'normal', '没关系，让我教你：请说"你好"', '["你好"]', '["你好"]',
+ 'exact', 0.8, 'STEP_20241201000002', 'STEP_20241201000003', 'STEP_20241201000004',
+ 3, 30, '你好', '学会了！', '慢慢来', '跟着我说"你好"'),
+
+-- 示例步骤5：结束步骤
+('STEP_20241201000005', 'SCENARIO_001', 'end_step', '结束步骤', 5,
+ 'end', '恭喜你完成了问候练习！', NULL, NULL,
+ 'exact', 1.0, NULL, NULL, NULL,
+ 1, 10, NULL, '你真棒！', NULL, NULL);
+
+-- =====================================================
 -- 脚本执行完成
 -- =====================================================
 -- 此脚本包含了所有场景相关表的创建、修复和优化操作
+-- 新增功能：
+-- 1. 语速配置字段 (speech_rate)：支持0.5-2.0倍速配置
+-- 2. 三种成功条件分支：完全匹配、部分匹配、完全不匹配
+-- 3. 对应的分支步骤选择：exact_match_step_id, partial_match_step_id, no_match_step_id
+-- 4. 优化教学模式：根据成功条件自动跳转到不同分支步骤
+-- 5. 新增步骤分支关系视图，便于管理和调试
+-- 
 -- 执行后，所有表结构将与Java实体类完全匹配
 -- 建议在执行后重启应用程序以确保所有更改生效

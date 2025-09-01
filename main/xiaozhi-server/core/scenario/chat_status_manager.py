@@ -34,21 +34,21 @@ class ChatStatusManager:
         self.FREE_MODE_KEYWORDS = ["切换到自由模式", "自由模式", "自由聊天"]
         
         # 等待时间配置（秒）- 使用动态配置，从API获取
-        self.WAIT_TIME_MIN = 5
-        self.WAIT_TIME_MAX = 20  # 默认最大等待时间，实际会从步骤配置中获取
+        self.WAIT_TIME_MIN = 60
+        self.WAIT_TIME_MAX = 60  # 默认最大等待时间，实际会从步骤配置中获取
         
         # 渐进式超时配置 - 仅作为默认值，实际超时时间从步骤配置获取
         self.PROGRESSIVE_TIMEOUT_CONFIG = {
             "enabled": True,              # 是否启用渐进式超时
-            "warning_timeout": 0.7,       # 70%时间时发出警告
-            "final_timeout": 0.9          # 90%时间时发出最终提醒
+            "warning_timeout": 0.4,       # 70%时间时发出警告
+            "final_timeout": 0.7          # 90%时间时发出最终提醒
         }
         
         # 超时配置
         self.TIMEOUT_CONFIG = {
-            "base_timeout": 20,           # 基础超时时间
-            "min_timeout": 10,            # 最小超时时间
-            "max_timeout": 60,            # 最大超时时间
+            "base_timeout": 40,           # 基础超时时间
+            "min_timeout": 20,            # 最小超时时间
+            "max_timeout": 120,            # 最大超时时间
             "difficulty_factor": 2,       # 难度因子
             "age_factor": 3,              # 年龄因子
             "retry_factor": 5             # 重试因子
@@ -445,7 +445,7 @@ class ChatStatusManager:
                     "total_steps": result["total_steps"],
                     "start_time": time.time(),
                     "waiting_for_response": True,
-                    "wait_start_time": time.time(),
+                    "wait_start_time": None,  # 初始化为None，在TTS消息发送完成后设置
                     "evaluations": [] # 新增评估结果列表
                 }
                 
@@ -495,6 +495,17 @@ class ChatStatusManager:
                 "error": f"开始教学会话失败: {str(e)}"
             }
     
+    def update_wait_start_time(self, user_id: str):
+        """更新等待开始时间（在TTS消息发送完成后调用）"""
+        try:
+            session_data = self.redis_client.get_session_data(f"teaching_{user_id}")
+            if session_data and session_data.get("waiting_for_response"):
+                session_data["wait_start_time"] = time.time()
+                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
+                self.logger.info(f"更新用户 {user_id} 的等待开始时间: {session_data['wait_start_time']}")
+        except Exception as e:
+            self.logger.error(f"更新等待开始时间失败: {e}")
+
     async def _process_teaching_response(self, user_id: str, user_text: str, 
                                         session_data: Dict[str, Any], 
                                         child_name: str) -> Dict[str, Any]:
@@ -1010,7 +1021,11 @@ class ChatStatusManager:
             self.logger.info(f"没有等待响应的会话，无需检查超时")
             return None
         
-        wait_start_time = session_data.get("wait_start_time", 0)
+        wait_start_time = session_data.get("wait_start_time")
+        if wait_start_time is None:
+            self.logger.info(f"等待开始时间未设置，跳过超时检查")
+            return None
+            
         current_time = time.time()
         wait_duration = current_time - wait_start_time
         
