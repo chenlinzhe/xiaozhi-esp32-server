@@ -115,11 +115,14 @@ class DialogueService:
             
             # 返回第一个步骤
             first_step = steps[0] if steps else {}
+            # 处理步骤的AI消息列表
+            ai_messages = self._process_step_ai_messages(first_step, child_name)
             result = {
                 "success": True,
                 "session_id": session_id,
                 "scenario_name": scenario.get("scenarioName", ""),
                 "current_step": first_step,
+                "ai_messages": ai_messages,
                 "total_steps": len(steps)
             }
             
@@ -140,48 +143,8 @@ class DialogueService:
         evaluation = self._evaluate_response(session, user_text)
         session["evaluations"].append(evaluation)
         
-        # 判断是否进入下一步
-        if evaluation["score"] >= 60 or evaluation["retry_count"] >= 3:
-            # 进入下一步
-            session["current_step"] += 1
-            if session["current_step"] >= len(session["steps"]):
-                # 场景完成
-                await self._complete_scenario(session)
-                return {
-                    "success": True,
-                    "action": "completed",
-                    "evaluation": evaluation,
-                    "final_score": self._calculate_final_score(session)
-                }
-            else:
-                # 下一步
-                next_step = session["steps"][session["current_step"]]
-                return {
-                    "success": True,
-                    "action": "next_step",
-                    "current_step": next_step,
-                    "evaluation": evaluation
-                }
-        else:
-            # 重试当前步骤
-            current_step = session["steps"][session["current_step"]]
-            
-            # 如果有替代消息，使用替代消息
-            if evaluation.get("alternative_message"):
-                return {
-                    "success": True,
-                    "action": "retry",
-                    "current_step": current_step,
-                    "evaluation": evaluation,
-                    "ai_message": evaluation["alternative_message"]
-                }
-            else:
-                return {
-                    "success": True,
-                    "action": "retry",
-                    "current_step": current_step,
-                    "evaluation": evaluation
-                }
+        # 根据匹配程度决定分支跳转
+        return self._handle_step_branches(session, evaluation)
     
     def _evaluate_response(self, session: Dict, user_text: str) -> Dict:
         """评估用户回复 - 优化版本"""
@@ -350,6 +313,211 @@ class DialogueService:
                 self.logger.info(f"默认反馈: {feedback}")
         
         return feedback
+    
+    def _process_step_ai_messages(self, step: Dict, child_name: str) -> List[str]:
+        """处理步骤的AI消息列表
+        
+        Args:
+            step: 步骤配置
+            child_name: 儿童姓名
+            
+        Returns:
+            List[str]: AI消息列表
+        """
+        ai_messages = []
+        
+        # 获取步骤中的AI消息
+        ai_message = step.get("aiMessage", "")
+        if ai_message:
+            # 替换儿童姓名占位符
+            ai_message = ai_message.replace("{文杰}", child_name)
+            ai_message = ai_message.replace("{childName}", child_name)
+            ai_messages.append(ai_message)
+        
+        # 检查是否有AI消息列表
+        ai_message_list = step.get("aiMessageList", "")
+        if ai_message_list:
+            try:
+                import json
+                message_list = json.loads(ai_message_list)
+                if isinstance(message_list, list):
+                    for msg in message_list:
+                        if isinstance(msg, str) and msg.strip():
+                            # 替换儿童姓名占位符
+                            msg = msg.replace("{文杰}", child_name)
+                            msg = msg.replace("{childName}", child_name)
+                            ai_messages.append(msg)
+            except (json.JSONDecodeError, TypeError) as e:
+                self.logger.warning(f"解析AI消息列表失败: {e}")
+        
+        # 如果没有AI消息，使用默认消息
+        if not ai_messages:
+            ai_messages.append(f"你好，{child_name}！让我们开始学习吧。")
+        
+        return ai_messages
+    
+    def _handle_step_branches(self, session: Dict, evaluation: Dict) -> Dict:
+        """处理步骤的三分支逻辑
+        
+        Args:
+            session: 会话数据
+            evaluation: 评估结果
+            
+        Returns:
+            Dict: 处理结果
+        """
+        current_step = session["steps"][session["current_step"]]
+        score = evaluation["score"]
+        retry_count = evaluation["retry_count"]
+        
+        self.logger.info(f"=== 处理步骤分支逻辑 ===")
+        self.logger.info(f"当前分数: {score}")
+        self.logger.info(f"重试次数: {retry_count}")
+        
+        # 1. 完全匹配分支 (分数 >= 90)
+        if score >= 90:
+            self.logger.info("完全匹配分支")
+            return self._handle_perfect_match_branch(session, current_step, evaluation)
+        
+        # 2. 部分匹配分支 (60 <= 分数 < 90)
+        elif score >= 60:
+            self.logger.info("部分匹配分支")
+            return self._handle_partial_match_branch(session, current_step, evaluation)
+        
+        # 3. 完全不匹配分支 (分数 < 60)
+        else:
+            self.logger.info("完全不匹配分支")
+            return self._handle_no_match_branch(session, current_step, evaluation)
+    
+    def _handle_perfect_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
+        """处理完全匹配分支"""
+        # 检查是否有完全匹配的下一步配置
+        perfect_match_next_step_id = current_step.get("perfectMatchNextStepId")
+        
+        if perfect_match_next_step_id:
+            # 跳转到完全匹配的指定步骤
+            next_step_index = self._find_step_by_id(session["steps"], perfect_match_next_step_id)
+            if next_step_index is not None:
+                session["current_step"] = next_step_index
+                next_step = session["steps"][next_step_index]
+                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                return {
+                    "success": True,
+                    "action": "perfect_match_next",
+                    "current_step": next_step,
+                    "ai_messages": ai_messages,
+                    "evaluation": evaluation,
+                    "branch_type": "perfect_match"
+                }
+        
+        # 默认进入下一步
+        return self._handle_default_next_step(session, evaluation)
+    
+    def _handle_partial_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
+        """处理部分匹配分支"""
+        # 检查是否有部分匹配的下一步配置
+        partial_match_next_step_id = current_step.get("partialMatchNextStepId")
+        
+        if partial_match_next_step_id:
+            # 跳转到部分匹配的指定步骤
+            next_step_index = self._find_step_by_id(session["steps"], partial_match_next_step_id)
+            if next_step_index is not None:
+                session["current_step"] = next_step_index
+                next_step = session["steps"][next_step_index]
+                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                return {
+                    "success": True,
+                    "action": "partial_match_next",
+                    "current_step": next_step,
+                    "ai_messages": ai_messages,
+                    "evaluation": evaluation,
+                    "branch_type": "partial_match"
+                }
+        
+        # 默认进入下一步
+        return self._handle_default_next_step(session, evaluation)
+    
+    def _handle_no_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
+        """处理完全不匹配分支"""
+        # 检查是否有完全不匹配的下一步配置
+        no_match_next_step_id = current_step.get("noMatchNextStepId")
+        
+        if no_match_next_step_id:
+            # 跳转到完全不匹配的指定步骤
+            next_step_index = self._find_step_by_id(session["steps"], no_match_next_step_id)
+            if next_step_index is not None:
+                session["current_step"] = next_step_index
+                next_step = session["steps"][next_step_index]
+                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                return {
+                    "success": True,
+                    "action": "no_match_next",
+                    "current_step": next_step,
+                    "ai_messages": ai_messages,
+                    "evaluation": evaluation,
+                    "branch_type": "no_match"
+                }
+        
+        # 检查重试次数
+        if evaluation["retry_count"] >= 3:
+            # 重试次数用完，强制进入下一步
+            return self._handle_default_next_step(session, evaluation)
+        else:
+            # 重试当前步骤
+            return self._handle_retry_current_step(session, current_step, evaluation)
+    
+    def _handle_default_next_step(self, session: Dict, evaluation: Dict) -> Dict:
+        """处理默认的下一步逻辑"""
+        session["current_step"] += 1
+        if session["current_step"] >= len(session["steps"]):
+            # 场景完成
+            await self._complete_scenario(session)
+            return {
+                "success": True,
+                "action": "completed",
+                "evaluation": evaluation,
+                "final_score": self._calculate_final_score(session)
+            }
+        else:
+            # 下一步
+            next_step = session["steps"][session["current_step"]]
+            ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+            return {
+                "success": True,
+                "action": "next_step",
+                "current_step": next_step,
+                "ai_messages": ai_messages,
+                "evaluation": evaluation
+            }
+    
+    def _handle_retry_current_step(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
+        """处理重试当前步骤"""
+        # 如果有替代消息，使用替代消息
+        if evaluation.get("alternative_message"):
+            return {
+                "success": True,
+                "action": "retry",
+                "current_step": current_step,
+                "evaluation": evaluation,
+                "ai_message": evaluation["alternative_message"]
+            }
+        else:
+            # 处理步骤的AI消息列表
+            ai_messages = self._process_step_ai_messages(current_step, session["child_name"])
+            return {
+                "success": True,
+                "action": "retry",
+                "current_step": current_step,
+                "ai_messages": ai_messages,
+                "evaluation": evaluation
+            }
+    
+    def _find_step_by_id(self, steps: List[Dict], step_id: str) -> Optional[int]:
+        """根据步骤ID查找步骤索引"""
+        for i, step in enumerate(steps):
+            if step.get("id") == step_id:
+                return i
+        return None
     
     def _calculate_final_score(self, session: Dict) -> int:
         """计算最终分数"""

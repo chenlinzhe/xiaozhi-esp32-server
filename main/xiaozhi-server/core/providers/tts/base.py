@@ -65,6 +65,8 @@ class TTSProviderBase(ABC):
         self.tts_stop_request = False
         self.processed_chars = 0
         self.is_first_sentence = True
+        # 说话间隔等待时间（秒）
+        self.speech_interval_wait = config.get("speech_interval_wait", 1.0)
 
     def generate_filename(self, extension=".wav"):
         return os.path.join(
@@ -182,7 +184,7 @@ class TTSProviderBase(ABC):
         # 对于单句的文本，进行分段处理
         if content_detail:
             segments = re.split(r"([。！？!?；;\n])", content_detail)
-            for seg in segments:
+            for i, seg in enumerate(segments):
                 if seg.strip():  # 只处理非空段
                     self.tts_text_queue.put(
                         TTSMessageDTO(
@@ -193,6 +195,16 @@ class TTSProviderBase(ABC):
                             content_file=content_file,
                         )
                     )
+                    # 在句子之间添加等待时间（除了最后一个句子）
+                    if i < len(segments) - 1 and self.speech_interval_wait > 0:
+                        self.tts_text_queue.put(
+                            TTSMessageDTO(
+                                sentence_id=sentence_id,
+                                sentence_type=SentenceType.MIDDLE,
+                                content_type=ContentType.ACTION,
+                                content_detail=f"__WAIT__{self.speech_interval_wait}",
+                            )
+                        )
         
         # 发送LAST请求结束TTS会话
         self.tts_text_queue.put(
@@ -261,6 +273,18 @@ class TTSProviderBase(ABC):
                     self.tts_audio_first_sentence = True
                     logger.bind(tag=TAG).info("TTS会话开始，初始化参数")
                 elif ContentType.TEXT == message.content_type:
+                    # 检查是否是等待时间指令
+                    if message.content_detail and message.content_detail.startswith("__WAIT__"):
+                        try:
+                            wait_time = float(message.content_detail.replace("__WAIT__", ""))
+                            logger.bind(tag=TAG).info(f"等待 {wait_time} 秒...")
+                            import time
+                            time.sleep(wait_time)
+                            logger.bind(tag=TAG).info(f"等待完成")
+                        except ValueError:
+                            logger.bind(tag=TAG).warning(f"无效的等待时间: {message.content_detail}")
+                        continue
+                    
                     self.tts_text_buff.append(message.content_detail)
                     segment_text = self._get_segment_text()
                     if segment_text:

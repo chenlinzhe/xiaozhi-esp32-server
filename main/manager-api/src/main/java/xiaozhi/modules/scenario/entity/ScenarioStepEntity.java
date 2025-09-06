@@ -11,6 +11,7 @@ import xiaozhi.common.entity.BaseEntity;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 对话步骤配置实体类
@@ -47,6 +48,14 @@ public class ScenarioStepEntity extends BaseEntity {
     @Schema(description = "AI说的话（固定配置的语句）")
     @TableField("ai_message")
     private String aiMessage;
+
+    @Schema(description = "是否使用消息列表：0-使用单个消息 1-使用消息列表")
+    @TableField("use_message_list")
+    private Integer useMessageList;
+
+    @Schema(description = "消息列表配置，JSON格式")
+    @TableField("message_list_config")
+    private String messageListConfig;
 
     @Schema(description = "期望的关键词，JSON格式")
     @TableField("expected_keywords")
@@ -170,4 +179,13 @@ public class ScenarioStepEntity extends BaseEntity {
     @Schema(description = "完全不匹配步骤名称")
     @TableField(exist = false)
     private String noMatchStepName;
+
+    // 消息列表相关扩展字段
+    @Schema(description = "步骤的消息列表")
+    @TableField(exist = false)
+    private List<StepMessageEntity> stepMessages;
+
+    @Schema(description = "是否显示消息列表编辑器")
+    @TableField(exist = false)
+    private Boolean showMessageListEditor;
 } 

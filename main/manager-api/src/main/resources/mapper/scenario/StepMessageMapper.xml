@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.StepMessageMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.StepMessageEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="message_id" property="messageId" jdbcType="VARCHAR"/>
+        <result column="step_id" property="stepId" jdbcType="VARCHAR"/>
+        <result column="scenario_id" property="scenarioId" jdbcType="VARCHAR"/>
+        <result column="message_content" property="messageContent" jdbcType="LONGVARCHAR"/>
+        <result column="message_order" property="messageOrder" jdbcType="INTEGER"/>
+        <result column="speech_rate" property="speechRate" jdbcType="DECIMAL"/>
+        <result column="wait_time_seconds" property="waitTimeSeconds" jdbcType="INTEGER"/>
+        <result column="parameters" property="parameters" jdbcType="LONGVARCHAR"/>
+        <result column="is_active" property="isActive" jdbcType="INTEGER"/>
+        <result column="message_type" property="messageType" jdbcType="VARCHAR"/>
+        <result column="creator" property="creator" jdbcType="BIGINT"/>
+        <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
+        <result column="updater" property="updater" jdbcType="BIGINT"/>
+        <result column="update_date" property="updateDate" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, message_id, step_id, scenario_id, message_content, message_order, 
+        speech_rate, wait_time_seconds, parameters, is_active, message_type,
+        creator, create_date, updater, update_date
+    </sql>
+
+    <!-- 根据步骤ID获取消息列表 -->
+    <select id="selectByStepId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_message
+        WHERE step_id = #{stepId}
+    </select>
+
+    <!-- 根据步骤ID获取消息列表（按顺序排序） -->
+    <select id="selectByStepIdOrdered" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_message
+        WHERE step_id = #{stepId}
+        ORDER BY message_order ASC
+    </select>
+
+    <!-- 根据场景ID获取所有消息 -->
+    <select id="selectByScenarioId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_message
+        WHERE scenario_id = #{scenarioId}
+        ORDER BY message_order ASC
+    </select>
+
+    <!-- 批量删除步骤消息 -->
+    <delete id="deleteByStepId">
+        DELETE FROM ai_step_message
+        WHERE step_id = #{stepId}
+    </delete>
+
+    <!-- 批量删除场景消息 -->
+    <delete id="deleteByScenarioId">
+        DELETE FROM ai_step_message
+        WHERE scenario_id = #{scenarioId}
+    </delete>
+
+    <!-- 获取步骤消息数量 -->
+    <select id="countByStepId" resultType="int">
+        SELECT COUNT(*)
+        FROM ai_step_message
+        WHERE step_id = #{stepId}
+    </select>
+
+</mapper>

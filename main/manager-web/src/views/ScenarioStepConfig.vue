@@ -67,25 +67,49 @@
           <div class="step-content">
             <el-form :model="step" label-width="120px">
               <el-row :gutter="20">
-                <el-col :span="12">
-                  <el-form-item label="AI消息" class="form-item">
-                    <el-input 
-                      type="textarea" 
-                      v-model="step.aiMessage" 
-                      :rows="3"
-                      placeholder="请输入AI要说的内容，支持使用 **{childName}** 替换儿童姓名" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item label="期望关键词" class="form-item">
-                    <el-input 
-                      type="textarea" 
-                      v-model="step.expectedKeywords" 
-                      :rows="3"
-                      placeholder="请输入期望的关键词，JSON格式，如：['你好', 'hi']" />
+                <el-col :span="24">
+                  <el-form-item label="消息模式" class="form-item">
+                    <el-radio-group v-model="step.useMessageList" @change="onMessageModeChange(step)">
+                      <el-radio :label="0">单个消息</el-radio>
+                      <el-radio :label="1">消息列表</el-radio>
+                    </el-radio-group>
                   </el-form-item>
                 </el-col>
               </el-row>
+
+              <!-- 单个消息模式 -->
+              <div v-if="step.useMessageList === 0">
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="AI消息" class="form-item">
+                      <el-input 
+                        type="textarea" 
+                        v-model="step.aiMessage" 
+                        :rows="3"
+                        placeholder="请输入AI要说的内容，支持使用 **{childName}** 替换儿童姓名" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="期望关键词" class="form-item">
+                      <el-input 
+                        type="textarea" 
+                        v-model="step.expectedKeywords" 
+                        :rows="3"
+                        placeholder="请输入期望的关键词，JSON格式，如：['你好', 'hi']" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </div>
+
+              <!-- 消息列表模式 -->
+              <div v-if="step.useMessageList === 1">
+                <StepMessageList 
+                  :step-id="step.stepId || 'temp_' + $index"
+                  :scenario-id="scenario.id"
+                  :initial-messages="step.stepMessages || []"
+                  @messages-saved="onMessagesSaved"
+                />
+              </div>
               
               <el-row :gutter="20">
                 <el-col :span="12">
@@ -376,10 +400,11 @@
 import Api from '@/apis/module/scenario';
 import { isApiSuccess, getBusinessData, getErrorMessage, ApiLogger } from '@/utils/apiHelper';
 import HeaderBar from '@/components/HeaderBar.vue';
+import StepMessageList from '@/components/StepMessageList.vue';
 
 export default {
   name: 'ScenarioStepConfig',
-  components: { HeaderBar },
+  components: { HeaderBar, StepMessageList },
   data() {
     return {
       scenarioId: '',
@@ -458,11 +483,19 @@ export default {
     
     getScenarioStepsData() {
       return new Promise((resolve, reject) => {
-        Api.getScenarioSteps(this.scenarioId, (res) => {
+        // 优先使用包含消息的API，如果失败则回退到普通API
+        Api.getScenarioStepsWithMessages(this.scenarioId, (res) => {
           if (isApiSuccess(res)) {
             resolve(res);
           } else {
-            reject(new Error(getErrorMessage(res, '获取步骤数据失败')));
+            // 如果包含消息的API失败，回退到普通API
+            Api.getScenarioSteps(this.scenarioId, (fallbackRes) => {
+              if (isApiSuccess(fallbackRes)) {
+                resolve(fallbackRes);
+              } else {
+                reject(new Error(getErrorMessage(fallbackRes, '获取步骤数据失败')));
+              }
+            });
           }
         });
       });
@@ -489,6 +522,9 @@ export default {
           // 移除id字段，让后端自动生成
           stepName: `步骤${this.steps.length + 1}`,
           aiMessage: '',
+          useMessageList: 0, // 默认使用单个消息
+          messageListConfig: '', // 消息列表配置
+          stepMessages: [], // 步骤消息列表
           expectedKeywords: '[]',
           expectedPhrases: '[]',
           successCondition: 'partial',
@@ -566,6 +602,34 @@ export default {
       });
     },
     
+    onMessageModeChange(step) {
+      // 当切换到消息列表模式时，初始化消息列表
+      if (step.useMessageList === 1 && (!step.stepMessages || step.stepMessages.length === 0)) {
+        // 如果原来有单个消息，将其转换为消息列表的第一条消息
+        if (step.aiMessage && step.aiMessage.trim()) {
+          step.stepMessages = [{
+            messageId: '',
+            stepId: step.stepId || 'temp_' + this.steps.indexOf(step),
+            scenarioId: this.scenario.id,
+            messageContent: step.aiMessage,
+            messageOrder: 1,
+            speechRate: step.speechRate || 1.0,
+            waitTimeSeconds: step.waitTimeSeconds || 3,
+            parameters: '{"emotion": "friendly", "tone": "gentle"}',
+            isActive: 1,
+            messageType: 'normal'
+          }];
+        } else {
+          step.stepMessages = [];
+        }
+      }
+    },
+
+    onMessagesSaved(messages) {
+      // 当消息列表保存成功后，更新步骤的消息列表
+      this.$message.success('消息列表保存成功');
+    },
+
     async saveSteps() {
       try {
         // 验证步骤数据
@@ -575,9 +639,28 @@ export default {
             this.$message.error(`步骤${i + 1}的名称不能为空`);
             return;
           }
-          if (!step.aiMessage.trim()) {
-            this.$message.error(`步骤${i + 1}的AI消息不能为空`);
-            return;
+          
+          // 根据消息模式验证
+          if (step.useMessageList === 0) {
+            // 单个消息模式
+            if (!step.aiMessage.trim()) {
+              this.$message.error(`步骤${i + 1}的AI消息不能为空`);
+              return;
+            }
+          } else if (step.useMessageList === 1) {
+            // 消息列表模式
+            if (!step.stepMessages || step.stepMessages.length === 0) {
+              this.$message.error(`步骤${i + 1}的消息列表不能为空`);
+              return;
+            }
+            // 验证每个消息
+            for (let j = 0; j < step.stepMessages.length; j++) {
+              const message = step.stepMessages[j];
+              if (!message.messageContent.trim()) {
+                this.$message.error(`步骤${i + 1}的消息${j + 1}内容不能为空`);
+                return;
+              }
+            }
           }
           
           // 验证JSON格式

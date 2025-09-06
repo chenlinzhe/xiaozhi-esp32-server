@@ -54,6 +54,33 @@ public class ScenarioStepController {
         }
     }
 
+    @GetMapping("/list-with-messages/{scenarioId}")
+    @Operation(summary = "获取场景步骤列表（包含消息）")
+    public Result<List<ScenarioStepEntity>> getStepsWithMessagesByScenario(@PathVariable("scenarioId") String scenarioId) {
+        try {
+            log.info("获取场景步骤列表（包含消息），场景ID: {}", scenarioId);
+            
+            if (!StringUtils.hasText(scenarioId)) {
+                log.warn("场景ID为空");
+                return new Result<List<ScenarioStepEntity>>().error("场景ID不能为空");
+            }
+            
+            List<ScenarioStepEntity> steps = stepService.getStepsWithMessagesByScenarioId(scenarioId);
+            
+            if (steps == null) {
+                log.error("获取场景步骤（包含消息）失败，场景ID: {}", scenarioId);
+                return new Result<List<ScenarioStepEntity>>().error("获取场景步骤失败");
+            }
+            
+            log.info("获取场景步骤（包含消息）成功，场景ID: {}, 步骤数量: {}", scenarioId, steps.size());
+            return new Result<List<ScenarioStepEntity>>().ok(steps);
+            
+        } catch (Exception e) {
+            log.error("获取场景步骤列表（包含消息）异常，场景ID: {}", scenarioId, e);
+            return new Result<List<ScenarioStepEntity>>().error("获取场景步骤列表失败: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/batch-save/{scenarioId}")
     @Operation(summary = "批量保存场景步骤")
     public Result batchSave(@PathVariable("scenarioId") String scenarioId, 

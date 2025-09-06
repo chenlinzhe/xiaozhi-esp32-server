@@ -282,3 +282,10 @@ databaseChangeLog:
         - sqlFile:
             encoding: utf8
             path: classpath:db/changelog/202507081646.sql
+  - changeSet:
+      id: 20250101_ai_message_list
+      author: xiaozhi
+      changes:
+        - sqlFile:
+            encoding: utf8
+            path: classpath:db/changelog/20250101_ai_message_list.sql

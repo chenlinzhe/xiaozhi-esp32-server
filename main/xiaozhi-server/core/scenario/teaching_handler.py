@@ -100,15 +100,33 @@ class TeachingHandler:
                         self.logger.bind(tag=TAG).error("TTS未准备就绪，无法开始教学模式")
                         return True
                     
-                    self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                    # 处理AI消息列表
+                    ai_messages = result.get("ai_messages", [])
+                    if ai_messages:
+                        # 如果有AI消息列表，依次发送每个消息
+                        for i, msg in enumerate(ai_messages):
+                            self.logger.bind(tag=TAG).info(f"发送开始教学消息 {i+1}/{len(ai_messages)}: {msg}")
+                            self._send_tts_message(msg)
+                            self.connection.dialogue.put(Message(role="assistant", content=msg))
+                            
+                            # 在消息之间添加等待时间（除了最后一个消息）
+                            if i < len(ai_messages) - 1:
+                                wait_time = getattr(self.connection.tts, 'speech_interval_wait', 1.0)
+                                if wait_time > 0:
+                                    self.logger.bind(tag=TAG).info(f"等待 {wait_time} 秒...")
+                                    time.sleep(wait_time)
+                    elif ai_message:
+                        # 如果没有AI消息列表，使用单个AI消息
+                        self._send_tts_message(ai_message)
+                        self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                    
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
                     
                     # 在TTS消息发送完成后启动等待超时检查
                     self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
                     return True
                     
-                elif action == "next_step" or action == "retry":
+                elif action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next"]:
                     # 教学步骤处理
                     # 首先发送评估反馈
                     evaluation = result.get("evaluation", {})
@@ -121,10 +139,29 @@ class TeachingHandler:
                         # 等待一小段时间再发送下一步消息
                         time.sleep(1)
                     
-                    # 然后发送下一步的AI消息
-                    self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                    self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
+                    # 处理AI消息列表
+                    ai_messages = result.get("ai_messages", [])
+                    if ai_messages:
+                        # 如果有AI消息列表，依次发送每个消息
+                        for i, msg in enumerate(ai_messages):
+                            self.logger.bind(tag=TAG).info(f"发送AI消息 {i+1}/{len(ai_messages)}: {msg}")
+                            self._send_tts_message(msg)
+                            self.connection.dialogue.put(Message(role="assistant", content=msg))
+                            
+                            # 在消息之间添加等待时间（除了最后一个消息）
+                            if i < len(ai_messages) - 1:
+                                wait_time = getattr(self.connection.tts, 'speech_interval_wait', 1.0)
+                                if wait_time > 0:
+                                    self.logger.bind(tag=TAG).info(f"等待 {wait_time} 秒...")
+                                    time.sleep(wait_time)
+                    elif ai_message:
+                        # 如果没有AI消息列表，使用单个AI消息
+                        self._send_tts_message(ai_message)
+                        self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                    
+                    # 获取分支类型信息
+                    branch_type = result.get("branch_type", "default")
+                    self.logger.bind(tag=TAG).info(f"教学步骤: {action}, 分支类型: {branch_type}")
                     
                     # 在TTS消息发送完成后重新启动等待超时检查
                     self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))

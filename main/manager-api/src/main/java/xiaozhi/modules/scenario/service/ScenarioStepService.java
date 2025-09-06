@@ -53,4 +53,21 @@ public interface ScenarioStepService extends IService<ScenarioStepEntity> {
      * @return 步骤数量
      */
     int countStepsByScenarioId(String scenarioId);
+
+    /**
+     * 获取步骤及其消息列表
+     * 
+     * @param scenarioId 场景ID
+     * @return 步骤列表（包含消息列表）
+     */
+    List<ScenarioStepEntity> getStepsWithMessagesByScenarioId(String scenarioId);
+
+    /**
+     * 批量保存步骤及其消息列表
+     * 
+     * @param scenarioId 场景ID
+     * @param steps 步骤列表（包含消息列表）
+     * @return 是否成功
+     */
+    boolean batchSaveStepsWithMessages(String scenarioId, List<ScenarioStepEntity> steps);
 }

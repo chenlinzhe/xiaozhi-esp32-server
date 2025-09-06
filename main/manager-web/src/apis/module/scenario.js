@@ -153,6 +153,22 @@ export default {
                 });
             }).send();
     },
+
+    // 获取场景步骤列表（包含消息）
+    getScenarioStepsWithMessages(scenarioId, callback) {
+        RequestService.sendRequest()
+            .url(`${getServiceUrl()}/scenario-step/list-with-messages/${scenarioId}`)
+            .method('GET')
+            .success((res) => {
+                RequestService.clearRequestTime();
+                callback(res);
+            })
+            .networkFail(() => {
+                RequestService.reAjaxFun(() => {
+                    this.getScenarioStepsWithMessages(scenarioId, callback);
+                });
+            }).send();
+    },
     
     // 批量保存场景步骤
     saveScenarioSteps(scenarioId, stepsData, callback) {
@@ -187,6 +203,39 @@ export default {
             }).send();
     },
     
+    // 获取步骤消息列表
+    getStepMessages(stepId, callback) {
+        RequestService.sendRequest()
+            .url(`${getServiceUrl()}/step-message/list/${stepId}`)
+            .method('GET')
+            .success((res) => {
+                RequestService.clearRequestTime();
+                callback(res);
+            })
+            .networkFail(() => {
+                RequestService.reAjaxFun(() => {
+                    this.getStepMessages(stepId, callback);
+                });
+            }).send();
+    },
+
+    // 批量保存步骤消息
+    saveStepMessages(stepId, messagesData, callback) {
+        RequestService.sendRequest()
+            .url(`${getServiceUrl()}/step-message/batch-save/${stepId}`)
+            .method('POST')
+            .data(messagesData)
+            .success((res) => {
+                RequestService.clearRequestTime();
+                callback(res);
+            })
+            .networkFail(() => {
+                RequestService.reAjaxFun(() => {
+                    this.saveStepMessages(stepId, messagesData, callback);
+                });
+            }).send();
+    },
+    
     // 获取场景步骤数量
     getScenarioStepCount(scenarioId, callback) {
         RequestService.sendRequest()
@@ -208,7 +257,7 @@ export default {
     // 获取步骤模板列表
     getStepTemplateList(callback) {
         RequestService.sendRequest()
-            .url(`${getServiceUrl()}/xiaozhi/step-template/list`)
+            .url(`${getServiceUrl()}/step-template/list`)
             .method('GET')
             .success((res) => {
                 RequestService.clearRequestTime();
