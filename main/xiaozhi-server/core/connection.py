@@ -441,9 +441,22 @@ class ConnectionHandler:
 
 
         if not self.need_bind:
-            tts = initialize_tts(self.config)
+            try:
+                self.logger.bind(tag=TAG).info("开始初始化TTS服务...")
+                tts = initialize_tts(self.config)
+                if tts is not None:
+                    self.logger.bind(tag=TAG).info(f"TTS服务初始化成功: {type(tts).__name__}")
+                else:
+                    self.logger.bind(tag=TAG).warning("TTS服务初始化返回None，将使用DefaultTTS")
+            except Exception as e:
+                self.logger.bind(tag=TAG).error(f"TTS服务初始化失败: {str(e)}")
+                self.logger.bind(tag=TAG).error(f"异常类型: {type(e).__name__}")
+                import traceback
+                self.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+                tts = None
 
         if tts is None:
+            self.logger.bind(tag=TAG).warning("使用DefaultTTS作为备选方案")
             tts = DefaultTTS(self.config, delete_audio_file=True)
 
         return tts
