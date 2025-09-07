@@ -144,7 +144,7 @@ class DialogueService:
         session["evaluations"].append(evaluation)
         
         # 根据匹配程度决定分支跳转
-        return self._handle_step_branches(session, evaluation)
+        return await self._handle_step_branches(session, evaluation)
     
     def _evaluate_response(self, session: Dict, user_text: str) -> Dict:
         """评估用户回复 - 优化版本"""
@@ -356,7 +356,7 @@ class DialogueService:
         
         return ai_messages
     
-    def _handle_step_branches(self, session: Dict, evaluation: Dict) -> Dict:
+    async def _handle_step_branches(self, session: Dict, evaluation: Dict) -> Dict:
         """处理步骤的三分支逻辑
         
         Args:
@@ -387,7 +387,7 @@ class DialogueService:
         # 3. 完全不匹配分支 (分数 < 60)
         else:
             self.logger.info("完全不匹配分支")
-            return self._handle_no_match_branch(session, current_step, evaluation)
+            return await self._handle_no_match_branch(session, current_step, evaluation)
     
     def _handle_perfect_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
         """处理完全匹配分支"""
@@ -437,7 +437,7 @@ class DialogueService:
         # 默认进入下一步
         return self._handle_default_next_step(session, evaluation)
     
-    def _handle_no_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
+    async def _handle_no_match_branch(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
         """处理完全不匹配分支"""
         # 检查是否有完全不匹配的下一步配置
         no_match_next_step_id = current_step.get("noMatchNextStepId")
@@ -461,12 +461,12 @@ class DialogueService:
         # 检查重试次数
         if evaluation["retry_count"] >= 3:
             # 重试次数用完，强制进入下一步
-            return self._handle_default_next_step(session, evaluation)
+            return await self._handle_default_next_step(session, evaluation)
         else:
             # 重试当前步骤
             return self._handle_retry_current_step(session, current_step, evaluation)
     
-    def _handle_default_next_step(self, session: Dict, evaluation: Dict) -> Dict:
+    async def _handle_default_next_step(self, session: Dict, evaluation: Dict) -> Dict:
         """处理默认的下一步逻辑"""
         session["current_step"] += 1
         if session["current_step"] >= len(session["steps"]):
