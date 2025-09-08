@@ -639,6 +639,70 @@ def delete_learning_record(record_id: str) -> Optional[Dict]:
         return None
 
 
+# 步骤消息列表相关API
+def get_step_messages(step_id: str) -> Optional[List[Dict]]:
+    """获取步骤消息列表"""
+    try:
+        _ensure_client_initialized()
+        result = ManageApiClient._instance._execute_request(
+            "GET",
+            f"/step-message/list/{step_id}"
+        )
+        if result:
+            messages = result if isinstance(result, list) else result.get("data", [])
+            if isinstance(messages, list):
+                # 按messageOrder字段排序
+                messages.sort(key=lambda x: x.get('messageOrder', 0))
+            return messages
+        return None
+    except Exception as e:
+        print(f"获取步骤消息列表失败: {e}")
+        return None
+
+
+def batch_save_step_messages(step_id: str, messages: List[Dict]) -> Optional[Dict]:
+    """批量保存步骤消息"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "POST",
+            f"/step-message/batch-save/{step_id}",
+            json=messages
+        )
+    except Exception as e:
+        print(f"批量保存步骤消息失败: {e}")
+        return None
+
+
+def delete_step_messages(step_id: str) -> Optional[Dict]:
+    """删除步骤的所有消息"""
+    try:
+        _ensure_client_initialized()
+        return ManageApiClient._instance._execute_request(
+            "DELETE",
+            f"/step-message/step/{step_id}"
+        )
+    except Exception as e:
+        print(f"删除步骤消息失败: {e}")
+        return None
+
+
+def count_step_messages(step_id: str) -> Optional[int]:
+    """获取步骤消息数量"""
+    try:
+        _ensure_client_initialized()
+        result = ManageApiClient._instance._execute_request(
+            "GET",
+            f"/step-message/count/{step_id}"
+        )
+        if result:
+            return result.get("data", 0) if isinstance(result, dict) else result
+        return 0
+    except Exception as e:
+        print(f"获取步骤消息数量失败: {e}")
+        return 0
+
+
 def get_learning_records_by_agent(agent_id: str) -> Optional[List[Dict]]:
     """根据智能体ID获取学习记录"""
     try:

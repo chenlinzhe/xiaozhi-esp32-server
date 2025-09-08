@@ -613,6 +613,8 @@ class DialogueService:
                                 print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
                                 print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
                                 print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
+                                print(f"  - 使用消息列表: {step.get('useMessageList', 'N/A')}")
+                                print(f"  - 消息列表配置: {step.get('messageListConfig', 'N/A')}")
                                 print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
                                 print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
                                 print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")

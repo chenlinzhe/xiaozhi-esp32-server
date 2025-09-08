@@ -1,5 +1,6 @@
 import asyncio
 import websockets
+import sys
 from config.logger import setup_logging
 from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
@@ -7,6 +8,29 @@ from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
 
 TAG = __name__
+
+
+def handle_windows_connection_errors():
+    """处理Windows系统特有的连接错误"""
+    def exception_handler(loop, context):
+        exception = context.get('exception')
+        if exception:
+            # 捕获Windows系统常见的连接重置错误
+            if isinstance(exception, (ConnectionResetError, OSError)):
+                if "WinError 10054" in str(exception) or "远程主机强迫关闭" in str(exception):
+                    # 这是Windows系统上客户端突然断开连接时的正常现象，可以安全忽略
+                    logger = setup_logging()
+                    logger.bind(tag=TAG).debug(f"捕获到Windows连接重置错误（可忽略）: {exception}")
+                    return
+            
+            # 其他异常继续正常处理
+            loop.default_exception_handler(context)
+        else:
+            loop.default_exception_handler(context)
+    
+    # 设置异常处理器
+    loop = asyncio.get_event_loop()
+    loop.set_exception_handler(exception_handler)
 
 
 class WebSocketServer:
@@ -33,6 +57,9 @@ class WebSocketServer:
         self.active_connections = set()
 
     async def start(self):
+        # 设置Windows连接错误处理器
+        handle_windows_connection_errors()
+        
         server_config = self.config["server"]
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
@@ -62,20 +89,31 @@ class WebSocketServer:
         finally:
             # 确保从活动连接集合中移除
             self.active_connections.discard(handler)
-            # 强制关闭连接（如果还没有关闭的话）
+            # 强制关闭连接（如果还没有关闭的话）- 改进Windows兼容性
             try:
                 # 安全地检查WebSocket状态并关闭
-                if hasattr(websocket, "closed") and not websocket.closed:
-                    await websocket.close()
-                elif hasattr(websocket, "state") and websocket.state.name != "CLOSED":
-                    await websocket.close()
-                else:
-                    # 如果没有closed属性，直接尝试关闭
-                    await websocket.close()
-            except Exception as close_error:
-                self.logger.bind(tag=TAG).error(
-                    f"服务器端强制关闭连接时出错: {close_error}"
-                )
+                is_closed = False
+                if hasattr(websocket, "closed"):
+                    is_closed = websocket.closed
+                elif hasattr(websocket, "state"):
+                    is_closed = websocket.state.name == "CLOSED"
+                
+                if not is_closed:
+                    # 使用更安全的关闭方式，避免Windows socket错误
+                    try:
+                        await asyncio.wait_for(websocket.close(), timeout=2.0)
+                    except (asyncio.TimeoutError, ConnectionResetError, OSError) as close_error:
+                        # Windows系统常见的连接重置错误，可以安全忽略
+                        self.logger.bind(tag=TAG).debug(f"服务器端WebSocket关闭时出现预期错误（可忽略）: {close_error}")
+                    except Exception as close_error:
+                        self.logger.bind(tag=TAG).warning(f"服务器端WebSocket关闭时出现未预期错误: {close_error}")
+            except Exception as check_error:
+                # 检查状态时出错，尝试直接关闭
+                self.logger.bind(tag=TAG).debug(f"检查WebSocket状态时出错: {check_error}")
+                try:
+                    await asyncio.wait_for(websocket.close(), timeout=1.0)
+                except Exception:
+                    pass
 
     async def _http_response(self, websocket, request_headers):
         # 检查是否为 WebSocket 升级请求

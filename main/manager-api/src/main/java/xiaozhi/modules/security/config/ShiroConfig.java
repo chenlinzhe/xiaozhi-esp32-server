@@ -92,6 +92,7 @@ public class ShiroConfig {
         filterMap.put("/scenario/**", "dual");
         filterMap.put("/scenario-step/**", "dual");
         filterMap.put("/step-template/**", "dual");
+        filterMap.put("/step-message/**", "dual");
         filterMap.put("/child-learning-record/**", "dual");
         // 将config路径使用server服务过滤器
         filterMap.put("/config/**", "server");

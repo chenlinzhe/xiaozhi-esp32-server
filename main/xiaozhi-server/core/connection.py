@@ -1106,39 +1106,59 @@ class ConnectionHandler:
             # 清空任务队列
             self.clear_queues()
 
-            # 关闭WebSocket连接
+            # 关闭WebSocket连接 - 改进Windows兼容性
             try:
                 if ws:
                     # 安全地检查WebSocket状态并关闭
                     try:
-                        if hasattr(ws, "closed") and not ws.closed:
-                            await ws.close()
-                        elif hasattr(ws, "state") and ws.state.name != "CLOSED":
-                            await ws.close()
-                        else:
-                            # 如果没有closed属性，直接尝试关闭
-                            await ws.close()
-                    except Exception:
-                        # 如果关闭失败，忽略错误
-                        pass
+                        # 检查连接是否已经关闭
+                        is_closed = False
+                        if hasattr(ws, "closed"):
+                            is_closed = ws.closed
+                        elif hasattr(ws, "state"):
+                            is_closed = ws.state.name == "CLOSED"
+                        
+                        if not is_closed:
+                            # 使用更安全的关闭方式，避免Windows socket错误
+                            try:
+                                await asyncio.wait_for(ws.close(), timeout=2.0)
+                            except (asyncio.TimeoutError, ConnectionResetError, OSError) as close_error:
+                                # Windows系统常见的连接重置错误，可以安全忽略
+                                self.logger.bind(tag=TAG).debug(f"WebSocket关闭时出现预期错误（可忽略）: {close_error}")
+                            except Exception as close_error:
+                                self.logger.bind(tag=TAG).warning(f"WebSocket关闭时出现未预期错误: {close_error}")
+                    except Exception as check_error:
+                        # 检查状态时出错，尝试直接关闭
+                        self.logger.bind(tag=TAG).debug(f"检查WebSocket状态时出错: {check_error}")
+                        try:
+                            await asyncio.wait_for(ws.close(), timeout=1.0)
+                        except Exception:
+                            pass
                 elif self.websocket:
                     try:
-                        if (
-                            hasattr(self.websocket, "closed")
-                            and not self.websocket.closed
-                        ):
-                            await self.websocket.close()
-                        elif (
-                            hasattr(self.websocket, "state")
-                            and self.websocket.state.name != "CLOSED"
-                        ):
-                            await self.websocket.close()
-                        else:
-                            # 如果没有closed属性，直接尝试关闭
-                            await self.websocket.close()
-                    except Exception:
-                        # 如果关闭失败，忽略错误
-                        pass
+                        # 检查连接是否已经关闭
+                        is_closed = False
+                        if hasattr(self.websocket, "closed"):
+                            is_closed = self.websocket.closed
+                        elif hasattr(self.websocket, "state"):
+                            is_closed = self.websocket.state.name == "CLOSED"
+                        
+                        if not is_closed:
+                            # 使用更安全的关闭方式
+                            try:
+                                await asyncio.wait_for(self.websocket.close(), timeout=2.0)
+                            except (asyncio.TimeoutError, ConnectionResetError, OSError) as close_error:
+                                # Windows系统常见的连接重置错误，可以安全忽略
+                                self.logger.bind(tag=TAG).debug(f"WebSocket关闭时出现预期错误（可忽略）: {close_error}")
+                            except Exception as close_error:
+                                self.logger.bind(tag=TAG).warning(f"WebSocket关闭时出现未预期错误: {close_error}")
+                    except Exception as check_error:
+                        # 检查状态时出错，尝试直接关闭
+                        self.logger.bind(tag=TAG).debug(f"检查WebSocket状态时出错: {check_error}")
+                        try:
+                            await asyncio.wait_for(self.websocket.close(), timeout=1.0)
+                        except Exception:
+                            pass
             except Exception as ws_error:
                 self.logger.bind(tag=TAG).error(f"关闭WebSocket连接时出错: {ws_error}")
 

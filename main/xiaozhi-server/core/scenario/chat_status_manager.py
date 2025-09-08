@@ -468,7 +468,8 @@ class ChatStatusManager:
                         "ai_message": current_step.get("aiMessage", f"你好，{child_name}！"),
                         "message": f"已切换到教学模式，开始学习场景：{result['scenario_name']}",
                         "wait_time": timeout_seconds,  # 使用步骤配置的超时时间
-                        "timeoutSeconds": timeout_seconds  # 同时传递超时时间
+                        "timeoutSeconds": timeout_seconds,  # 同时传递超时时间
+                        "current_step": current_step  # 传递完整的步骤对象
                     }
                 else:
                     response = {
@@ -479,7 +480,8 @@ class ChatStatusManager:
                         "ai_message": current_step.get("aiMessage", f"你好，{child_name}！"),
                         "message": f"开始学习场景：{result['scenario_name']}",
                         "wait_time": timeout_seconds,  # 使用步骤配置的超时时间
-                        "timeoutSeconds": timeout_seconds  # 同时传递超时时间
+                        "timeoutSeconds": timeout_seconds,  # 同时传递超时时间
+                        "current_step": current_step  # 传递完整的步骤对象
                     }
                 
                 self.logger.info(f"教学会话开始成功: {response}")
