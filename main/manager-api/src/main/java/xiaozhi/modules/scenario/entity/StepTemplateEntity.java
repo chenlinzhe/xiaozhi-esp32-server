@@ -40,9 +40,7 @@ public class StepTemplateEntity extends BaseEntity {
     @TableField("template_type")
     private String templateType;
 
-    @Schema(description = "AI说的话模板")
-    @TableField("ai_message")
-    private String aiMessage;
+    // 已删除AI消息字段，不再使用固定配置的语句
 
     @Schema(description = "期望的关键词模板")
     @TableField("expected_keywords")
@@ -52,9 +50,7 @@ public class StepTemplateEntity extends BaseEntity {
     @TableField("expected_phrases")
     private String expectedPhrases;
 
-    @Schema(description = "替代提示模板")
-    @TableField("alternative_message")
-    private String alternativeMessage;
+    // 已删除替代消息字段，不再使用替代提示
 
     @Schema(description = "语速配置：0.5-2.0倍速，1.0为正常语速")
     @TableField("speech_rate")

@@ -738,12 +738,8 @@ class ChatStatusManager:
                 self.logger.info(f"进入下一步，步骤索引: {session_data['current_step']}")
                 # 进入下一步
                 next_step = steps[session_data["current_step"]]
-                ai_message = next_step.get("aiMessage", "")
-                if ai_message:
-                    ai_message = ai_message.replace("{childName}", child_name)
-                    ai_message = ai_message.replace("{文杰}", child_name)
-                
-                self.logger.info(f"下一步AI消息: {ai_message}")
+                # 不再使用AI消息，直接进入下一步
+                self.logger.info(f"进入下一步，步骤: {next_step.get('stepName', '未知步骤')}")
                 
                 # 获取下一步的超时时间
                 timeout_seconds = next_step.get("timeoutSeconds", self.WAIT_TIME_MAX)
@@ -779,7 +775,6 @@ class ChatStatusManager:
                     "success": True,
                     "action": action,
                     "session_id": f"teaching_{user_id}",
-                    "ai_message": ai_message,
                     "current_step": next_step,
                     "evaluation": evaluation,
                     "message": f"根据{branch_type}分支进入下一步：{evaluation['feedback']}",
@@ -1284,10 +1279,7 @@ class ChatStatusManager:
                     else:
                         # 进入下一步
                         next_step = steps[session_data["current_step"]]
-                        next_ai_message = next_step.get("aiMessage", "")
-                        if next_ai_message:
-                            next_ai_message = next_ai_message.replace("{childName}", child_name)
-                            next_ai_message = next_ai_message.replace("{文杰}", child_name)
+                        # 不再使用AI消息
                         
                         # 保存会话数据
                         self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
@@ -1295,7 +1287,6 @@ class ChatStatusManager:
                         return {
                             "success": True,
                             "action": "next_step",
-                            "ai_message": next_ai_message,
                             "timeoutSeconds": next_step.get("timeoutSeconds", self.WAIT_TIME_MAX),
                             "message": "超时后进入下一步"
                         }
@@ -1310,8 +1301,7 @@ class ChatStatusManager:
             result = {
                 "success": True,
                 "action": "timeout_response",
-                "ai_message": timeout_message,
-                "message": "用户超时，使用替代消息回复"
+                "message": "用户超时，进入下一步"
             }
             self.logger.info(f"返回超时处理结果: {result}")
             return result

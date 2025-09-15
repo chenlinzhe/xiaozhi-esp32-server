@@ -9,10 +9,10 @@
         <result column="template_code" property="templateCode" jdbcType="VARCHAR"/>
         <result column="template_name" property="templateName" jdbcType="VARCHAR"/>
         <result column="template_type" property="templateType" jdbcType="VARCHAR"/>
-        <result column="ai_message" property="aiMessage" jdbcType="LONGVARCHAR"/>
+        <!-- 已删除AI消息字段映射 -->
         <result column="expected_keywords" property="expectedKeywords" jdbcType="LONGVARCHAR"/>
         <result column="expected_phrases" property="expectedPhrases" jdbcType="LONGVARCHAR"/>
-        <result column="alternative_message" property="alternativeMessage" jdbcType="LONGVARCHAR"/>
+        <!-- 已删除替代消息字段映射 -->
         <result column="description" property="description" jdbcType="LONGVARCHAR"/>
         <result column="is_default" property="isDefault" jdbcType="TINYINT"/>
         <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
@@ -22,8 +22,8 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, template_id, template_code, template_name, template_type, ai_message, 
-        expected_keywords, expected_phrases, alternative_message, description, 
+        id, template_id, template_code, template_name, template_type,
+        expected_keywords, expected_phrases, description, 
         is_default, sort_order, creator, create_date
     </sql>
 

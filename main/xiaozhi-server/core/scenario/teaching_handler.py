@@ -101,31 +101,26 @@ class TeachingHandler:
                                     break
                         
                         if step_id:
-                            # 尝试获取消息列表，如果存在则使用消息列表
+                            # 尝试获取消息列表
                             message_list = self._get_step_message_list(step_id)
                             if message_list:
                                 # 使用消息列表
                                 self.logger.bind(tag=TAG).info(f"教学模式切换检测到消息列表，消息数量: {len(message_list)}")
                                 self._send_message_list(message_list)
                             else:
-                                # 没有消息列表，使用单个AI消息
-                                self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，教学模式切换使用单个AI消息")
-                                self._send_tts_message(ai_message)
-                                self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                                # 没有消息列表，不发送任何消息
+                                self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，教学模式切换不发送消息")
                         else:
-                            # 没有步骤ID，使用单个AI消息
-                            self.logger.bind(tag=TAG).info(f"没有步骤ID，教学模式切换使用单个AI消息")
-                            self._send_tts_message(ai_message)
-                            self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                            # 没有步骤ID，不发送任何消息
+                            self.logger.bind(tag=TAG).info(f"没有步骤ID，教学模式切换不发送消息")
                         
                         # 启动等待超时检查（延迟启动，等待TTS消息发送完成）
                         wait_time = result.get("wait_time", 20)
                         self.logger.bind(tag=TAG).info(f"教学模式，等待时间: {wait_time}")
                         self._start_teaching_timeout_check_after_tts(user_id, wait_time)
                     else:
-                        # 其他模式切换，直接发送AI消息
-                        self._send_tts_message(ai_message)
-                        self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                        # 其他模式切换，不发送AI消息
+                        self.logger.bind(tag=TAG).info(f"其他模式切换，不发送AI消息")
                     
                     self.logger.bind(tag=TAG).info(f"聊天模式切换完成: {result.get('mode')}")
                     
@@ -143,22 +138,18 @@ class TeachingHandler:
                     self.logger.bind(tag=TAG).info(f"开始教学 - 步骤ID: {step_id}")
                     
                     if step_id:
-                        # 尝试获取消息列表，如果存在则使用消息列表
+                        # 尝试获取消息列表
                         message_list = self._get_step_message_list(step_id)
                         if message_list:
                             # 使用消息列表
                             self.logger.bind(tag=TAG).info(f"开始教学检测到消息列表，消息数量: {len(message_list)}")
                             self._send_message_list(message_list)
                         else:
-                            # 没有消息列表，使用单个AI消息
-                            self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，开始教学使用单个AI消息")
-                            self._send_tts_message(ai_message)
-                            self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                            # 没有消息列表，不发送任何消息
+                            self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，开始教学不发送消息")
                     else:
-                        # 没有步骤ID，使用单个AI消息
-                        self.logger.bind(tag=TAG).info(f"没有步骤ID，开始教学使用单个AI消息")
-                        self._send_tts_message(ai_message)
-                        self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                        # 没有步骤ID，不发送任何消息
+                        self.logger.bind(tag=TAG).info(f"没有步骤ID，开始教学不发送消息")
                     
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
                     
@@ -180,7 +171,7 @@ class TeachingHandler:
                     message_sent = False
                     
                     if step_id:
-                        # 尝试获取消息列表，如果存在则使用消息列表
+                        # 尝试获取消息列表
                         message_list = self._get_step_message_list(step_id)
                         if message_list:
                             # 使用消息列表
@@ -188,14 +179,8 @@ class TeachingHandler:
                             self._send_message_list(message_list)
                             message_sent = True
                         else:
-                            # 检查是否有单个AI消息
-                            ai_message = current_step.get("aiMessage", "")
-                            if ai_message:
-                                # 使用单个AI消息
-                                self.logger.bind(tag=TAG).info(f"步骤 {step_id} 使用单个AI消息")
-                                self._send_tts_message(ai_message)
-                                self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                                message_sent = True
+                            # 没有消息列表，不发送任何消息
+                            self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，不发送消息")
                     
                     # 如果没有发送步骤消息，使用评估反馈
                     if not message_sent:

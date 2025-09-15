@@ -77,26 +77,17 @@
                 </el-col>
               </el-row>
 
-              <!-- 单个消息模式 -->
+              <!-- 单个消息模式已删除，只使用消息列表模式 -->
               <div v-if="step.useMessageList === 0">
                 <el-row :gutter="20">
-                  <el-col :span="12">
-                    <el-form-item label="AI消息" class="form-item">
-                      <el-input 
-                        type="textarea" 
-                        v-model="step.aiMessage" 
-                        :rows="3"
-                        placeholder="请输入AI要说的内容，支持使用 **{childName}** 替换儿童姓名" />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="期望关键词" class="form-item">
-                      <el-input 
-                        type="textarea" 
-                        v-model="step.expectedKeywords" 
-                        :rows="3"
-                        placeholder="请输入期望的关键词，JSON格式，如：['你好', 'hi']" />
-                    </el-form-item>
+                  <el-col :span="24">
+                    <el-alert
+                      title="提示"
+                      type="info"
+                      description="单个消息模式已废弃，请使用消息列表模式进行配置。"
+                      show-icon
+                      :closable="false">
+                    </el-alert>
                   </el-col>
                 </el-row>
               </div>
@@ -213,26 +204,7 @@
                 </el-col>
               </el-row>
               
-              <el-row :gutter="20">
-                <el-col :span="12">
-                  <el-form-item label="夸奖消息" class="form-item">
-                    <el-input 
-                      type="textarea" 
-                      v-model="step.praiseMessage" 
-                      :rows="2"
-                      placeholder="回答正确时的夸奖消息" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item label="鼓励消息" class="form-item">
-                    <el-input 
-                      type="textarea" 
-                      v-model="step.encouragementMessage" 
-                      :rows="2"
-                      placeholder="回答错误时的鼓励消息" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
+              <!-- 已删除夸奖消息和鼓励消息配置 -->
               
               <el-row :gutter="20">
                 <el-col :span="24">
@@ -521,8 +493,7 @@ export default {
         const newStep = {
           // 移除id字段，让后端自动生成
           stepName: `步骤${this.steps.length + 1}`,
-          aiMessage: '',
-          useMessageList: 0, // 默认使用单个消息
+          useMessageList: 1, // 默认使用消息列表模式
           messageListConfig: '', // 消息列表配置
           stepMessages: [], // 步骤消息列表
           expectedKeywords: '[]',
@@ -534,10 +505,7 @@ export default {
           noMatchStepId: '', // 完全不匹配分支
           maxAttempts: 3,
           timeoutSeconds: 10,
-          alternativeMessage: '',
           correctResponse: '', // 正确答案
-          praiseMessage: '', // 夸奖消息
-          encouragementMessage: '', // 鼓励消息
           autoReplyOnTimeout: '', // 超时自动回复
           waitTimeSeconds: 10, // 等待时间
           gestureHint: '',
@@ -605,23 +573,8 @@ export default {
     onMessageModeChange(step) {
       // 当切换到消息列表模式时，初始化消息列表
       if (step.useMessageList === 1 && (!step.stepMessages || step.stepMessages.length === 0)) {
-        // 如果原来有单个消息，将其转换为消息列表的第一条消息
-        if (step.aiMessage && step.aiMessage.trim()) {
-          step.stepMessages = [{
-            messageId: '',
-            stepId: step.stepId || 'temp_' + this.steps.indexOf(step),
-            scenarioId: this.scenario.id,
-            messageContent: step.aiMessage,
-            messageOrder: 1,
-            speechRate: step.speechRate || 1.0,
-            waitTimeSeconds: step.waitTimeSeconds || 3,
-            parameters: '{"emotion": "friendly", "tone": "gentle"}',
-            isActive: 1,
-            messageType: 'normal'
-          }];
-        } else {
-          step.stepMessages = [];
-        }
+        // 初始化空的消息列表
+        step.stepMessages = [];
       }
     },
 
@@ -642,11 +595,9 @@ export default {
           
           // 根据消息模式验证
           if (step.useMessageList === 0) {
-            // 单个消息模式
-            if (!step.aiMessage.trim()) {
-              this.$message.error(`步骤${i + 1}的AI消息不能为空`);
-              return;
-            }
+            // 单个消息模式已废弃
+            this.$message.error(`步骤${i + 1}：单个消息模式已废弃，请使用消息列表模式`);
+            return;
           } else if (step.useMessageList === 1) {
             // 消息列表模式
             if (!step.stepMessages || step.stepMessages.length === 0) {
@@ -732,19 +683,25 @@ export default {
       const newStep = {
         // 移除id字段，让后端自动生成
         stepName: template.templateName,
-        aiMessage: template.aiMessage || '',
+        useMessageList: 1, // 默认使用消息列表模式
+        messageListConfig: '', // 消息列表配置
+        stepMessages: [], // 步骤消息列表
         expectedKeywords: template.expectedKeywords || '[]',
         expectedPhrases: template.expectedPhrases || '[]',
         successCondition: template.successCondition || 'partial',
         maxAttempts: 3,
         timeoutSeconds: 10,
-        alternativeMessage: template.alternativeMessage || '',
+        correctResponse: '', // 正确答案
+        autoReplyOnTimeout: '', // 超时自动回复
+        waitTimeSeconds: 10, // 等待时间
         gestureHint: '',
         musicEffect: '',
         stepType: 'normal',
         stepOrder: this.steps.length + 1,
         nextStepId: '',
-        retryStepId: ''
+        retryStepId: '',
+        isOptional: 0, // 默认必需步骤
+        branchCondition: '' // 分支条件
       };
       this.steps.push(newStep);
       this.templateDialogVisible = false;

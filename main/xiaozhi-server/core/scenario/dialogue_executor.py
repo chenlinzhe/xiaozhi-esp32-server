@@ -130,26 +130,23 @@ class DialogueStepExecutor:
             }
     
     def handle_failure(self, step: Dict) -> Dict:
-        """处理失败情况"""
+        """处理失败情况 - 不再使用替代消息和AI消息"""
         self.attempts += 1
         max_attempts = step.get('maxAttempts', 3)
         
         if self.attempts >= max_attempts:
-            # 提供替代方案
-            alternative_message = step.get('alternativeMessage', '').replace("**{childName}**", self.child_name)
+            # 超过最大尝试次数，结束当前步骤
             return {
-                "type": "alternative",
-                "message": alternative_message,
-                "gesture": step.get('gestureHint', ''),
+                "type": "timeout",
+                "message": "让我们继续下一步",
                 "attempts": self.attempts,
                 "max_attempts": max_attempts
             }
         else:
-            # 重复示范
-            ai_message = step.get('aiMessage', '').replace("**{childName}**", self.child_name)
+            # 重试当前步骤
             return {
                 "type": "retry",
-                "message": f"让我们再试一次：{ai_message}",
+                "message": "让我们再试一次",
                 "attempts": self.attempts,
                 "max_attempts": max_attempts
             }

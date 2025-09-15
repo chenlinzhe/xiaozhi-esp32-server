@@ -21,6 +21,7 @@
         <result column="is_default_teaching" property="isDefaultTeaching" jdbcType="TINYINT"/>
         <result column="teaching_mode_config" property="teachingModeConfig" jdbcType="LONGVARCHAR"/>
         <result column="auto_switch_to_free" property="autoSwitchToFree" jdbcType="TINYINT"/>
+        <result column="max_user_replies" property="maxUserReplies" jdbcType="INTEGER"/>
         <result column="praise_messages" property="praiseMessages" jdbcType="LONGVARCHAR"/>
         <result column="encouragement_messages" property="encouragementMessages" jdbcType="LONGVARCHAR"/>
         <result column="creator" property="creator" jdbcType="BIGINT"/>
@@ -40,7 +41,7 @@
         id, scenario_id, agent_id, scenario_code, scenario_name, scenario_type, trigger_type, 
         trigger_keywords, trigger_cards, description, difficulty_level, target_age, 
         sort_order, is_active, is_default_teaching, teaching_mode_config, auto_switch_to_free,
-        praise_messages, encouragement_messages, creator, create_date, updater, update_date
+        max_user_replies, praise_messages, encouragement_messages, creator, create_date, updater, update_date
     </sql>
 
     <!-- 根据智能体ID获取场景列表 -->
@@ -59,7 +60,7 @@
             s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
             s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
             s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
-            s.praise_messages, s.encouragement_messages,
+            s.max_user_replies, s.praise_messages, s.encouragement_messages,
             s.creator, s.create_date, s.updater, s.update_date,
             COALESCE(COUNT(st.id), 0) as step_count,
             a.agent_name
@@ -84,7 +85,7 @@
                  s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
                  s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
                  s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
-                 s.praise_messages, s.encouragement_messages,
+                 s.max_user_replies, s.praise_messages, s.encouragement_messages,
                  s.creator, s.create_date, s.updater, s.update_date, a.agent_name
         ORDER BY s.sort_order ASC, s.create_date DESC
         <if test="offset != null and limit != null">

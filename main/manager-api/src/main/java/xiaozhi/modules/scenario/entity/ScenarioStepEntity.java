@@ -45,9 +45,7 @@ public class ScenarioStepEntity extends BaseEntity {
     @TableField("step_order")
     private Integer stepOrder;
 
-    @Schema(description = "AI说的话（固定配置的语句）")
-    @TableField("ai_message")
-    private String aiMessage;
+    // 已删除AI消息字段，不再使用固定配置的语句
 
     @Schema(description = "是否使用消息列表：0-使用单个消息 1-使用消息列表")
     @TableField("use_message_list")
@@ -101,21 +99,13 @@ public class ScenarioStepEntity extends BaseEntity {
     @TableField("retry_step_id")
     private String retryStepId;
 
-    @Schema(description = "失败时的替代提示")
-    @TableField("alternative_message")
-    private String alternativeMessage;
+    // 已删除替代消息字段，不再使用替代提示
 
     @Schema(description = "正确答案，用于教学模式判断")
     @TableField("correct_response")
     private String correctResponse;
 
-    @Schema(description = "回答正确时的夸奖消息")
-    @TableField("praise_message")
-    private String praiseMessage;
-
-    @Schema(description = "回答错误时的鼓励消息")
-    @TableField("encouragement_message")
-    private String encouragementMessage;
+    // 已删除夸奖和鼓励消息字段，不再使用固定消息
 
     @Schema(description = "超时时的自动回复内容")
     @TableField("auto_reply_on_timeout")

@@ -115,14 +115,14 @@ class DialogueService:
             
             # 返回第一个步骤
             first_step = steps[0] if steps else {}
-            # 处理步骤的AI消息列表
-            ai_messages = self._process_step_ai_messages(first_step, child_name)
+            # 处理步骤的消息列表
+            messages = self._process_step_messages(first_step, child_name)
             result = {
                 "success": True,
                 "session_id": session_id,
                 "scenario_name": scenario.get("scenarioName", ""),
                 "current_step": first_step,
-                "ai_messages": ai_messages,
+                "messages": messages,
                 "total_steps": len(steps)
             }
             
@@ -308,51 +308,33 @@ class DialogueService:
         
         return feedback
     
-    def _process_step_ai_messages(self, step: Dict, child_name: str) -> List[str]:
-        """处理步骤的AI消息列表
+    def _process_step_messages(self, step: Dict, child_name: str) -> List[str]:
+        """处理步骤的消息列表 - 只处理消息列表，不再处理AI消息
         
         Args:
             step: 步骤配置
             child_name: 儿童姓名
             
         Returns:
-            List[str]: AI消息列表
+            List[str]: 消息列表
         """
-        ai_messages = []
+        messages = []
         
-        # 优先检查是否有AI消息列表
-        ai_message_list = step.get("aiMessageList", "")
-        if ai_message_list:
-            try:
-                import json
-                message_list = json.loads(ai_message_list)
-                if isinstance(message_list, list):
-                    self.logger.info(f"使用AI消息列表，消息数量: {len(message_list)}")
-                    for msg in message_list:
-                        if isinstance(msg, str) and msg.strip():
-                            # 替换儿童姓名占位符
-                            msg = msg.replace("{文杰}", child_name)
-                            msg = msg.replace("{childName}", child_name)
-                            ai_messages.append(msg)
-                    return ai_messages  # 如果有消息列表，直接返回，不使用单个AI消息
-            except (json.JSONDecodeError, TypeError) as e:
-                self.logger.warning(f"解析AI消息列表失败: {e}")
+        # 只检查消息列表配置
+        message_list = step.get("messageList", [])
+        if message_list and isinstance(message_list, list):
+            self.logger.info(f"使用消息列表，消息数量: {len(message_list)}")
+            for msg in message_list:
+                if isinstance(msg, str) and msg.strip():
+                    # 替换儿童姓名占位符
+                    msg = msg.replace("{文杰}", child_name)
+                    msg = msg.replace("{childName}", child_name)
+                    messages.append(msg)
+            return messages
         
-        # 如果没有AI消息列表，使用单个AI消息
-        ai_message = step.get("aiMessage", "")
-        if ai_message:
-            self.logger.info(f"使用单个AI消息")
-            # 替换儿童姓名占位符
-            ai_message = ai_message.replace("{文杰}", child_name)
-            ai_message = ai_message.replace("{childName}", child_name)
-            ai_messages.append(ai_message)
-        
-        # 如果既没有AI消息列表也没有单个AI消息，使用默认消息
-        if not ai_messages:
-            self.logger.info(f"使用默认消息")
-            ai_messages.append(f"你好，{child_name}！让我们开始学习吧。")
-        
-        return ai_messages
+        # 如果没有消息列表，返回空列表
+        self.logger.info(f"没有配置消息列表")
+        return messages
     
     async def _handle_step_branches(self, session: Dict, evaluation: Dict) -> Dict:
         """处理步骤的三分支逻辑
@@ -398,12 +380,12 @@ class DialogueService:
             if next_step_index is not None:
                 session["current_step"] = next_step_index
                 next_step = session["steps"][next_step_index]
-                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                messages = self._process_step_messages(next_step, session["child_name"])
                 return {
                     "success": True,
                     "action": "perfect_match_next",
                     "current_step": next_step,
-                    "ai_messages": ai_messages,
+                    "messages": messages,
                     "evaluation": evaluation,
                     "branch_type": "perfect_match"
                 }
@@ -422,12 +404,12 @@ class DialogueService:
             if next_step_index is not None:
                 session["current_step"] = next_step_index
                 next_step = session["steps"][next_step_index]
-                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                messages = self._process_step_messages(next_step, session["child_name"])
                 return {
                     "success": True,
                     "action": "partial_match_next",
                     "current_step": next_step,
-                    "ai_messages": ai_messages,
+                    "messages": messages,
                     "evaluation": evaluation,
                     "branch_type": "partial_match"
                 }
@@ -446,12 +428,12 @@ class DialogueService:
             if next_step_index is not None:
                 session["current_step"] = next_step_index
                 next_step = session["steps"][next_step_index]
-                ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+                messages = self._process_step_messages(next_step, session["child_name"])
                 return {
                     "success": True,
                     "action": "no_match_next",
                     "current_step": next_step,
-                    "ai_messages": ai_messages,
+                    "messages": messages,
                     "evaluation": evaluation,
                     "branch_type": "no_match"
                 }
@@ -479,24 +461,24 @@ class DialogueService:
         else:
             # 下一步
             next_step = session["steps"][session["current_step"]]
-            ai_messages = self._process_step_ai_messages(next_step, session["child_name"])
+            messages = self._process_step_messages(next_step, session["child_name"])
             return {
                 "success": True,
                 "action": "next_step",
                 "current_step": next_step,
-                "ai_messages": ai_messages,
+                "messages": messages,
                 "evaluation": evaluation
             }
     
     def _handle_retry_current_step(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
         """处理重试当前步骤"""
-        # 不再使用替代消息，直接处理步骤的AI消息列表
-        ai_messages = self._process_step_ai_messages(current_step, session["child_name"])
+        # 不再使用替代消息，直接处理步骤的消息列表
+        messages = self._process_step_messages(current_step, session["child_name"])
         return {
             "success": True,
             "action": "retry",
             "current_step": current_step,
-            "ai_messages": ai_messages,
+            "messages": messages,
             "evaluation": evaluation
         }
     

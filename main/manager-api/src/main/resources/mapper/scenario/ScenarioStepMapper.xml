@@ -11,7 +11,7 @@
         <result column="step_name" property="stepName" jdbcType="VARCHAR"/>
         <result column="step_order" property="stepOrder" jdbcType="INTEGER"/>
         <result column="step_type" property="stepType" jdbcType="VARCHAR"/>
-        <result column="ai_message" property="aiMessage" jdbcType="LONGVARCHAR"/>
+        <!-- 已删除AI消息字段映射 -->
         <result column="expected_keywords" property="expectedKeywords" jdbcType="LONGVARCHAR"/>
         <result column="expected_phrases" property="expectedPhrases" jdbcType="LONGVARCHAR"/>
         <result column="max_attempts" property="maxAttempts" jdbcType="INTEGER"/>
@@ -23,10 +23,8 @@
         <result column="no_match_step_id" property="noMatchStepId" jdbcType="VARCHAR"/>
         <result column="next_step_id" property="nextStepId" jdbcType="VARCHAR"/>
         <result column="retry_step_id" property="retryStepId" jdbcType="VARCHAR"/>
-        <result column="alternative_message" property="alternativeMessage" jdbcType="LONGVARCHAR"/>
+        <!-- 已删除替代消息、夸奖消息、鼓励消息字段映射 -->
         <result column="correct_response" property="correctResponse" jdbcType="LONGVARCHAR"/>
-        <result column="praise_message" property="praiseMessage" jdbcType="LONGVARCHAR"/>
-        <result column="encouragement_message" property="encouragementMessage" jdbcType="LONGVARCHAR"/>
         <result column="auto_reply_on_timeout" property="autoReplyOnTimeout" jdbcType="LONGVARCHAR"/>
         <result column="wait_time_seconds" property="waitTimeSeconds" jdbcType="INTEGER"/>
         <result column="gesture_hint" property="gestureHint" jdbcType="VARCHAR"/>
@@ -50,11 +48,11 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, step_id, scenario_id, step_code, step_name, step_order, step_type, ai_message, 
+        id, step_id, scenario_id, step_code, step_name, step_order, step_type,
         expected_keywords, expected_phrases, max_attempts, timeout_seconds,
         success_condition, speech_rate, exact_match_step_id, partial_match_step_id, no_match_step_id,
-        next_step_id, retry_step_id, alternative_message,
-        correct_response, praise_message, encouragement_message, auto_reply_on_timeout,
+        next_step_id, retry_step_id,
+        correct_response, auto_reply_on_timeout,
         wait_time_seconds, gesture_hint, music_effect, is_optional, branch_condition,
         create_date, updater, update_date
     </sql>
@@ -72,11 +70,11 @@
     <select id="selectByScenarioIdOrdered" resultMap="StepWithInfoMap">
         SELECT 
             st.id, st.step_id, st.scenario_id, st.step_code, st.step_name, st.step_order,
-            st.step_type, st.ai_message, st.expected_keywords, st.expected_phrases,
+            st.step_type, st.expected_keywords, st.expected_phrases,
             st.max_attempts, st.timeout_seconds, st.success_condition, st.speech_rate,
             st.exact_match_step_id, st.partial_match_step_id, st.no_match_step_id,
-            st.next_step_id, st.retry_step_id, st.alternative_message,
-            st.correct_response, st.praise_message, st.encouragement_message,
+            st.next_step_id, st.retry_step_id,
+            st.correct_response,
             st.auto_reply_on_timeout, st.wait_time_seconds,
             st.gesture_hint, st.music_effect, st.is_optional, st.step_type,
             st.branch_condition, st.create_date, st.updater, st.update_date,
