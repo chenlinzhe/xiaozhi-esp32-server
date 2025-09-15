@@ -218,13 +218,8 @@ class DialogueService:
             base_score = min(base_score + encouragement_bonus, 100)
             self.logger.info(f"重试加分: +{encouragement_bonus}, 最终分数: {base_score}")
         
-        # 获取替代消息
-        alternative_message = current_step.get("alternativeMessage", "")
-        if alternative_message:
-            # 替换儿童姓名占位符
-            child_name = session.get("child_name", "小朋友")
-            alternative_message = alternative_message.replace("{文杰}", child_name)
-        self.logger.info(f"替代消息: {alternative_message}")
+        # 直接走成功条件分支配置
+        self.logger.info(f"使用成功条件分支配置进行跳转")
         
         # 智能反馈生成
         feedback = self._generate_smart_feedback(base_score, retry_count)
@@ -235,7 +230,6 @@ class DialogueService:
             "feedback": feedback,
             "step_index": session["current_step"],
             "retry_count": retry_count,
-            "alternative_message": alternative_message,
             "is_excellent": base_score >= 90,
             "is_good": base_score >= 80,
             "is_pass": base_score >= 60
@@ -326,32 +320,36 @@ class DialogueService:
         """
         ai_messages = []
         
-        # 获取步骤中的AI消息
-        ai_message = step.get("aiMessage", "")
-        if ai_message:
-            # 替换儿童姓名占位符
-            ai_message = ai_message.replace("{文杰}", child_name)
-            ai_message = ai_message.replace("{childName}", child_name)
-            ai_messages.append(ai_message)
-        
-        # 检查是否有AI消息列表
+        # 优先检查是否有AI消息列表
         ai_message_list = step.get("aiMessageList", "")
         if ai_message_list:
             try:
                 import json
                 message_list = json.loads(ai_message_list)
                 if isinstance(message_list, list):
+                    self.logger.info(f"使用AI消息列表，消息数量: {len(message_list)}")
                     for msg in message_list:
                         if isinstance(msg, str) and msg.strip():
                             # 替换儿童姓名占位符
                             msg = msg.replace("{文杰}", child_name)
                             msg = msg.replace("{childName}", child_name)
                             ai_messages.append(msg)
+                    return ai_messages  # 如果有消息列表，直接返回，不使用单个AI消息
             except (json.JSONDecodeError, TypeError) as e:
                 self.logger.warning(f"解析AI消息列表失败: {e}")
         
-        # 如果没有AI消息，使用默认消息
+        # 如果没有AI消息列表，使用单个AI消息
+        ai_message = step.get("aiMessage", "")
+        if ai_message:
+            self.logger.info(f"使用单个AI消息")
+            # 替换儿童姓名占位符
+            ai_message = ai_message.replace("{文杰}", child_name)
+            ai_message = ai_message.replace("{childName}", child_name)
+            ai_messages.append(ai_message)
+        
+        # 如果既没有AI消息列表也没有单个AI消息，使用默认消息
         if not ai_messages:
+            self.logger.info(f"使用默认消息")
             ai_messages.append(f"你好，{child_name}！让我们开始学习吧。")
         
         return ai_messages
@@ -492,25 +490,15 @@ class DialogueService:
     
     def _handle_retry_current_step(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
         """处理重试当前步骤"""
-        # 如果有替代消息，使用替代消息
-        if evaluation.get("alternative_message"):
-            return {
-                "success": True,
-                "action": "retry",
-                "current_step": current_step,
-                "evaluation": evaluation,
-                "ai_message": evaluation["alternative_message"]
-            }
-        else:
-            # 处理步骤的AI消息列表
-            ai_messages = self._process_step_ai_messages(current_step, session["child_name"])
-            return {
-                "success": True,
-                "action": "retry",
-                "current_step": current_step,
-                "ai_messages": ai_messages,
-                "evaluation": evaluation
-            }
+        # 不再使用替代消息，直接处理步骤的AI消息列表
+        ai_messages = self._process_step_ai_messages(current_step, session["child_name"])
+        return {
+            "success": True,
+            "action": "retry",
+            "current_step": current_step,
+            "ai_messages": ai_messages,
+            "evaluation": evaluation
+        }
     
     def _find_step_by_id(self, steps: List[Dict], step_id: str) -> Optional[int]:
         """根据步骤ID查找步骤索引"""

@@ -92,6 +92,10 @@ public class ScenarioEntity extends BaseEntity {
     @TableField("auto_switch_to_free")
     private Integer autoSwitchToFree;
 
+    @Schema(description = "用户回复总次数限制，超过此次数就结束场景")
+    @TableField("max_user_replies")
+    private Integer maxUserReplies;
+
     @Schema(description = "夸奖消息列表，JSON格式")
     @TableField("praise_messages")
     private String praiseMessages;

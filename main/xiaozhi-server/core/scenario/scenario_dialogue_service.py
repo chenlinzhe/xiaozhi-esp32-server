@@ -11,6 +11,7 @@ from datetime import datetime
 from config.config_loader import load_config
 from core.scenario.scenario_manager import ScenarioManager, StepManager
 from core.scenario.learning_record_manager import LearningRecordManager
+from config.logger import setup_logging
 
 
 class ScenarioDialogueService:
@@ -18,6 +19,7 @@ class ScenarioDialogueService:
     
     def __init__(self):
         self.config = load_config()
+        self.logger = setup_logging()
         # 使用配置文件中的manager-api.url，如果不存在则使用默认值
         manager_api_config = self.config.get("manager-api", {})
         self.api_base_url = manager_api_config.get("url", "http://localhost:8002")
@@ -75,13 +77,42 @@ class ScenarioDialogueService:
         try:
             session = self.current_sessions.get(session_id)
             if not session:
+                self.logger.error(f"对话会话不存在: {session_id}")
                 return {"success": False, "error": "对话会话不存在"}
+            
+            self.logger.info(f"处理用户回复 - 会话: {session_id}, 用户输入: {user_text}")
             
             # 评估用户回复
             evaluation = await self._evaluate_response(session, user_text)
             
             # 更新会话状态
             session.update_with_response(user_text, evaluation)
+            
+            # 获取回复进度信息
+            reply_progress = session.get_reply_progress()
+            
+            # 检查是否应该显示预警
+            if session.should_show_warning():
+                self.logger.warning(f"触发回复次数预警 - 会话: {session_id}, 进度: {reply_progress}")
+                # 标记预警已发送
+                session.warning_sent = True
+            
+            # 检查是否超过用户回复次数限制
+            if session.is_reply_limit_exceeded():
+                # 超过回复次数限制，结束场景
+                self.logger.warning(f"超过回复次数限制，结束场景 - 会话: {session_id}, 总回复次数: {session.get_total_user_replies()}")
+                await self._complete_scenario(session)
+                return {
+                    "success": True,
+                    "action": "completed",
+                    "reason": "reply_limit_exceeded",
+                    "evaluation": evaluation,
+                    "final_score": session.get_final_score(),
+                    "total_replies": session.get_total_user_replies(),
+                    "max_replies": session.get_max_user_replies(),
+                    "reply_progress": reply_progress,
+                    "warning_message": session.get_warning_message()
+                }
             
             # 检查是否需要进入下一步
             if session.should_proceed_to_next():
@@ -93,16 +124,24 @@ class ScenarioDialogueService:
                         "current_step": next_step,
                         "current_step_index": session.current_step_index,
                         "total_steps": len(session.steps),
-                        "evaluation": evaluation
+                        "evaluation": evaluation,
+                        "total_replies": session.get_total_user_replies(),
+                        "max_replies": session.get_max_user_replies(),
+                        "reply_progress": reply_progress,
+                        "warning_message": session.get_warning_message() if session.should_show_warning() else None
                     }
                 else:
                     # 场景完成
+                    self.logger.info(f"场景正常完成 - 会话: {session_id}")
                     await self._complete_scenario(session)
                     return {
                         "success": True,
                         "action": "completed",
                         "evaluation": evaluation,
-                        "final_score": session.get_final_score()
+                        "final_score": session.get_final_score(),
+                        "total_replies": session.get_total_user_replies(),
+                        "max_replies": session.get_max_user_replies(),
+                        "reply_progress": reply_progress
                     }
             else:
                 # 需要重试当前步骤
@@ -112,11 +151,29 @@ class ScenarioDialogueService:
                     "action": "retry",
                     "current_step": current_step,
                     "evaluation": evaluation,
-                    "retry_count": session.get_current_retry_count()
+                    "retry_count": session.get_current_retry_count(),
+                    "total_replies": session.get_total_user_replies(),
+                    "max_replies": session.get_max_user_replies(),
+                    "reply_progress": reply_progress,
+                    "warning_message": session.get_warning_message() if session.should_show_warning() else None
                 }
                 
         except Exception as e:
-            return {"success": False, "error": f"处理用户回复失败: {str(e)}"}
+            self.logger.error(f"处理用户回复失败 - 会话: {session_id}, 错误: {str(e)}", exc_info=True)
+            # 即使出现异常，也要尝试记录回复次数
+            try:
+                session = self.current_sessions.get(session_id)
+                if session:
+                    session.total_user_replies += 1
+                    self.logger.warning(f"异常情况下仍记录回复次数 - 会话: {session_id}, 总回复次数: {session.get_total_user_replies()}")
+            except Exception as log_error:
+                self.logger.error(f"记录异常回复次数失败: {str(log_error)}")
+            
+            return {
+                "success": False, 
+                "error": f"处理用户回复失败: {str(e)}",
+                "total_replies": self.current_sessions.get(session_id, {}).get("total_user_replies", 0) if session_id in self.current_sessions else 0
+            }
     
     async def _evaluate_response(self, session: 'DialogueSession', user_text: str) -> Dict:
         """评估用户回复"""
@@ -191,7 +248,9 @@ class ScenarioDialogueService:
                 "success_rate": final_score,
                 "learning_duration": (datetime.now() - session.start_time).total_seconds(),
                 "difficulty_rating": session.scenario.get("difficultyLevel", 1),
-                "notes": f"场景学习完成，最终得分：{final_score}分",
+                "total_user_replies": session.get_total_user_replies(),
+                "max_user_replies": session.get_max_user_replies(),
+                "notes": f"场景学习完成，最终得分：{final_score}分，用户回复次数：{session.get_total_user_replies()}/{session.get_max_user_replies()}",
                 "created_at": datetime.now().isoformat()
             }
             
@@ -222,6 +281,8 @@ class ScenarioDialogueService:
         if not session:
             return None
         
+        reply_progress = session.get_reply_progress()
+        
         return {
             "session_id": session.session_id,
             "scenario_name": session.scenario.get("scenarioName", ""),
@@ -229,7 +290,12 @@ class ScenarioDialogueService:
             "total_steps": len(session.steps),
             "completed_steps": session.completed_steps,
             "current_retry_count": session.get_current_retry_count(),
-            "start_time": session.start_time.isoformat()
+            "total_user_replies": session.get_total_user_replies(),
+            "max_user_replies": session.get_max_user_replies(),
+            "reply_progress": reply_progress,
+            "warning_message": session.get_warning_message() if session.should_show_warning() else None,
+            "start_time": session.start_time.isoformat(),
+            "is_reply_limit_exceeded": session.is_reply_limit_exceeded()
         }
 
 
@@ -249,8 +315,20 @@ class DialogueSession:
         self.max_retries = 3
         self.start_time = datetime.now()
         
+        # 用户回复总次数统计
+        self.total_user_replies = 0
+        self.max_user_replies = scenario.get("maxUserReplies", 3)  # 从场景配置获取，默认3次
+        
+        # 回复次数预警机制
+        self.warning_threshold = max(1, int(self.max_user_replies * 0.7))  # 70%时预警
+        self.warning_sent = False
+        
         # 记录每个步骤的评估结果
         self.step_evaluations = []
+        
+        # 初始化日志
+        self.logger = setup_logging()
+        self.logger.info(f"创建对话会话: {session_id}, 最大回复次数: {self.max_user_replies}, 预警阈值: {self.warning_threshold}")
     
     def get_current_step(self) -> Optional[Dict]:
         """获取当前步骤"""
@@ -273,6 +351,9 @@ class DialogueSession:
     
     def update_with_response(self, user_text: str, evaluation: Dict):
         """更新会话状态"""
+        # 增加用户回复总次数
+        self.total_user_replies += 1
+        
         # 记录评估结果
         self.step_evaluations.append({
             "step_index": self.current_step_index,
@@ -286,6 +367,21 @@ class DialogueSession:
             self.current_retry_count += 1
         else:
             self.current_retry_count = 0
+        
+        # 记录详细的回复统计信息
+        self.logger.info(f"用户回复更新 - 会话: {self.session_id}, 总回复次数: {self.total_user_replies}/{self.max_user_replies}, "
+                        f"当前步骤: {self.current_step_index}, 重试次数: {self.current_retry_count}, 分数: {evaluation.get('score', 0)}")
+        
+        # 检查预警条件
+        if self.total_user_replies >= self.warning_threshold and not self.warning_sent:
+            self.warning_sent = True
+            self.logger.warning(f"回复次数预警 - 会话: {self.session_id}, 当前回复次数: {self.total_user_replies}, "
+                              f"预警阈值: {self.warning_threshold}, 最大限制: {self.max_user_replies}")
+        
+        # 检查是否接近限制
+        if self.total_user_replies >= self.max_user_replies - 1:
+            self.logger.warning(f"即将达到回复次数限制 - 会话: {self.session_id}, 当前回复次数: {self.total_user_replies}, "
+                              f"最大限制: {self.max_user_replies}")
     
     def should_proceed_to_next(self) -> bool:
         """判断是否应该进入下一步"""
@@ -300,6 +396,50 @@ class DialogueSession:
     def get_current_retry_count(self) -> int:
         """获取当前重试次数"""
         return self.current_retry_count
+    
+    def is_reply_limit_exceeded(self) -> bool:
+        """检查是否超过用户回复次数限制"""
+        return self.total_user_replies >= self.max_user_replies
+    
+    def get_total_user_replies(self) -> int:
+        """获取用户回复总次数"""
+        return self.total_user_replies
+    
+    def get_max_user_replies(self) -> int:
+        """获取用户回复次数限制"""
+        return self.max_user_replies
+    
+    def get_reply_progress(self) -> Dict[str, any]:
+        """获取回复进度信息"""
+        progress_percentage = (self.total_user_replies / self.max_user_replies) * 100 if self.max_user_replies > 0 else 0
+        remaining_replies = max(0, self.max_user_replies - self.total_user_replies)
+        
+        return {
+            "current_replies": self.total_user_replies,
+            "max_replies": self.max_user_replies,
+            "remaining_replies": remaining_replies,
+            "progress_percentage": round(progress_percentage, 1),
+            "warning_threshold": self.warning_threshold,
+            "warning_sent": self.warning_sent,
+            "is_warning_active": self.total_user_replies >= self.warning_threshold,
+            "is_limit_reached": self.is_reply_limit_exceeded()
+        }
+    
+    def should_show_warning(self) -> bool:
+        """判断是否应该显示预警信息"""
+        return (self.total_user_replies >= self.warning_threshold and 
+                not self.warning_sent and 
+                not self.is_reply_limit_exceeded())
+    
+    def get_warning_message(self) -> str:
+        """获取预警消息"""
+        remaining = self.max_user_replies - self.total_user_replies
+        if remaining <= 0:
+            return "已达到最大回复次数限制，场景即将结束。"
+        elif remaining == 1:
+            return "这是最后一次回复机会，请认真回答。"
+        else:
+            return f"还有{remaining}次回复机会，请继续努力。"
     
     def get_final_score(self) -> int:
         """计算最终分数"""

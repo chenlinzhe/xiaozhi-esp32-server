@@ -3,7 +3,7 @@ import time
 import base64
 from typing import Optional, Dict, List
 
-import httpx
+import requests
 
 TAG = __name__
 
@@ -49,15 +49,13 @@ class ManageApiClient:
         cls.retry_delay = cls.config.get("retry_delay", 10)  # 初始重试延迟(秒)
         
         # 创建基础客户端（用于服务器密钥认证的API）
-        cls._client = httpx.Client(
-            base_url=cls.config.get("url"),
-            headers={
-                "User-Agent": f"PythonClient/2.0 (PID:{os.getpid()})",
-                "Accept": "application/json",
-                "Authorization": "Bearer " + cls._secret,
-            },
-            timeout=cls.config.get("timeout", 30),  # 默认超时时间30秒
-        )
+        cls._base_url = cls.config.get("url")
+        cls._headers = {
+            "User-Agent": f"PythonClient/2.0 (PID:{os.getpid()})",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + cls._secret,
+        }
+        cls._timeout = cls.config.get("timeout", 30)  # 默认超时时间30秒
     
 
 
@@ -73,7 +71,26 @@ class ManageApiClient:
         print(f"处理后的端点: {endpoint}")
         
         try:
-            response = cls._client.request(method, endpoint, **kwargs)
+            # 构建完整URL
+            url = f"{cls._base_url.rstrip('/')}/{endpoint}"
+            print(f"完整URL: {url}")
+            
+            # 准备请求参数
+            request_kwargs = {
+                'headers': cls._headers.copy(),
+                'timeout': cls._timeout
+            }
+            
+            # 处理不同的请求参数
+            if 'params' in kwargs:
+                request_kwargs['params'] = kwargs['params']
+            if 'json' in kwargs:
+                request_kwargs['json'] = kwargs['json']
+            if 'data' in kwargs:
+                request_kwargs['data'] = kwargs['data']
+            
+            # 发送请求
+            response = requests.request(method, url, **request_kwargs)
             print(f"响应状态码: {response.status_code}")
             print(f"响应头: {dict(response.headers)}")
             
@@ -107,14 +124,15 @@ class ManageApiClient:
         """判断异常是否应该重试"""
         # 网络连接相关错误
         if isinstance(
-            exception, (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)
+            exception, (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.RequestException)
         ):
             return True
 
         # HTTP状态码错误
-        if isinstance(exception, httpx.HTTPStatusError):
-            status_code = exception.response.status_code
-            return status_code in [408, 429, 500, 502, 503, 504]
+        if isinstance(exception, requests.exceptions.HTTPError):
+            if hasattr(exception, 'response') and exception.response is not None:
+                status_code = exception.response.status_code
+                return status_code in [408, 429, 500, 502, 503, 504]
 
         return False
 
@@ -145,9 +163,8 @@ class ManageApiClient:
     @classmethod
     def safe_close(cls):
         """安全关闭连接池"""
-        if cls._client:
-            cls._client.close()
-            cls._instance = None
+        # requests库不需要显式关闭连接池
+        cls._instance = None
 
 
 def get_server_config() -> Optional[Dict]:

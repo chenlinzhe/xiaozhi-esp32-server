@@ -99,12 +99,22 @@
           </div>
           
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="排序权重" prop="sortOrder">
                 <el-input-number v-model="scenarioForm.sortOrder" :min="0" :max="999" />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="8">
+              <el-form-item label="用户回复次数限制" prop="maxUserReplies">
+                <el-input-number 
+                  v-model="scenarioForm.maxUserReplies" 
+                  :min="1" 
+                  :max="10"
+                  placeholder="超过此次数就结束场景" />
+                <div class="hint-text">默认3次，超过此次数就自动结束场景</div>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
               <el-form-item label="是否启用" prop="isActive">
                 <el-switch v-model="scenarioForm.isActive" active-color="#13ce66" inactive-color="#ff4949" />
               </el-form-item>
@@ -138,6 +148,7 @@ export default {
         difficultyLevel: 1,
         targetAge: '',
         sortOrder: 0,
+        maxUserReplies: 3,
         isActive: true
       },
       rules: {

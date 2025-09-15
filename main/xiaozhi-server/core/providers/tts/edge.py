@@ -20,7 +20,7 @@ class TTSProvider(TTSProviderBase):
             f"tts-{datetime.now().date()}@{uuid.uuid4().hex}{extension}",
         )
 
-    async def text_to_speak(self, text, output_file):
+    async def text_to_speak(self, text, output_file, speech_rate=None):
         try:
             communicate = edge_tts.Communicate(text, voice=self.voice)
             if output_file:

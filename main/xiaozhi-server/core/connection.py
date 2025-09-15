@@ -773,6 +773,60 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
+    def _handle_user_info_check(self, query):
+        """处理用户信息检查"""
+        try:
+            # 检查是否启用了用户信息管理
+            if not self.config.get("user_info_management", {}).get("enabled", True):
+                return None
+            
+            # 检查是否应该触发用户信息检查
+            if self._should_trigger_user_info_check(query):
+                return self._execute_user_info_check(query)
+            
+            return None
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"处理用户信息检查失败: {e}")
+            return None
+
+    def _should_trigger_user_info_check(self, query):
+        """判断是否应该触发用户信息检查"""
+        try:
+            # 导入用户信息检查模块
+            from plugins_func.functions.user_info_intent import should_trigger_user_info_check
+            return should_trigger_user_info_check(self, query)
+        except ImportError:
+            self.logger.bind(tag=TAG).warning("用户信息检查模块未找到")
+            return False
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"检查是否应该触发用户信息检查失败: {e}")
+            return False
+
+    def _execute_user_info_check(self, query):
+        """执行用户信息检查"""
+        try:
+            # 导入用户信息处理模块
+            from plugins_func.functions.user_info_intent import user_info_intent
+            
+            # 调用用户信息意图处理函数
+            result = user_info_intent(self, query)
+            
+            if result and result.action == Action.RESPONSE:
+                # 直接回复用户
+                text = result.response
+                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=text)
+                self.dialogue.put(Message(role="assistant", content=text))
+                return True
+            elif result and result.action == Action.ERROR:
+                # 处理错误
+                self.logger.bind(tag=TAG).error(f"用户信息检查错误: {result.response}")
+                return False
+            
+            return False
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"执行用户信息检查失败: {e}")
+            return False
+
     def _handle_chat_mode(self, query):
         """处理聊天模式切换和教学模式逻辑"""
         return self.teaching_handler.handle_chat_mode(query)
@@ -789,6 +843,13 @@ class ConnectionHandler:
         self.logger.bind(tag=TAG).info(f"当前选中 LLM: {self.config.get('selected_module', {}).get('LLM')}")
         self.llm_finish_task = False
         depth = 0
+        
+        # 检查用户信息（只在最顶层调用时检查）
+        if depth == 0:
+            user_info_result = self._handle_user_info_check(query)
+            if user_info_result:
+                return user_info_result
+        
         # 检查聊天模式（只在最顶层调用时检查）
         if depth == 0:
             chat_result = self._handle_chat_mode(query)

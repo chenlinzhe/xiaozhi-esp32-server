@@ -128,7 +128,7 @@ class TTSProvider(TTSProviderBase):
     # linkerai单流式TTS重写父类的方法--结束
     ###################################################################################
 
-    async def text_to_speak(self, text, is_last):
+    async def text_to_speak(self, text, is_last, speech_rate=None):
         """流式处理TTS音频，每句只推送一次音频列表"""
         await self._tts_request(text, is_last)
 
@@ -237,7 +237,7 @@ class TTSProvider(TTSProviderBase):
             logger.bind(tag=TAG).error(f"TTS请求异常: {e}")
             self.tts_audio_queue.put((SentenceType.LAST, [], None))
 
-    def to_tts(self, text: str) -> list:
+    def to_tts(self, text: str, speech_rate=None) -> list:
         """非流式TTS处理，用于测试及保存音频文件的场景
 
         Args:

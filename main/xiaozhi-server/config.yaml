@@ -192,7 +192,7 @@ selected_module:
   # 视觉语言大模型
   VLLM: ChatGLMVLLM
   # TTS将根据配置名称对应的type调用实际的TTS适配器
-  TTS: EdgeTTS
+  TTS: HuoshanDoubleStreamTTS
   # 记忆模块，默认不开启记忆；如果想使用超长记忆，推荐使用mem0ai；如果注重隐私，请使用本地的mem_local_short
   Memory: nomem
   # 意图识别模块开启后，可以播放音乐、控制音量、识别退出指令。
@@ -239,6 +239,36 @@ Intent:
       #- hass_get_state
       #- hass_set_state
       #- hass_play_music
+      # 用户信息管理功能
+      - check_user_info
+      - collect_user_name
+      - update_knowledge_base
+      - get_user_info
+      - smart_name_collector
+      - user_info_intent
+
+# 用户信息管理配置
+user_info_management:
+  # 是否启用用户信息管理
+  enabled: true
+  # 是否在首次连接时自动检查用户信息
+  auto_check_on_first_connection: true
+  # 是否自动收集用户姓名
+  auto_collect_name: true
+  # 姓名收集提示语
+  name_collection_prompts:
+    - "你好！我是小智，很高兴认识你！请问你叫什么名字呢？"
+    - "欢迎使用小智！为了能更好地为你服务，请告诉我你的名字吧！"
+    - "你好！我是你的AI助手小智，请问怎么称呼你呢？"
+    - "很高兴见到你！请告诉我你的名字，这样我就能更好地记住你了！"
+  # 知识库管理
+  knowledge_base:
+    # 是否启用知识库功能
+    enabled: true
+    # 知识库最大大小（字符数）
+    max_size: 10000
+    # 是否自动保存用户相关信息到知识库
+    auto_save_user_info: true
 
 Memory:
   mem0ai:
@@ -589,11 +619,11 @@ TTS:
     # 如果是机智云，把接口地址换成wss://bytedance.gizwitsapi.com/api/v3/tts/bidirection
     # 机智云不需要天填 appid
     ws_url: wss://openspeech.bytedance.com/api/v3/tts/bidirection
-    appid: 你的火山引擎语音合成服务appid
-    access_token: 你的火山引擎语音合成服务access_token
+    appid: 6078916722
+    access_token: fzuLqfiWPJyXxZsGgCXDgYPpSK3JR8SJ
     resource_id: volc.service_type.10029
     speaker: zh_female_wanwanxiaohe_moon_bigtts
-    # 语速控制参数 (0.5-2.0，默认1.0)
+    # 语速控制参数 (0.2-3.0，默认1.0，支持火山引擎双流TTS)
     speed_ratio: 1.0
     # 说话间隔等待时间（秒）
     speech_interval_wait: 1.0

@@ -64,9 +64,19 @@ class WebSocketServer:
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
 
-        async with websockets.serve(
-            self._handle_connection, host, port, process_request=self._http_response
-        ):
+        # 创建WebSocket服务器，添加CORS支持
+        start_server = websockets.serve(
+            self._handle_connection, 
+            host, 
+            port, 
+            process_request=self._http_response,
+            # 添加额外的CORS支持
+            ping_interval=20,
+            ping_timeout=10,
+            close_timeout=10
+        )
+        
+        async with start_server:
             await asyncio.Future()
 
     async def _handle_connection(self, websocket):
@@ -116,13 +126,43 @@ class WebSocketServer:
                     pass
 
     async def _http_response(self, websocket, request_headers):
-        # 检查是否为 WebSocket 升级请求
-        if request_headers.headers.get("connection", "").lower() == "upgrade":
-            # 如果是 WebSocket 请求，返回 None 允许握手继续
-            return None
-        else:
-            # 如果是普通 HTTP 请求，返回 "server is running"
-            return websocket.respond(200, "Server is running\n")
+        """处理HTTP请求和CORS预检请求"""
+        try:
+            # 获取请求方法
+            method = getattr(request_headers, 'method', 'GET')
+            
+            # 检查是否为 WebSocket 升级请求
+            connection_header = request_headers.headers.get("connection", "").lower()
+            upgrade_header = request_headers.headers.get("upgrade", "").lower()
+            
+            if connection_header == "upgrade" and upgrade_header == "websocket":
+                # 如果是 WebSocket 请求，返回 None 允许握手继续
+                return None
+            
+            # 处理CORS预检请求（OPTIONS方法）
+            if method == "OPTIONS":
+                self.logger.bind(tag=TAG).info("处理CORS预检请求")
+                cors_headers = [
+                    ("Access-Control-Allow-Origin", "*"),
+                    ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+                    ("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With"),
+                    ("Access-Control-Max-Age", "86400"),
+                    ("Content-Length", "0")
+                ]
+                return websocket.respond(200, "", headers=cors_headers)
+            
+            # 处理普通 HTTP 请求
+            else:
+                cors_headers = [
+                    ("Access-Control-Allow-Origin", "*"),
+                    ("Content-Type", "text/plain; charset=utf-8")
+                ]
+                return websocket.respond(200, "xiaozhi-server is running\n", headers=cors_headers)
+                
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"处理HTTP请求时出错: {e}")
+            # 出错时返回简单的响应
+            return websocket.respond(500, "Internal Server Error")
 
     async def update_config(self) -> bool:
         """更新服务器配置并重新初始化组件

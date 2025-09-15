@@ -121,7 +121,7 @@ class TTSProvider(TTSProviderBase):
             msg = msg.encode("utf-8")
         return hmac.new(key, msg, hashlib.sha256).digest()
 
-    async def text_to_speak(self, text, output_file):
+    async def text_to_speak(self, text, output_file, speech_rate=None):
         # 构建请求体
         request_json = {
             "Text": text,  # 合成语音的源文本

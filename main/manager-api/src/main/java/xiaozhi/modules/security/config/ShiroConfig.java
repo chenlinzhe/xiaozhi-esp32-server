@@ -88,6 +88,13 @@ public class ShiroConfig {
         filterMap.put("/user/pub-config", "anon");
         filterMap.put("/user/register", "anon");
         filterMap.put("/user/retrieve-password", "anon");
+        // 用户信息相关API使用双重认证（支持服务器密钥和用户token）
+        filterMap.put("/user/device-info", "dual");
+        filterMap.put("/user/has-name", "dual");
+        filterMap.put("/user/update-name", "dual");
+        filterMap.put("/user/update-knowledge", "dual");
+        filterMap.put("/user/knowledge", "dual");
+        filterMap.put("/user/interaction", "dual");
         // 场景相关API使用双重认证（支持服务器密钥和用户token）
         filterMap.put("/scenario/**", "dual");
         filterMap.put("/scenario-step/**", "dual");

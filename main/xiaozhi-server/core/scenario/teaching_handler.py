@@ -171,22 +171,13 @@ class TeachingHandler:
                     
                 elif action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next"]:
                     # 教学步骤处理
-                    # 首先发送评估反馈
-                    evaluation = result.get("evaluation", {})
-                    feedback = evaluation.get("feedback", "")
-                    if feedback:
-                        self.logger.bind(tag=TAG).info(f"发送评估反馈: {feedback}")
-                        self._send_tts_message(feedback)
-                        self.connection.dialogue.put(Message(role="assistant", content=feedback))
-                        
-                        # 等待一小段时间再发送下一步消息
-                        time.sleep(1)
-                    
-                    # 处理下一步的AI消息（支持消息列表）
+                    # 优先使用步骤的AI消息，如果没有才使用评估反馈
                     current_step = result.get("current_step", {})
                     step_id = current_step.get("stepId") if current_step else None
                     
                     self.logger.bind(tag=TAG).info(f"步骤配置 - 步骤ID: {step_id}")
+                    
+                    message_sent = False
                     
                     if step_id:
                         # 尝试获取消息列表，如果存在则使用消息列表
@@ -195,16 +186,27 @@ class TeachingHandler:
                             # 使用消息列表
                             self.logger.bind(tag=TAG).info(f"检测到消息列表，消息数量: {len(message_list)}")
                             self._send_message_list(message_list)
+                            message_sent = True
                         else:
-                            # 没有消息列表，使用单个AI消息
-                            self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，使用单个AI消息")
-                            self._send_tts_message(ai_message)
-                            self.connection.dialogue.put(Message(role="assistant", content=ai_message))
-                    else:
-                        # 没有步骤ID，使用单个AI消息
-                        self.logger.bind(tag=TAG).info(f"没有步骤ID，使用单个AI消息")
-                        self._send_tts_message(ai_message)
-                        self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                            # 检查是否有单个AI消息
+                            ai_message = current_step.get("aiMessage", "")
+                            if ai_message:
+                                # 使用单个AI消息
+                                self.logger.bind(tag=TAG).info(f"步骤 {step_id} 使用单个AI消息")
+                                self._send_tts_message(ai_message)
+                                self.connection.dialogue.put(Message(role="assistant", content=ai_message))
+                                message_sent = True
+                    
+                    # 如果没有发送步骤消息，使用评估反馈
+                    if not message_sent:
+                        evaluation = result.get("evaluation", {})
+                        feedback = evaluation.get("feedback", "")
+                        if feedback:
+                            self.logger.bind(tag=TAG).info(f"没有步骤消息，使用评估反馈: {feedback}")
+                            self._send_tts_message(feedback)
+                            self.connection.dialogue.put(Message(role="assistant", content=feedback))
+                        else:
+                            self.logger.bind(tag=TAG).warning(f"没有找到任何消息内容")
                     
                     self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
                     
@@ -217,18 +219,7 @@ class TeachingHandler:
                     
                 elif action == "completed":
                     # 教学完成，切换到自由模式
-                    # 首先发送评估反馈
-                    evaluation = result.get("evaluation", {})
-                    feedback = evaluation.get("feedback", "")
-                    if feedback:
-                        self.logger.bind(tag=TAG).info(f"发送最终评估反馈: {feedback}")
-                        self._send_tts_message(feedback)
-                        self.connection.dialogue.put(Message(role="assistant", content=feedback))
-                        
-                        # 等待一小段时间再发送完成消息
-                        time.sleep(1)
-                    
-                    # 然后发送完成消息
+                    # 只发送完成消息，不发送评估反馈
                     self._send_tts_message(ai_message)
                     self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"教学完成，最终得分: {result.get('final_score')}")
@@ -321,6 +312,7 @@ class TeachingHandler:
                             sentence_id=self.connection.sentence_id,
                             sentence_type=SentenceType.FIRST,
                             content_type=ContentType.ACTION,
+                            speech_rate=speech_rate,
                         )
                     )
                     self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
@@ -332,6 +324,7 @@ class TeachingHandler:
                         sentence_type=SentenceType.MIDDLE,
                         content_type=ContentType.TEXT,
                         content_detail=message,
+                        speech_rate=speech_rate,
                     )
                 )
                 self.logger.bind(tag=TAG).info(f"发送TTS消息到队列 (尝试 {attempt + 1}/{self.tts_send_retries}): {message[:50]}...")
@@ -377,6 +370,7 @@ class TeachingHandler:
                     sentence_type=SentenceType.MIDDLE,
                     content_type=ContentType.TEXT,
                     content_detail=message,
+                    speech_rate=speech_rate,
                 )
             )
             self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
@@ -390,14 +384,25 @@ class TeachingHandler:
         
         Args:
             message: 要发送的消息文本
-            speech_rate: 语速配置（0.5-2.0倍速，1.0为正常语速）
-            wait_time: 等待时间（秒）
+            speech_rate: 语速配置（0.2-3.0倍速，1.0为正常语速）
+            wait_time: 等待时间（秒）- 在发送消息前等待
         """
+        self.logger.bind(tag=TAG).info(f"=== TTS消息发送开始 ===")
+        self.logger.bind(tag=TAG).info(f"消息内容: {message}")
+        self.logger.bind(tag=TAG).info(f"语速配置: {speech_rate}倍速")
+        self.logger.bind(tag=TAG).info(f"等待时间: {wait_time}秒")
+        
         if not message:
             self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")
             return
             
         try:
+            # 如果有等待时间，在发送消息前等待指定时间
+            if wait_time > 0:
+                self.logger.bind(tag=TAG).info(f"等待 {wait_time} 秒后再发送消息...")
+                time.sleep(wait_time)
+                self.logger.bind(tag=TAG).info(f"等待完成，开始发送消息")
+            
             # 为每条消息生成独立的sentence_id
             sentence_id = str(uuid.uuid4().hex)
             self.logger.bind(tag=TAG).info(f"生成独立sentence_id: {sentence_id}")
@@ -408,20 +413,23 @@ class TeachingHandler:
                     sentence_id=sentence_id,
                     sentence_type=SentenceType.FIRST,
                     content_type=ContentType.ACTION,
+                    speech_rate=speech_rate,
                 )
             )
             self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
             
             # 发送文本消息
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=message,
-                )
+            tts_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.MIDDLE,
+                content_type=ContentType.TEXT,
+                content_detail=message,
+                speech_rate=speech_rate,
             )
+            self.connection.tts.tts_text_queue.put(tts_message)
             self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
+            self.logger.bind(tag=TAG).info(f"队列当前大小: {self.connection.tts.tts_text_queue.qsize()}")
+            self.logger.bind(tag=TAG).info(f"TTS实例类型: {type(self.connection.tts)}")
             
             # 发送LAST请求结束当前会话
             self.connection.tts.tts_text_queue.put(
@@ -433,10 +441,9 @@ class TeachingHandler:
             )
             self.logger.bind(tag=TAG).info("发送TTS LAST请求")
             
-            # 如果有等待时间，等待指定时间
-            if wait_time > 0:
-                self.logger.bind(tag=TAG).info(f"等待 {wait_time} 秒...")
-                time.sleep(wait_time)
+            self.logger.bind(tag=TAG).info(f"=== TTS消息发送完成 ===")
+            self.logger.bind(tag=TAG).info(f"消息: {message}")
+            self.logger.bind(tag=TAG).info(f"语速: {speech_rate}倍速")
             
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
@@ -508,11 +515,18 @@ class TeachingHandler:
                 content = content.replace("{文杰}", self.child_name)
                 content = content.replace("{childName}", self.child_name)
                 
-                # 获取语速配置（0.5-2.0倍速，1.0为正常语速）
+                # 获取语速配置（0.2-3.0倍速，1.0为正常语速，支持火山引擎双流TTS）
                 speech_rate = float(message.get("speechRate", 1.0))
-                if speech_rate < 0.5 or speech_rate > 2.0:
+                self.logger.bind(tag=TAG).info(f"=== 消息列表语速配置 ===")
+                self.logger.bind(tag=TAG).info(f"消息 {i+1} 原始speechRate: {message.get('speechRate')}")
+                self.logger.bind(tag=TAG).info(f"消息 {i+1} 转换后speech_rate: {speech_rate}")
+                self.logger.bind(tag=TAG).info(f"消息 {i+1} 语速范围检查: {speech_rate} (范围: 0.2-3.0)")
+                
+                if speech_rate < 0.2 or speech_rate > 3.0:
+                    self.logger.bind(tag=TAG).warning(f"消息 {i+1} 语速配置超出范围(0.2-3.0)，使用默认值1.0")
                     speech_rate = 1.0
-                    self.logger.bind(tag=TAG).warning(f"消息 {i+1} 语速配置超出范围，使用默认值1.0")
+                else:
+                    self.logger.bind(tag=TAG).info(f"消息 {i+1} 语速配置有效: {speech_rate}倍速")
                 
                 # 获取等待时间配置（秒）
                 wait_time = int(message.get("waitTimeSeconds", 0))
@@ -523,8 +537,10 @@ class TeachingHandler:
                 # 获取消息类型
                 message_type = message.get("messageType", "normal")
                 
-                self.logger.bind(tag=TAG).info(f"发送消息 {i+1}/{len(message_list)}: {content[:50]}...")
-                self.logger.bind(tag=TAG).info(f"消息配置 - 语速: {speech_rate}, 等待时间: {wait_time}秒, 类型: {message_type}")
+                self.logger.bind(tag=TAG).info(f"发送消息 {i+1}/{len(message_list)}: {content}")
+                self.logger.bind(tag=TAG).info(f"消息配置 - 语速: {speech_rate}倍速, 等待时间: {wait_time}秒, 类型: {message_type}")
+                self.logger.bind(tag=TAG).info(f"AI消息内容: {content}")
+                self.logger.bind(tag=TAG).info(f"语速设置: {speech_rate}倍速")
                 
                 # 为每条消息创建独立的TTS会话
                 self._send_tts_message_with_wait(content, speech_rate, wait_time)

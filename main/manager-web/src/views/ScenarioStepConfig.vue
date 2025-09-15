@@ -102,7 +102,7 @@
               </div>
 
               <!-- 消息列表模式 -->
-              <div v-if="step.useMessageList === 1">
+              <div v-if="step.useMessageList === 1" class="message-list-container">
                 <StepMessageList 
                   :step-id="step.stepId || 'temp_' + $index"
                   :scenario-id="scenario.id"
@@ -1039,5 +1039,19 @@ export default {
   .el-form-item {
     margin-bottom: 20px;
   }
+}
+
+/* 消息列表容器样式 */
+.message-list-container {
+  margin: 15px 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* 确保消息列表不会遮挡其他内容 */
+.message-list-container + .el-row {
+  margin-top: 20px;
+  position: relative;
+  z-index: 2;
 }
 </style> 
