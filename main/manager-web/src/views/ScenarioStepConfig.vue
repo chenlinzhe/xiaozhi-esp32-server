@@ -104,14 +104,34 @@
               
               <el-row :gutter="20">
                 <el-col :span="12">
+                  <el-form-item label="期望关键词" class="form-item">
+                    <el-input 
+                      type="textarea" 
+                      v-model="step.expectedKeywords" 
+                      :rows="3"
+                      placeholder="请输入期望的关键词，JSON格式，如：['苹果', 'apple', '水果']" />
+                    <div class="form-tip">
+                      <i class="el-icon-info"></i>
+                      关键词用于部分匹配，支持多个关键词
+                    </div>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
                   <el-form-item label="期望短语" class="form-item">
                     <el-input 
                       type="textarea" 
                       v-model="step.expectedPhrases" 
                       :rows="3"
                       placeholder="请输入期望的短语，JSON格式，如：['你好', 'hi']" />
+                    <div class="form-tip">
+                      <i class="el-icon-info"></i>
+                      短语用于完全匹配，支持多个短语
+                    </div>
                   </el-form-item>
                 </el-col>
+              </el-row>
+              
+              <el-row :gutter="20">
                 <el-col :span="12">
                   <el-form-item label="成功条件" class="form-item">
                     <el-select v-model="step.successCondition" placeholder="请选择成功条件">
@@ -119,7 +139,14 @@
                       <el-option label="部分匹配" value="partial" />
                       <el-option label="关键词匹配" value="keyword" />
                     </el-select>
+                    <div class="form-tip">
+                      <i class="el-icon-info"></i>
+                      选择匹配方式：完全匹配(短语)、部分匹配(包含)、关键词匹配(关键词)
+                    </div>
                   </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <!-- 预留位置，可以添加其他配置 -->
                 </el-col>
               </el-row>
               
