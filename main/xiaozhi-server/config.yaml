@@ -240,12 +240,12 @@ Intent:
       #- hass_set_state
       #- hass_play_music
       # 用户信息管理功能
-      - check_user_info
+      # - check_user_info  # 已移至连接时处理
       - collect_user_name
       - update_knowledge_base
       - get_user_info
-      - smart_name_collector
-      - user_info_intent
+      # - smart_name_collector  # 已移至连接时处理
+      # - user_info_intent  # 已移至连接时处理
 
 # 用户信息管理配置
 user_info_management:

@@ -207,9 +207,25 @@ class TTSProvider(TTSProviderBase):
     async def _ensure_connection(self):
         """建立新的WebSocket连接"""
         try:
+            # 🔥 关键修复：检查现有连接状态
             if self.ws:
-                logger.bind(tag=TAG).info(f"使用已有链接...")
-                return self.ws
+                try:
+                    # 检查连接是否仍然有效 - 兼容不同的WebSocket对象类型
+                    if hasattr(self.ws, 'closed') and self.ws.closed:
+                        logger.bind(tag=TAG).warning(f"现有连接已关闭，需要重新建立")
+                        self.ws = None
+                    elif hasattr(self.ws, 'close_code') and self.ws.close_code is not None:
+                        logger.bind(tag=TAG).warning(f"现有连接已关闭，关闭代码: {self.ws.close_code}")
+                        self.ws = None
+                    else:
+                        # 尝试ping测试
+                        await self.ws.ping()
+                        logger.bind(tag=TAG).info(f"使用已有有效连接...")
+                        return self.ws
+                except (websockets.ConnectionClosed, websockets.InvalidState, Exception) as e:
+                    logger.bind(tag=TAG).warning(f"现有连接无效，需要重新建立: {str(e)}")
+                    self.ws = None
+            
             logger.bind(tag=TAG).info("开始建立新连接...")
             ws_header = {
                 "X-Api-App-Key": self.appId,
@@ -218,7 +234,12 @@ class TTSProvider(TTSProviderBase):
                 "X-Api-Connect-Id": uuid.uuid4(),
             }
             self.ws = await websockets.connect(
-                self.ws_url, additional_headers=ws_header, max_size=1000000000
+                self.ws_url, 
+                additional_headers=ws_header, 
+                max_size=1000000000,
+                ping_interval=20,  # 添加ping间隔
+                ping_timeout=10,   # 添加ping超时
+                close_timeout=10   # 添加关闭超时
             )
             logger.bind(tag=TAG).info("WebSocket连接建立成功")
             return self.ws
@@ -280,6 +301,15 @@ class TTSProvider(TTSProviderBase):
                             logger.bind(tag=TAG).info("TTS会话启动成功")
                         except Exception as e:
                             logger.bind(tag=TAG).error(f"启动TTS会话失败: {str(e)}")
+                            # 🔥 关键修复：启动失败时清理资源
+                            try:
+                                future = asyncio.run_coroutine_threadsafe(
+                                    self.close(),
+                                    loop=self.conn.loop,
+                                )
+                                future.result(timeout=5)  # 5秒超时
+                            except Exception as close_error:
+                                logger.bind(tag=TAG).error(f"清理TTS资源失败: {str(close_error)}")
                             continue
 
                     elif ContentType.TEXT == message.content_type:
@@ -393,25 +423,44 @@ class TTSProvider(TTSProviderBase):
                 logger.bind(tag=TAG).info("检测到未完成的上个会话，关闭监听任务和连接...")
                 await self.close()
 
-            # 建立新连接
-            await self._ensure_connection()
+            # 🔥 关键修复：建立新连接并添加重试机制
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # 建立新连接
+                    await self._ensure_connection()
+                    
+                    # 启动监听任务
+                    self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
 
-            # 启动监听任务
-            self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
-
-            header = Header(
-                message_type=FULL_CLIENT_REQUEST,
-                message_type_specific_flags=MsgTypeFlagWithEvent,
-                serial_method=JSON,
-            ).as_bytes()
-            optional = Optional(
-                event=EVENT_StartSession, sessionId=session_id
-            ).as_bytes()
-            payload = self.get_payload_bytes(
-                event=EVENT_StartSession, speaker=self.voice, speech_rate=self._converted_speech_rate
-            )
-            await self.send_event(self.ws, header, optional, payload)
-            logger.bind(tag=TAG).info("会话启动请求已发送")
+                    header = Header(
+                        message_type=FULL_CLIENT_REQUEST,
+                        message_type_specific_flags=MsgTypeFlagWithEvent,
+                        serial_method=JSON,
+                    ).as_bytes()
+                    optional = Optional(
+                        event=EVENT_StartSession, sessionId=session_id
+                    ).as_bytes()
+                    payload = self.get_payload_bytes(
+                        event=EVENT_StartSession, speaker=self.voice, speech_rate=self._converted_speech_rate
+                    )
+                    await self.send_event(self.ws, header, optional, payload)
+                    logger.bind(tag=TAG).info("会话启动请求已发送")
+                    break  # 成功发送，跳出重试循环
+                    
+                except (websockets.ConnectionClosed, Exception) as e:
+                    logger.bind(tag=TAG).warning(f"启动会话失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+                    if attempt < max_retries - 1:
+                        # 清理连接状态
+                        self.ws = None
+                        if self._monitor_task:
+                            self._monitor_task.cancel()
+                            self._monitor_task = None
+                        # 等待一段时间后重试
+                        await asyncio.sleep(1)
+                    else:
+                        # 最后一次尝试失败，抛出异常
+                        raise
         except Exception as e:
             logger.bind(tag=TAG).error(f"启动会话失败: {str(e)}")
             # 确保清理资源
@@ -581,6 +630,28 @@ class TTSProvider(TTSProviderBase):
         payload: bytes = None,
     ):
         try:
+            # 🔥 关键修复：发送前检查连接状态
+            if not ws:
+                logger.bind(tag=TAG).error(f"WebSocket连接不存在，无法发送数据")
+                raise websockets.ConnectionClosed(None, None)
+            
+            # 检查连接状态 - 兼容不同的WebSocket对象类型
+            try:
+                # 尝试检查连接状态
+                if hasattr(ws, 'closed') and ws.closed:
+                    logger.bind(tag=TAG).error(f"WebSocket连接已关闭，无法发送数据")
+                    raise websockets.ConnectionClosed(None, None)
+                elif hasattr(ws, 'close_code') and ws.close_code is not None:
+                    logger.bind(tag=TAG).error(f"WebSocket连接已关闭，关闭代码: {ws.close_code}")
+                    raise websockets.ConnectionClosed(ws.close_code, ws.close_reason)
+            except AttributeError:
+                # 如果WebSocket对象没有closed属性，尝试ping测试
+                try:
+                    await ws.ping()
+                except Exception as ping_error:
+                    logger.bind(tag=TAG).error(f"WebSocket连接ping失败: {str(ping_error)}")
+                    raise websockets.ConnectionClosed(None, None)
+            
             full_client_request = bytearray(header)
             if optional is not None:
                 full_client_request.extend(optional)
@@ -588,9 +659,17 @@ class TTSProvider(TTSProviderBase):
                 payload_size = len(payload).to_bytes(4, "big", signed=True)
                 full_client_request.extend(payload_size)
                 full_client_request.extend(payload)
+            
             await ws.send(full_client_request)
-        except websockets.ConnectionClosed:
-            logger.bind(tag=TAG).error(f"ConnectionClosed")
+            logger.bind(tag=TAG).debug(f"成功发送TTS事件数据，大小: {len(full_client_request)} 字节")
+            
+        except websockets.ConnectionClosed as e:
+            logger.bind(tag=TAG).error(f"WebSocket连接已关闭: {e}")
+            # 清理连接状态
+            self.ws = None
+            raise
+        except Exception as e:
+            logger.bind(tag=TAG).error(f"发送TTS事件失败: {str(e)}")
             raise
 
     async def send_text(self, speaker: str, text: str, session_id):
