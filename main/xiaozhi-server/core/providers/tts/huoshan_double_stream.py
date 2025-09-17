@@ -4,6 +4,7 @@ import json
 import queue
 import asyncio
 import traceback
+import time
 import websockets
 from core.utils.tts import MarkdownCleaner
 from config.logger import setup_logging
@@ -351,9 +352,23 @@ class TTSProvider(TTSProviderBase):
                                 self.finish_session(self.conn.sentence_id),
                                 loop=self.conn.loop,
                             )
-                            future.result()
+                            future.result(timeout=10)  # 增加超时时间到10秒
+                            logger.bind(tag=TAG).info("TTS会话结束成功")
+                            
+                            # 等待一小段时间确保会话完全结束
+                            time.sleep(0.5)
+                            
                         except Exception as e:
                             logger.bind(tag=TAG).error(f"结束TTS会话失败: {str(e)}")
+                            # 🔥 关键修复：结束失败时也要清理资源
+                            try:
+                                future = asyncio.run_coroutine_threadsafe(
+                                    self.close(),
+                                    loop=self.conn.loop,
+                                )
+                                future.result(timeout=5)  # 5秒超时
+                            except Exception as close_error:
+                                logger.bind(tag=TAG).error(f"清理TTS资源失败: {str(close_error)}")
                             continue
 
                 except queue.Empty:
