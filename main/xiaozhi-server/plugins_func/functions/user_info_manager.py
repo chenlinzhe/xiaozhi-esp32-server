@@ -82,44 +82,10 @@ get_user_info_function_desc = {
 
 @register_function("check_user_info", check_user_info_function_desc, ToolType.SYSTEM_CTL)
 def check_user_info(conn):
-    """检测用户信息，如果没有姓名则询问"""
-    try:
-        device_id = conn.device_id
-        if not device_id:
-            logger.bind(tag=TAG).error("设备ID为空，无法检测用户信息")
-            return ActionResponse(Action.ERROR, "设备ID为空", "无法检测用户信息")
-        
-        # 初始化用户信息管理器
-        user_manager = UserInfoManager(conn.config)
-        
-        # 检查用户是否已有姓名
-        has_name = user_manager.has_user_name(device_id)
-        
-        if not has_name:
-            # 用户没有姓名，询问姓名
-            greeting_message = "你好！我是小智，很高兴认识你！请问你叫什么名字呢？"
-            logger.bind(tag=TAG).info(f"用户 {device_id} 没有姓名，询问姓名")
-            
-            # 记录交互
-            user_manager.record_interaction(device_id, "greeting", "", greeting_message)
-            
-            return ActionResponse(Action.RESPONSE, greeting_message, greeting_message)
-        else:
-            # 用户已有姓名，获取用户信息
-            user_info = user_manager.get_user_info(device_id)
-            user_name = user_info.get("userName") if user_info else "朋友"
-            
-            greeting_message = f"你好 {user_name}！很高兴再次见到你！有什么我可以帮助你的吗？"
-            logger.bind(tag=TAG).info(f"用户 {device_id} 已有姓名: {user_name}")
-            
-            # 记录交互
-            user_manager.record_interaction(device_id, "greeting", "", greeting_message)
-            
-            return ActionResponse(Action.RESPONSE, greeting_message, greeting_message)
-            
-    except Exception as e:
-        logger.bind(tag=TAG).error(f"检测用户信息失败: {e}")
-        return ActionResponse(Action.ERROR, str(e), "检测用户信息时出现错误")
+    """检测用户信息 - 已禁用，改为连接时处理"""
+    # 用户信息检查已移至WebSocket连接时处理，此函数不再执行问名字逻辑
+    logger.bind(tag=TAG).info("check_user_info函数已禁用，用户信息检查已移至连接时处理")
+    return ActionResponse(Action.NONE, "用户信息检查已移至连接时处理", None)
 
 
 @register_function("collect_user_name", collect_user_name_function_desc, ToolType.SYSTEM_CTL)

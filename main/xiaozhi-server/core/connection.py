@@ -235,6 +235,9 @@ class ConnectionHandler:
             #            # 异步初始化
             self.executor.submit(self._initialize_components)
 
+            # 等待TTS初始化完成后发送欢迎语音
+            await self._send_welcome_voice()
+
             try:
                 async for message in self.websocket:
                     await self._route_message(message)
@@ -523,6 +526,79 @@ class ConnectionHandler:
         self.logger.bind(tag=TAG).warning("TTS线程启动超时，但继续使用")
         return False
 
+    async def _send_welcome_voice(self):
+        """发送欢迎语音，询问用户名字"""
+        try:
+            # 等待TTS初始化完成
+            self.logger.bind(tag=TAG).info("等待TTS初始化完成...")
+            max_wait_time = 15  # 最多等待15秒
+            wait_count = 0
+            
+            while wait_count < max_wait_time:
+                if (hasattr(self, 'tts') and self.tts is not None and
+                    hasattr(self.tts, 'tts_priority_thread') and 
+                    self.tts.tts_priority_thread.is_alive() and
+                    hasattr(self.tts, 'audio_play_priority_thread') and 
+                    self.tts.audio_play_priority_thread.is_alive()):
+                    self.logger.bind(tag=TAG).info("TTS初始化完成，开始发送欢迎语音")
+                    break
+                
+                await asyncio.sleep(1)
+                wait_count += 1
+                self.logger.bind(tag=TAG).info(f"等待TTS初始化... ({wait_count}/{max_wait_time})")
+            
+            if wait_count >= max_wait_time:
+                self.logger.bind(tag=TAG).warning("TTS初始化超时，跳过欢迎语音")
+                return
+            
+            # 检查用户是否已有姓名
+            from core.providers.user.user_info_manager import UserInfoManager
+            user_manager = UserInfoManager(self.config)
+            
+            try:
+                has_name = user_manager.has_user_name(self.device_id)
+                
+                if not has_name:
+                    # 用户没有姓名，询问姓名
+                    welcome_message = "你好！我是小智，很高兴认识你！请问你叫什么名字呢？"
+                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 没有姓名，发送欢迎语音询问姓名")
+                    
+                    # 尝试记录交互（如果API不可用则忽略）
+                    try:
+                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
+                    except Exception as record_error:
+                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
+                    
+                    # 发送TTS语音
+                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                else:
+                    # 用户已有姓名，获取用户信息
+                    user_info = user_manager.get_user_info(self.device_id)
+                    user_name = user_info.get("userName") if user_info else "朋友"
+                    
+                    welcome_message = f"你好 {user_name}！很高兴再次见到你！有什么我可以帮助你的吗？"
+                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 已有姓名: {user_name}")
+                    
+                    # 尝试记录交互（如果API不可用则忽略）
+                    try:
+                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
+                    except Exception as record_error:
+                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
+                    
+                    # 发送TTS语音
+                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                    
+            except Exception as api_error:
+                # API调用失败，发送通用欢迎语音
+                self.logger.bind(tag=TAG).warning(f"用户信息API调用失败，发送通用欢迎语音: {api_error}")
+                welcome_message = "你好！我是小智，很高兴认识你！有什么我可以帮助你的吗？"
+                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"发送欢迎语音失败: {e}")
+            import traceback
+            self.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+
     def _initialize_asr(self):
         """初始化ASR"""
         if self._asr.interface_type == InterfaceType.LOCAL:
@@ -773,59 +849,6 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
-    def _handle_user_info_check(self, query):
-        """处理用户信息检查"""
-        try:
-            # 检查是否启用了用户信息管理
-            if not self.config.get("user_info_management", {}).get("enabled", True):
-                return None
-            
-            # 检查是否应该触发用户信息检查
-            if self._should_trigger_user_info_check(query):
-                return self._execute_user_info_check(query)
-            
-            return None
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"处理用户信息检查失败: {e}")
-            return None
-
-    def _should_trigger_user_info_check(self, query):
-        """判断是否应该触发用户信息检查"""
-        try:
-            # 导入用户信息检查模块
-            from plugins_func.functions.user_info_intent import should_trigger_user_info_check
-            return should_trigger_user_info_check(self, query)
-        except ImportError:
-            self.logger.bind(tag=TAG).warning("用户信息检查模块未找到")
-            return False
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"检查是否应该触发用户信息检查失败: {e}")
-            return False
-
-    def _execute_user_info_check(self, query):
-        """执行用户信息检查"""
-        try:
-            # 导入用户信息处理模块
-            from plugins_func.functions.user_info_intent import user_info_intent
-            
-            # 调用用户信息意图处理函数
-            result = user_info_intent(self, query)
-            
-            if result and result.action == Action.RESPONSE:
-                # 直接回复用户
-                text = result.response
-                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=text)
-                self.dialogue.put(Message(role="assistant", content=text))
-                return True
-            elif result and result.action == Action.ERROR:
-                # 处理错误
-                self.logger.bind(tag=TAG).error(f"用户信息检查错误: {result.response}")
-                return False
-            
-            return False
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"执行用户信息检查失败: {e}")
-            return False
 
     def _handle_chat_mode(self, query):
         """处理聊天模式切换和教学模式逻辑"""
@@ -844,11 +867,7 @@ class ConnectionHandler:
         self.llm_finish_task = False
         depth = 0
         
-        # 检查用户信息（只在最顶层调用时检查）
-        if depth == 0:
-            user_info_result = self._handle_user_info_check(query)
-            if user_info_result:
-                return user_info_result
+        # 用户信息检查已移至连接时处理，此处不再检查
         
         # 检查聊天模式（只在最顶层调用时检查）
         if depth == 0:

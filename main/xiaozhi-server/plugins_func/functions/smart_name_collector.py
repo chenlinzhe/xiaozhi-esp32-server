@@ -63,56 +63,10 @@ FILTER_WORDS = {
 
 @register_function("smart_name_collector", smart_name_collector_function_desc, ToolType.SYSTEM_CTL)
 def smart_name_collector(conn, user_input: str):
-    """智能识别并收集用户姓名"""
-    try:
-        device_id = conn.device_id
-        if not device_id:
-            logger.bind(tag=TAG).error("设备ID为空，无法收集姓名")
-            return ActionResponse(Action.ERROR, "设备ID为空", "无法收集姓名")
-        
-        if not user_input or not user_input.strip():
-            return ActionResponse(Action.NONE, "输入为空", None)
-        
-        # 初始化用户信息管理器
-        user_manager = UserInfoManager(conn.config)
-        
-        # 检查用户是否已有姓名
-        has_name = user_manager.has_user_name(device_id)
-        if has_name:
-            # 用户已有姓名，不需要收集
-            return ActionResponse(Action.NONE, "用户已有姓名", None)
-        
-        # 尝试从输入中提取姓名
-        extracted_name = extract_name_from_input(user_input)
-        
-        if extracted_name:
-            # 验证姓名是否有效
-            if is_valid_name(extracted_name):
-                # 保存姓名
-                success = user_manager.update_user_name(device_id, extracted_name)
-                
-                if success:
-                    welcome_message = f"很高兴认识你，{extracted_name}！我已经记住了你的名字。"
-                    logger.bind(tag=TAG).info(f"智能收集到用户 {device_id} 的姓名: {extracted_name}")
-                    
-                    # 记录交互
-                    user_manager.record_interaction(device_id, "smart_name_collection", user_input, welcome_message)
-                    
-                    return ActionResponse(Action.RESPONSE, welcome_message, welcome_message)
-                else:
-                    logger.bind(tag=TAG).error(f"保存用户 {device_id} 姓名失败")
-                    return ActionResponse(Action.ERROR, "保存姓名失败", "抱歉，保存你的姓名时出现了问题")
-            else:
-                logger.bind(tag=TAG).debug(f"提取到的文本不是有效姓名: {extracted_name}")
-                return ActionResponse(Action.NONE, "不是有效姓名", None)
-        else:
-            # 没有检测到姓名，可能需要进一步询问
-            logger.bind(tag=TAG).debug(f"未从输入中检测到姓名: {user_input}")
-            return ActionResponse(Action.NONE, "未检测到姓名", None)
-            
-    except Exception as e:
-        logger.bind(tag=TAG).error(f"智能姓名收集失败: {e}")
-        return ActionResponse(Action.ERROR, str(e), "姓名收集时出现错误")
+    """智能识别并收集用户姓名 - 已禁用，改为连接时处理"""
+    # 用户信息检查已移至WebSocket连接时处理，此函数不再执行问名字逻辑
+    logger.bind(tag=TAG).info("smart_name_collector函数已禁用，用户信息检查已移至连接时处理")
+    return ActionResponse(Action.NONE, "用户信息检查已移至连接时处理", None)
 
 
 def extract_name_from_input(text: str) -> Optional[str]:

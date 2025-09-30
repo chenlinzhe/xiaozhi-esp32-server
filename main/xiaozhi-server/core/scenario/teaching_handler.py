@@ -115,9 +115,10 @@ class TeachingHandler:
                             self.logger.bind(tag=TAG).info(f"没有步骤ID，教学模式切换不发送消息")
                         
                         # 启动等待超时检查（延迟启动，等待TTS消息发送完成）
-                        wait_time = result.get("wait_time", 20)
-                        self.logger.bind(tag=TAG).info(f"教学模式，等待时间: {wait_time}")
-                        self._start_teaching_timeout_check_after_tts(user_id, wait_time)
+                        # wait_time = result.get("wait_time", 20)
+                        # self.logger.bind(tag=TAG).info(f"教学模式，等待时间: {wait_time}")
+                        # self._start_teaching_timeout_check_after_tts(user_id, wait_time)
+                        self.logger.bind(tag=TAG).info("超时检查已禁用")
                     else:
                         # 其他模式切换，不发送AI消息
                         self.logger.bind(tag=TAG).info(f"其他模式切换，不发送AI消息")
@@ -157,49 +158,66 @@ class TeachingHandler:
                     self._end_tts_session()
                     
                     # 启动等待超时检查（延迟启动，等待TTS消息发送完成）
-                    self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
+                    # self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
+                    self.logger.bind(tag=TAG).info("超时检查已禁用")
                     return True
                     
                 elif action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next"]:
-                    # 教学步骤处理
+                    # 🔥 关键修复：教学步骤处理 - 添加详细日志
+                    self.logger.bind(tag=TAG).info(f"=== 处理教学步骤: {action} ===")
+                    self.logger.bind(tag=TAG).info(f"完整处理结果: {result}")
+                    
                     # 优先使用步骤的AI消息，如果没有才使用评估反馈
                     current_step = result.get("current_step", {})
                     step_id = current_step.get("stepId") if current_step else None
                     
                     self.logger.bind(tag=TAG).info(f"步骤配置 - 步骤ID: {step_id}")
+                    self.logger.bind(tag=TAG).info(f"当前步骤详情: {current_step}")
+                    
+                    # 检查评估信息
+                    evaluation = result.get("evaluation", {})
+                    self.logger.bind(tag=TAG).info(f"评估信息: {evaluation}")
                     
                     message_sent = False
                     
                     if step_id:
                         # 尝试获取消息列表
+                        self.logger.bind(tag=TAG).info(f"尝试获取步骤 {step_id} 的消息列表...")
                         message_list = self._get_step_message_list(step_id)
                         if message_list:
                             # 使用消息列表
-                            self.logger.bind(tag=TAG).info(f"检测到消息列表，消息数量: {len(message_list)}")
+                            self.logger.bind(tag=TAG).info(f"✅ 检测到消息列表，消息数量: {len(message_list)}")
                             self._send_message_list(message_list)
                             message_sent = True
                         else:
                             # 没有消息列表，不发送任何消息
-                            self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表，不发送消息")
+                            self.logger.bind(tag=TAG).info(f"⚠️ 步骤 {step_id} 没有配置消息列表，不发送消息")
                     
                     # 如果没有发送步骤消息，使用评估反馈
                     if not message_sent:
                         evaluation = result.get("evaluation", {})
                         feedback = evaluation.get("feedback", "")
+                        self.logger.bind(tag=TAG).info(f"没有步骤消息，检查评估反馈: {feedback}")
                         if feedback:
-                            self.logger.bind(tag=TAG).info(f"没有步骤消息，使用评估反馈: {feedback}")
+                            self.logger.bind(tag=TAG).info(f"✅ 使用评估反馈: {feedback}")
                             self._send_tts_message(feedback)
                             self.connection.dialogue.put(Message(role="assistant", content=feedback))
                         else:
-                            self.logger.bind(tag=TAG).warning(f"没有找到任何消息内容")
+                            self.logger.bind(tag=TAG).warning(f"❌ 没有找到任何消息内容")
+                            # 如果没有评估反馈，发送默认提示
+                            default_message = "请尝试更完整的回答。"
+                            self.logger.bind(tag=TAG).info(f"✅ 使用默认提示: {default_message}")
+                            self._send_tts_message(default_message)
+                            self.connection.dialogue.put(Message(role="assistant", content=default_message))
                     
-                    self.logger.bind(tag=TAG).info(f"教学步骤: {action}")
+                    self.logger.bind(tag=TAG).info(f"教学步骤处理完成: {action}")
                     
                     # 结束TTS会话，确保消息能发送到用户端
                     self._end_tts_session()
                     
                     # 重新启动等待超时检查（延迟启动，等待TTS消息发送完成）
-                    self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
+                    # self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
+                    self.logger.bind(tag=TAG).info("超时检查已禁用")
                     return True
                     
                 elif action == "completed":
@@ -268,8 +286,11 @@ class TeachingHandler:
             speech_rate: 语速配置（0.5-2.0倍速，1.0为正常语速）
             wait_time: 等待时间（秒）
         """
+        self.logger.bind(tag=TAG).info(f"🎤 准备发送TTS消息: {message}")
+        self.logger.bind(tag=TAG).info(f"TTS配置 - 语速: {speech_rate}倍速, 等待时间: {wait_time}秒")
+        
         if not message:
-            self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")
+            self.logger.bind(tag=TAG).warning("❌ TTS消息为空，跳过发送")
             return
             
         # 等待TTS初始化完成
@@ -312,15 +333,17 @@ class TeachingHandler:
                         speech_rate=speech_rate,
                     )
                 )
-                self.logger.bind(tag=TAG).info(f"发送TTS消息到队列 (尝试 {attempt + 1}/{self.tts_send_retries}): {message[:50]}...")
+                self.logger.bind(tag=TAG).info(f"发送TTS消息到队列 (尝试 {attempt + 1}/{self.tts_send_retries}): {message}")
                 
                 # 等待音频确认
                 if self._wait_for_audio_confirmation():
                     self.logger.bind(tag=TAG).info(f"TTS消息发送成功 (尝试 {attempt + 1})")
                     
                     # 如果有等待时间，发送等待指令
+                    # if wait_time > 0:
+                    #     self._send_wait_instruction(wait_time)
                     if wait_time > 0:
-                        self._send_wait_instruction(wait_time)
+                        self.logger.bind(tag=TAG).info(f"等待指令已禁用，原等待时间: {wait_time}秒")
                     
                     return
                 else:
@@ -348,17 +371,59 @@ class TeachingHandler:
             return
             
         try:
-            # 发送文本消息到TTS队列
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.connection.sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=message,
-                    speech_rate=speech_rate,
-                )
+            # 检查TTS连接状态
+            if not self.connection.tts:
+                self.logger.bind(tag=TAG).error("TTS实例不存在，无法发送消息")
+                return
+            
+            # 🔥 关键修复：等待前一个TTS会话完全结束
+            self._wait_for_previous_tts_session_completion()
+            
+            # 🔥 优化：为每条消息生成独立的sentence_id，确保消息独立发送
+            sentence_id = str(uuid.uuid4().hex)
+            self.logger.bind(tag=TAG).info(f"🎤 生成独立sentence_id: {sentence_id}")
+            
+            # 发送FIRST请求
+            first_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.FIRST,
+                content_type=ContentType.ACTION,
+                speech_rate=speech_rate,
             )
-            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
+            self.connection.tts.tts_text_queue.put(first_message)
+            self.logger.bind(tag=TAG).info("📤 发送TTS FIRST请求")
+            
+            # 等待一小段时间确保FIRST请求被处理
+            time.sleep(0.2)
+            
+            # 发送文本消息
+            text_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.MIDDLE,
+                content_type=ContentType.TEXT,
+                content_detail=message,
+                speech_rate=speech_rate,
+            )
+            self.connection.tts.tts_text_queue.put(text_message)
+            self.logger.bind(tag=TAG).info(f"📝 发送TTS消息到队列: {message}")
+            
+            # 等待一小段时间确保文本消息被处理
+            time.sleep(0.2)
+            
+            # 发送LAST请求
+            last_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.LAST,
+                content_type=ContentType.ACTION,
+            )
+            self.connection.tts.tts_text_queue.put(last_message)
+            self.logger.bind(tag=TAG).info("📤 发送TTS LAST请求")
+            
+            # 🔥 优化：更新当前sentence_id，用于后续的音频确认
+            self.connection.sentence_id = sentence_id
+            
+            # 等待一小段时间确保所有消息都被处理
+            time.sleep(0.3)
             
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
@@ -382,6 +447,11 @@ class TeachingHandler:
             return
             
         try:
+            # 检查TTS连接状态
+            if not self.connection.tts:
+                self.logger.bind(tag=TAG).error("TTS实例不存在，无法发送消息")
+                return
+            
             # 如果有等待时间，在发送消息前等待指定时间
             if wait_time > 0:
                 self.logger.bind(tag=TAG).info(f"等待 {wait_time} 秒后再发送消息...")
@@ -393,15 +463,17 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).info(f"生成独立sentence_id: {sentence_id}")
             
             # 发送FIRST请求
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=sentence_id,
-                    sentence_type=SentenceType.FIRST,
-                    content_type=ContentType.ACTION,
-                    speech_rate=speech_rate,
-                )
+            first_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.FIRST,
+                content_type=ContentType.ACTION,
+                speech_rate=speech_rate,
             )
+            self.connection.tts.tts_text_queue.put(first_message)
             self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
+            
+            # 等待一小段时间确保FIRST请求被处理
+            time.sleep(0.1)
             
             # 发送文本消息
             tts_message = TTSMessageDTO(
@@ -412,18 +484,20 @@ class TeachingHandler:
                 speech_rate=speech_rate,
             )
             self.connection.tts.tts_text_queue.put(tts_message)
-            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message[:50]}...")
+            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message}")
             self.logger.bind(tag=TAG).info(f"队列当前大小: {self.connection.tts.tts_text_queue.qsize()}")
             self.logger.bind(tag=TAG).info(f"TTS实例类型: {type(self.connection.tts)}")
             
+            # 等待一小段时间确保文本消息被处理
+            time.sleep(0.1)
+            
             # 发送LAST请求结束当前会话
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=sentence_id,
-                    sentence_type=SentenceType.LAST,
-                    content_type=ContentType.ACTION,
-                )
+            last_message = TTSMessageDTO(
+                sentence_id=sentence_id,
+                sentence_type=SentenceType.LAST,
+                content_type=ContentType.ACTION,
             )
+            self.connection.tts.tts_text_queue.put(last_message)
             self.logger.bind(tag=TAG).info("发送TTS LAST请求")
             
             self.logger.bind(tag=TAG).info(f"=== TTS消息发送完成 ===")
@@ -465,18 +539,22 @@ class TeachingHandler:
             List[Dict]: 消息列表，如果获取失败返回None
         """
         try:
-            self.logger.bind(tag=TAG).info(f"获取步骤消息列表，步骤ID: {step_id}")
+            self.logger.bind(tag=TAG).info(f"🔍 获取步骤消息列表，步骤ID: {step_id}")
             message_list = get_step_messages(step_id)
             
+            self.logger.bind(tag=TAG).info(f"API返回结果: {message_list}")
+            
             if message_list and len(message_list) > 0:
-                self.logger.bind(tag=TAG).info(f"获取到消息列表，消息数量: {len(message_list)}")
+                self.logger.bind(tag=TAG).info(f"✅ 获取到消息列表，消息数量: {len(message_list)}")
+                for i, msg in enumerate(message_list):
+                    self.logger.bind(tag=TAG).info(f"消息 {i+1}: {msg}")
                 return message_list
             else:
-                self.logger.bind(tag=TAG).info(f"步骤 {step_id} 没有配置消息列表")
+                self.logger.bind(tag=TAG).info(f"⚠️ 步骤 {step_id} 没有配置消息列表或返回空结果")
                 return None
                 
         except Exception as e:
-            self.logger.bind(tag=TAG).error(f"获取步骤消息列表失败: {e}")
+            self.logger.bind(tag=TAG).error(f"❌ 获取步骤消息列表失败: {e}")
             return None
 
     def _send_message_list(self, message_list: List[Dict]):
@@ -499,6 +577,11 @@ class TeachingHandler:
                 # 替换儿童姓名占位符
                 content = content.replace("{文杰}", self.child_name)
                 content = content.replace("{childName}", self.child_name)
+                
+                # 检查是否有重复的儿童姓名
+                if f"{self.child_name}{self.child_name}" in content:
+                    content = content.replace(f"{self.child_name}{self.child_name}", self.child_name)
+                    self.logger.bind(tag=TAG).info(f"修复重复儿童姓名: {content}")
                 
                 # 获取语速配置（0.2-3.0倍速，1.0为正常语速，支持火山引擎双流TTS）
                 speech_rate = float(message.get("speechRate", 1.0))
@@ -527,13 +610,17 @@ class TeachingHandler:
                 self.logger.bind(tag=TAG).info(f"AI消息内容: {content}")
                 self.logger.bind(tag=TAG).info(f"语速设置: {speech_rate}倍速")
                 
+                # 🔥 关键：在本句话说之前等待配置的时间
+                if wait_time > 0:
+                    self.logger.bind(tag=TAG).info(f"⏰ 本句话前等待 {wait_time} 秒...")
+                    time.sleep(wait_time)
+                
                 # 为每条消息创建独立的TTS会话
-                self._send_tts_message_with_wait(content, speech_rate, wait_time)
+                self._send_tts_message_simple(content, speech_rate)
                 self.connection.dialogue.put(Message(role="assistant", content=content))
                 
-                # 如果不是最后一条消息，等待一小段时间再发送下一条
-                if i < len(message_list) - 1:
-                    time.sleep(0.5)
+                # 🔥 关键：等待上一句话真正播放完成（不估算时间，不额外等待）
+                self._wait_for_previous_message_completion()
             
             self.logger.bind(tag=TAG).info("消息列表发送完成")
             
@@ -562,6 +649,286 @@ class TeachingHandler:
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"等待音频确认时出错: {e}")
             return False
+
+    def _wait_for_audio_confirmation_quick(self) -> bool:
+        """
+        快速等待音频确认（非阻塞，超时时间较短）
+        
+        Returns:
+            bool: 是否收到音频确认
+        """
+        try:
+            # 快速检查TTS音频队列是否有数据（最多等待2秒）
+            quick_timeout = 2.0
+            start_time = time.time()
+            while time.time() - start_time < quick_timeout:
+                if not self.connection.tts.tts_audio_queue.empty():
+                    self.logger.bind(tag=TAG).info("✅ 快速音频确认成功")
+                    return True
+                time.sleep(0.1)
+            
+            self.logger.bind(tag=TAG).info("ℹ️ 快速音频确认超时，继续使用估算时间")
+            return False
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"快速音频确认时出错: {e}")
+            return False
+
+    def _wait_for_audio_playback_completion(self, content: str, wait_time: int = 0):
+        """
+        等待音频播放完成
+        
+        Args:
+            content: 消息内容
+            wait_time: 额外等待时间（秒）
+        """
+        try:
+            self.logger.bind(tag=TAG).info(f"🎵 开始等待音频播放完成: {content}")
+            
+            # 1. 尝试等待音频确认（非阻塞，超时时间较短）
+            audio_confirmed = self._wait_for_audio_confirmation_quick()
+            if audio_confirmed:
+                self.logger.bind(tag=TAG).info("✅ 音频确认成功，开始播放")
+            else:
+                self.logger.bind(tag=TAG).info("ℹ️ 音频确认未收到，使用估算时间")
+            
+            # 2. 计算音频播放时间（基于文本长度和语速）
+            estimated_duration = self._calculate_audio_duration(content)
+            self.logger.bind(tag=TAG).info(f"📊 估算音频播放时长: {estimated_duration:.2f}秒")
+            
+            # 3. 等待音频播放完成（估算时间 + 缓冲时间）
+            playback_wait_time = estimated_duration + 1.0  # 额外1秒缓冲
+            self.logger.bind(tag=TAG).info(f"⏳ 等待音频播放完成: {playback_wait_time:.2f}秒")
+            time.sleep(playback_wait_time)
+            
+            # 4. 如果有配置的额外等待时间，继续等待
+            if wait_time > 0:
+                self.logger.bind(tag=TAG).info(f"⏰ 额外等待时间: {wait_time}秒")
+                time.sleep(wait_time)
+            
+            self.logger.bind(tag=TAG).info("✅ 音频播放完成等待结束")
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"等待音频播放完成时出错: {e}")
+            # 出错时使用默认等待时间
+            default_wait = 3.0 + wait_time
+            self.logger.bind(tag=TAG).info(f"使用默认等待时间: {default_wait}秒")
+            time.sleep(default_wait)
+
+    def _wait_for_previous_tts_session_completion(self):
+        """
+        等待前一个TTS会话完全结束
+        
+        这是解决火山引擎TTS会话冲突的关键方法
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🔄 等待前一个TTS会话完全结束...")
+            
+            # 等待TTS文本队列清空
+            max_wait_time = 5.0  # 增加到5秒，确保队列完全清空
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                if self.connection.tts.tts_text_queue.empty():
+                    self.logger.bind(tag=TAG).info("✅ TTS文本队列已清空")
+                    break
+                time.sleep(0.1)
+            
+            # 等待音频播放完成
+            audio_wait_time = 1.0  # 缩短到1秒
+            self.logger.bind(tag=TAG).info(f"⏳ 等待音频播放完成 {audio_wait_time} 秒...")
+            time.sleep(audio_wait_time)
+            
+            # 额外等待时间确保会话清理完成
+            session_cleanup_wait = 1.0  # 缩短到1秒
+            self.logger.bind(tag=TAG).info(f"⏳ 额外等待 {session_cleanup_wait} 秒确保会话清理完成...")
+            time.sleep(session_cleanup_wait)
+            
+            self.logger.bind(tag=TAG).info("✅ 前一个TTS会话清理完成，可以发送新消息")
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"等待前一个TTS会话结束时出错: {e}")
+            # 出错时使用更长的等待时间确保安全
+            time.sleep(3.0)
+
+    def _wait_for_previous_message_completion(self):
+        """
+        等待上一句话真正播放完成（不估算时间，不额外等待，只检测播放状态）
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🎵 开始监控上一句话播放完成...")
+            
+            # 1. 等待音频开始播放（检测音频队列有数据）
+            audio_started = self._wait_for_audio_start_smart()
+            if not audio_started:
+                self.logger.bind(tag=TAG).info("ℹ️ 音频开始检测超时，继续发送下一条消息")
+                return
+            
+            # 2. 等待音频播放完成（基于client_is_speaking状态）
+            playback_completed = self._wait_for_audio_playback_end_real()
+            if playback_completed:
+                self.logger.bind(tag=TAG).info("✅ 检测到音频播放完成")
+            else:
+                self.logger.bind(tag=TAG).info("ℹ️ 音频播放完成检测超时，继续发送下一条消息")
+            
+            self.logger.bind(tag=TAG).info("✅ 上一句话播放完成监控结束")
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"监控上一句话播放完成时出错: {e}")
+
+    def _wait_for_audio_start_smart(self) -> bool:
+        """
+        智能等待音频开始播放（基于音频队列检测）
+        
+        Returns:
+            bool: 是否检测到音频开始播放
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🎤 智能等待音频开始播放...")
+            
+            # 等待音频队列有数据，表示音频开始生成
+            max_wait_time = 5.0  # 最多等待5秒
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                if not self.connection.tts.tts_audio_queue.empty():
+                    self.logger.bind(tag=TAG).info("✅ 检测到音频队列有数据，音频开始生成")
+                    return True
+                time.sleep(0.1)
+            
+            self.logger.bind(tag=TAG).info("ℹ️ 音频开始检测超时，继续使用估算时间")
+            return False
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"智能等待音频开始时出错: {e}")
+            return False
+
+    def _wait_for_audio_playback_end_real(self) -> bool:
+        """
+        真正等待音频播放结束（基于client_is_speaking状态，不额外等待）
+        
+        Returns:
+            bool: 是否检测到音频播放结束
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🔇 等待音频播放结束...")
+            
+            # 设置播放状态为True（因为音频开始播放）
+            self.connection.client_is_speaking = True
+            self.logger.bind(tag=TAG).info("🎤 设置播放状态为True")
+            
+            # 等待client_is_speaking变为False
+            max_wait_time = 15.0  # 增加等待时间到15秒，确保长音频也能播放完成
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                if not self.connection.client_is_speaking:
+                    self.logger.bind(tag=TAG).info("✅ 检测到音频播放结束")
+                    return True
+                time.sleep(0.1)
+            
+            self.logger.bind(tag=TAG).info("ℹ️ 音频播放结束检测超时，继续发送下一条消息")
+            # 超时时手动清除播放状态
+            self.connection.client_is_speaking = False
+            return False
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"等待音频播放结束时出错: {e}")
+            # 出错时确保播放状态被清除
+            self.connection.client_is_speaking = False
+            return False
+
+    def _wait_for_audio_playback_start(self) -> bool:
+        """
+        等待音频开始播放
+        
+        Returns:
+            bool: 是否检测到音频开始播放
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🎤 等待音频开始播放...")
+            
+            # 等待client_is_speaking变为True，表示开始播放
+            max_wait_time = 10.0  # 最多等待10秒
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                if self.connection.client_is_speaking:
+                    self.logger.bind(tag=TAG).info("✅ 检测到音频开始播放")
+                    return True
+                time.sleep(0.1)
+            
+            self.logger.bind(tag=TAG).warning("⚠️ 音频播放开始检测超时")
+            return False
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"等待音频播放开始时出错: {e}")
+            return False
+
+    def _wait_for_audio_playback_end(self) -> bool:
+        """
+        等待音频播放结束
+        
+        Returns:
+            bool: 是否检测到音频播放结束
+        """
+        try:
+            self.logger.bind(tag=TAG).info("🔇 等待音频播放结束...")
+            
+            # 等待client_is_speaking变为False，表示播放结束
+            max_wait_time = 30.0  # 最多等待30秒（考虑长音频）
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                if not self.connection.client_is_speaking:
+                    self.logger.bind(tag=TAG).info("✅ 检测到音频播放结束")
+                    return True
+                time.sleep(0.1)
+            
+            self.logger.bind(tag=TAG).warning("⚠️ 音频播放结束检测超时")
+            return False
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"等待音频播放结束时出错: {e}")
+            return False
+
+    def _calculate_audio_duration(self, content: str) -> float:
+        """
+        计算音频播放时长
+        
+        Args:
+            content: 文本内容
+            
+        Returns:
+            float: 估算的播放时长（秒）
+        """
+        try:
+            # 基础参数
+            chars_per_second = 3.0  # 每秒约3个字符（中文）
+            min_duration = 1.0      # 最小播放时长
+            max_duration = 30.0     # 最大播放时长
+            
+            # 计算基础时长
+            char_count = len(content)
+            base_duration = char_count / chars_per_second
+            
+            # 考虑标点符号的停顿时间
+            punctuation_count = content.count('。') + content.count('！') + content.count('？') + content.count('，')
+            pause_time = punctuation_count * 0.3  # 每个标点符号增加0.3秒停顿
+            
+            # 总时长
+            total_duration = base_duration + pause_time
+            
+            # 限制在合理范围内
+            total_duration = max(min_duration, min(total_duration, max_duration))
+            
+            self.logger.bind(tag=TAG).debug(f"音频时长计算 - 字符数: {char_count}, 标点数: {punctuation_count}, 基础时长: {base_duration:.2f}s, 停顿时长: {pause_time:.2f}s, 总时长: {total_duration:.2f}s")
+            
+            return total_duration
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"计算音频时长时出错: {e}")
+            return 3.0  # 默认3秒
 
     def _end_tts_session(self):
         """结束TTS会话"""

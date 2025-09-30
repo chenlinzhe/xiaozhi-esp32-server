@@ -35,67 +35,10 @@ user_info_intent_function_desc = {
 
 @register_function("user_info_intent", user_info_intent_function_desc, ToolType.SYSTEM_CTL)
 def user_info_intent(conn, user_input: str):
-    """用户信息意图检测和处理"""
-    try:
-        device_id = conn.device_id
-        if not device_id:
-            logger.bind(tag=TAG).error("设备ID为空，无法处理用户信息意图")
-            return ActionResponse(Action.ERROR, "设备ID为空", "无法处理用户信息意图")
-        
-        # 初始化用户信息管理器
-        user_manager = UserInfoManager(conn.config)
-        
-        # 检查用户是否已有姓名
-        has_name = user_manager.has_user_name(device_id)
-        
-        if not has_name:
-            # 用户没有姓名，需要收集
-            logger.bind(tag=TAG).info(f"用户 {device_id} 没有姓名，开始收集流程")
-            
-            # 检查用户输入是否包含姓名信息
-            from plugins_func.functions.smart_name_collector import extract_name_from_input, is_valid_name
-            
-            extracted_name = extract_name_from_input(user_input)
-            
-            if extracted_name and is_valid_name(extracted_name):
-                # 用户输入包含姓名，直接保存
-                success = user_manager.update_user_name(device_id, extracted_name)
-                
-                if success:
-                    welcome_message = f"很高兴认识你，{extracted_name}！我已经记住了你的名字。从现在开始，我会用这个名字来称呼你。有什么我可以帮助你的吗？"
-                    logger.bind(tag=TAG).info(f"从用户输入中收集到姓名: {extracted_name}")
-                    
-                    # 记录交互
-                    user_manager.record_interaction(device_id, "name_collection", user_input, welcome_message)
-                    
-                    return ActionResponse(Action.RESPONSE, welcome_message, welcome_message)
-                else:
-                    error_message = "抱歉，保存你的姓名时出现了问题，请稍后再试。"
-                    logger.bind(tag=TAG).error(f"保存用户 {device_id} 姓名失败")
-                    return ActionResponse(Action.ERROR, "保存失败", error_message)
-            else:
-                # 用户输入不包含姓名，询问姓名
-                name_prompt = get_name_collection_prompt()
-                logger.bind(tag=TAG).info(f"用户 {device_id} 输入不包含姓名，询问姓名")
-                
-                # 记录交互
-                user_manager.record_interaction(device_id, "name_request", user_input, name_prompt)
-                
-                return ActionResponse(Action.RESPONSE, name_prompt, name_prompt)
-        else:
-            # 用户已有姓名，获取用户信息并正常处理
-            user_info = user_manager.get_user_info(device_id)
-            user_name = user_info.get("userName") if user_info else "朋友"
-            
-            # 记录交互
-            user_manager.record_interaction(device_id, "normal_interaction", user_input, "")
-            
-            # 返回继续聊天的指示
-            return ActionResponse(Action.NONE, "用户已有姓名，继续正常对话", None)
-            
-    except Exception as e:
-        logger.bind(tag=TAG).error(f"用户信息意图处理失败: {e}")
-        return ActionResponse(Action.ERROR, str(e), "处理用户信息时出现错误")
+    """用户信息意图检测和处理 - 已禁用，改为连接时处理"""
+    # 用户信息检查已移至WebSocket连接时处理，此函数不再执行问名字逻辑
+    logger.bind(tag=TAG).info("user_info_intent函数已禁用，用户信息检查已移至连接时处理")
+    return ActionResponse(Action.NONE, "用户信息检查已移至连接时处理", None)
 
 
 def should_trigger_user_info_check(conn, user_input: str) -> bool:

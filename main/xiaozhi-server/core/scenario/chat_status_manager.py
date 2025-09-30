@@ -290,7 +290,7 @@ class ChatStatusManager:
             Dict: 处理结果
         """
         try:
-            self.logger.info(f"处理用户输入: user_id={user_id}, user_text={user_text[:50]}..., child_name={child_name}")
+            self.logger.info(f"处理用户输入: user_id={user_id}, user_text={user_text}, child_name={child_name}")
             
             # 检查是否为模式切换命令
             target_mode = self.is_mode_switch_command(user_text)

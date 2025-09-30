@@ -33,10 +33,33 @@ async def handle_user_intent(conn, text):
     if await checkWakeupWords(conn, filtered_text):
         return True
 
-    # 检查场景触发
+    # 检查场景触发 - 优先使用新的教学系统
     if not hasattr(conn, 'scenario_executor') or not conn.scenario_executor:
         triggered_scenario = scenario_trigger.detect_trigger(text, "voice")
         if triggered_scenario:
+            # 🔥 关键修复：优先使用新的教学系统处理场景触发
+            user_id = conn.device_id if conn.device_id else conn.session_id
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                # 使用新的教学系统处理场景触发
+                result = await conn.teaching_handler.chat_status_manager.handle_user_input(user_id, text, conn.child_name or "小朋友")
+                if result and result.get("success"):
+                    conn.logger.bind(tag=TAG).info(f"✅ 使用新教学系统处理场景触发: {triggered_scenario['id']}")
+                    
+                    # 🔥 关键修复：调用teaching_handler处理结果
+                    action = result.get("action")
+                    if action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next", "start_teaching", "mode_switch"]:
+                        conn.logger.bind(tag=TAG).info(f"🔥 调用teaching_handler处理action: {action}")
+                        handled = conn.teaching_handler.handle_chat_mode(text)
+                        if handled:
+                            conn.logger.bind(tag=TAG).info(f"✅ teaching_handler成功处理action: {action}")
+                        else:
+                            conn.logger.bind(tag=TAG).warning(f"⚠️ teaching_handler未处理action: {action}")
+                    
+                    return True
+                else:
+                    conn.logger.bind(tag=TAG).warning(f"⚠️ 新教学系统处理失败，回退到旧系统: {triggered_scenario['id']}")
+            
+            # 回退到旧的场景执行器系统
             await start_scenario_dialogue(conn, triggered_scenario['id'])
             return True
 
@@ -209,6 +232,16 @@ async def start_scenario_dialogue(conn, scenario_id):
         conn.scenario_executor = executor
         conn.logger.bind(tag=TAG).info(f"启动场景对话: {scenario_id}")
         
+        # 🔥 关键修复：启动场景对话时自动切换到教学模式
+        user_id = conn.device_id if conn.device_id else conn.session_id
+        if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+            # 使用teaching_handler切换到教学模式
+            success = conn.teaching_handler.chat_status_manager.set_user_chat_status(user_id, "teaching_mode")
+            if success:
+                conn.logger.bind(tag=TAG).info(f"✅ 场景触发成功，已切换到教学模式: {user_id}")
+            else:
+                conn.logger.bind(tag=TAG).error(f"❌ 切换到教学模式失败: {user_id}")
+        
         # 获取第一个步骤
         if executor.steps:
             first_step = executor.get_current_step()
@@ -232,6 +265,15 @@ async def handle_scenario_dialogue(conn, text):
         if result['type'] == 'complete':
             # 场景完成
             speak_txt(conn, result['message'])
+            
+            # 🔥 关键修复：场景完成时切换到自由模式
+            user_id = conn.device_id if conn.device_id else conn.session_id
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                success = conn.teaching_handler.chat_status_manager.set_user_chat_status(user_id, "free_mode")
+                if success:
+                    conn.logger.bind(tag=TAG).info(f"✅ 场景完成，已切换到自由模式: {user_id}")
+                else:
+                    conn.logger.bind(tag=TAG).error(f"❌ 切换到自由模式失败: {user_id}")
             
             # 保存学习记录
             if hasattr(conn, 'scenario_executor') and conn.scenario_executor:
