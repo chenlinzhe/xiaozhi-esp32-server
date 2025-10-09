@@ -236,7 +236,7 @@ class TTSProviderBase(ABC):
                 target=self._audio_play_priority_thread, daemon=True
             )
             self.audio_play_priority_thread.start()
-            logger.bind(tag=TAG).info("TTS音频播放线程已启动")
+            # logger.bind(tag=TAG).info("TTS音频播放线程已启动")
             
             # 等待线程启动完成（减少等待时间）
             await asyncio.sleep(0.1)
@@ -357,14 +357,14 @@ class TTSProviderBase(ABC):
                         break
                     continue
                 
-                logger.bind(tag=TAG).info(f"音频播放线程收到音频数据: {sentence_type}, {text}, {len(audio_datas) if audio_datas else 0} 个音频包")
+                # logger.bind(tag=TAG).info(f"音频播放线程收到音频数据: {sentence_type}, {text}, {len(audio_datas) if audio_datas else 0} 个音频包")
                 
                 future = asyncio.run_coroutine_threadsafe(
                     sendAudioMessage(self.conn, sentence_type, audio_datas, text),
                     self.conn.loop,
                 )
                 future.result()
-                logger.bind(tag=TAG).info(f"音频消息已发送到设备: {text}")
+                # logger.bind(tag=TAG).info(f"音频消息已发送到设备: {text}")
                 
                 if self.conn.max_output_size > 0 and text:
                     add_device_output(self.conn.headers.get("device-id"), len(text))

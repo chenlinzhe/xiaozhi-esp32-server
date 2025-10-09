@@ -50,10 +50,10 @@ class TTSMessageDTO:
         self.speech_rate = speech_rate
         
         # 添加详细的日志记录
-        logger.bind(tag=TAG).info(f"=== TTSMessageDTO创建 ===")
-        logger.bind(tag=TAG).info(f"sentence_id: {sentence_id}")
-        logger.bind(tag=TAG).info(f"sentence_type: {sentence_type.name}")
-        logger.bind(tag=TAG).info(f"content_type: {content_type.name}")
-        logger.bind(tag=TAG).info(f"content_detail: {content_detail}")
-        logger.bind(tag=TAG).info(f"content_file: {content_file}")
-        logger.bind(tag=TAG).info(f"speech_rate: {speech_rate}")
+        # logger.bind(tag=TAG).info(f"=== TTSMessageDTO创建 ===")
+        # logger.bind(tag=TAG).info(f"sentence_id: {sentence_id}")
+        # logger.bind(tag=TAG).info(f"sentence_type: {sentence_type.name}")
+        # logger.bind(tag=TAG).info(f"content_type: {content_type.name}")
+        # logger.bind(tag=TAG).info(f"content_detail: {content_detail}")
+        # logger.bind(tag=TAG).info(f"content_file: {content_file}")
+        # logger.bind(tag=TAG).info(f"speech_rate: {speech_rate}")

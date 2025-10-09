@@ -9,7 +9,7 @@ TAG = __name__
 
 async def sendAudioMessage(conn, sentenceType, audios, text):
     # 发送句子开始消息
-    conn.logger.bind(tag=TAG).info(f"发送音频消息: {sentenceType}, {text}")
+    # conn.logger.bind(tag=TAG).info(f"发送音频消息: {sentenceType}, {text}")
 
     pre_buffer = False
     if conn.tts.tts_audio_first_sentence:
@@ -22,7 +22,7 @@ async def sendAudioMessage(conn, sentenceType, audios, text):
     # 🔥 关键修复：在音频开始播放时设置播放状态
     if sentenceType == SentenceType.MIDDLE and audios:
         conn.client_is_speaking = True
-        conn.logger.bind(tag=TAG).info("🎤 音频开始播放，设置播放状态为True")
+        # conn.logger.bind(tag=TAG).info("🎤 音频开始播放，设置播放状态为True")
 
     await sendAudio(conn, audios, pre_buffer)
 

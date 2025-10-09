@@ -50,6 +50,7 @@ class LLMProvider(LLMProviderBase):
 
     def response(self, session_id, dialogue, **kwargs):
         logger.info(f'OpenAI LLMProvider.response called, session_id={session_id}, dialogue={dialogue}, kwargs={kwargs}')
+        logger.info(f'[LLM调试] 当前OpenAI LLM地址: {self.base_url}')
         try:
             logger.bind(tag=TAG).info(f"开始OpenAI请求 - 模型: {self.model_name}, 会话ID: {session_id}")
             logger.bind(tag=TAG).debug(f"对话长度: {len(dialogue)}, 参数: {kwargs}")
@@ -120,6 +121,7 @@ class LLMProvider(LLMProviderBase):
 
     def response_with_functions(self, session_id, dialogue, functions=None):
         logger.info(f'OpenAI LLMProvider.response_with_functions called, session_id={session_id}, dialogue={dialogue}, functions={functions}')
+        logger.info(f'[LLM调试] 当前OpenAI LLM地址: {self.base_url}')
         try:
             logger.bind(tag=TAG).info(f"开始OpenAI函数调用请求 - 模型: {self.model_name}, 会话ID: {session_id}")
             logger.bind(tag=TAG).debug(f"对话长度: {len(dialogue)}, 函数数量: {len(functions) if functions else 0}")
