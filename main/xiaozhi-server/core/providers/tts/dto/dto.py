@@ -1,5 +1,9 @@
 from enum import Enum
 from typing import Union, Optional
+from config.logger import setup_logging
+
+TAG = __name__
+logger = setup_logging()
 
 
 class SentenceType(Enum):
@@ -35,9 +39,21 @@ class TTSMessageDTO:
         content_detail: Optional[str] = None,
         # 如果内容类型为文件，则需要传入文件路径
         content_file: Optional[str] = None,
+        # 语速配置（0.2-3.0倍速，1.0为正常语速）
+        speech_rate: Optional[float] = None,
     ):
         self.sentence_id = sentence_id
         self.sentence_type = sentence_type
         self.content_type = content_type
         self.content_detail = content_detail
         self.content_file = content_file
+        self.speech_rate = speech_rate
+        
+        # 添加详细的日志记录
+        # logger.bind(tag=TAG).info(f"=== TTSMessageDTO创建 ===")
+        # logger.bind(tag=TAG).info(f"sentence_id: {sentence_id}")
+        # logger.bind(tag=TAG).info(f"sentence_type: {sentence_type.name}")
+        # logger.bind(tag=TAG).info(f"content_type: {content_type.name}")
+        # logger.bind(tag=TAG).info(f"content_detail: {content_detail}")
+        # logger.bind(tag=TAG).info(f"content_file: {content_file}")
+        # logger.bind(tag=TAG).info(f"speech_rate: {speech_rate}")

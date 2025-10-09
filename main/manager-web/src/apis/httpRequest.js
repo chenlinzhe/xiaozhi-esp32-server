@@ -28,7 +28,7 @@ function sendRequest() {
         _responseType: undefined, // 新增响应类型字段
         'send'() {
             if (isNotNull(store.getters.getToken)) {
-                this._header.Authorization = 'Bearer ' + (JSON.parse(store.getters.getToken)).token
+                this._header.Authorization = 'Bearer ' + store.getters.getToken
             }
 
             // 打印请求信息
@@ -37,18 +37,32 @@ function sendRequest() {
                 headers: this._header,
                 responseType: this._responseType
             }).then((res) => {
+                console.log('HTTP请求成功响应:', res);
                 const error = httpHandlerError(res, this._failCallback, this._networkFailCallback);
+                console.log('HTTP错误处理结果:', error);
                 if (error) {
                     return
                 }
 
                 if (this._sucCallback) {
-                    this._sucCallback(res)
+                    console.log('调用成功回调');
+                    // if(res.data.data){
+                    //     this._sucCallback(res.data)  // 传递整个 res 对象
+                    // }else {
+                    //     this._sucCallback(res);
+                    // }
+                    this._sucCallback(res);
                 }
             }).catch((res) => {
                 // 打印失败响应
-                console.log('catch', res)
-                httpHandlerError(res, this._failCallback, this._networkFailCallback)
+                console.log('catch 网络错误:', res)
+                console.log('网络错误状态:', res.status)
+                console.log('网络错误信息:', res.message)
+                // 暂时注释掉重试逻辑，避免无限重试
+                // httpHandlerError(res, this._failCallback, this._networkFailCallback)
+                if (this._networkFailCallback) {
+                    this._networkFailCallback(res)
+                }
             })
             return this
         },
@@ -105,11 +119,16 @@ function sendRequest() {
  */
 // 在错误处理函数中添加日志
 function httpHandlerError(info, failCallback, networkFailCallback) {
+    console.log('httpHandlerError 输入:', info);
+    console.log('info.status:', info.status);
+    console.log('info.data:', info.data);
+    console.log('info.data.code:', info.data ? info.data.code : 'undefined');
 
     /** 请求成功，退出该函数 可以根据项目需求来判断是否请求成功。这里判断的是status为200的时候是成功 */
     let networkError = false
     if (info.status === 200) {
         if (info.data.code === 'success' || info.data.code === 0 || info.data.code === undefined) {
+            console.log('请求成功，返回 false');
             return networkError
         } else if (info.data.code === 401) {
             store.commit('clearAuth');
@@ -136,6 +155,10 @@ let requestTime = 0
 let reAjaxSec = 2
 
 function reAjaxFun(fn) {
+    console.log('reAjaxFun 被调用，但已禁用重试');
+    // 暂时禁用重试逻辑
+    return;
+    
     let nowTimeSec = new Date().getTime() / 1000
     if (requestTime === 0) {
         requestTime = nowTimeSec

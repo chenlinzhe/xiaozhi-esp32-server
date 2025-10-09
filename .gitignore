@@ -175,3 +175,7 @@ uploadfile
 *.json
 .vscode
 .cursor
+/main/manager-api/src/main/resources/application-dev.yml
+/main/manager-web/vue.config.js
+/main/xiaozhi-server/config/config_loader.py
+/main/xiaozhi-server/config/settings.py

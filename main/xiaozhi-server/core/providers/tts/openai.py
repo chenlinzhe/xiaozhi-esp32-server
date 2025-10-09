@@ -29,7 +29,7 @@ class TTSProvider(TTSProviderBase):
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
 
-    async def text_to_speak(self, text, output_file):
+    async def text_to_speak(self, text, output_file, speech_rate=None):
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.ScenarioMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.ScenarioEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="scenario_id" property="scenarioId" jdbcType="VARCHAR"/>
+        <result column="agent_id" property="agentId" jdbcType="VARCHAR"/>
+        <result column="scenario_code" property="scenarioCode" jdbcType="VARCHAR"/>
+        <result column="scenario_name" property="scenarioName" jdbcType="VARCHAR"/>
+        <result column="scenario_type" property="scenarioType" jdbcType="VARCHAR"/>
+        <result column="trigger_type" property="triggerType" jdbcType="VARCHAR"/>
+        <result column="trigger_keywords" property="triggerKeywords" jdbcType="LONGVARCHAR"/>
+        <result column="trigger_cards" property="triggerCards" jdbcType="LONGVARCHAR"/>
+        <result column="description" property="description" jdbcType="LONGVARCHAR"/>
+        <result column="difficulty_level" property="difficultyLevel" jdbcType="INTEGER"/>
+        <result column="target_age" property="targetAge" jdbcType="VARCHAR"/>
+        <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
+        <result column="is_active" property="isActive" jdbcType="TINYINT"/>
+        <result column="is_default_teaching" property="isDefaultTeaching" jdbcType="TINYINT"/>
+        <result column="teaching_mode_config" property="teachingModeConfig" jdbcType="LONGVARCHAR"/>
+        <result column="auto_switch_to_free" property="autoSwitchToFree" jdbcType="TINYINT"/>
+        <result column="max_user_replies" property="maxUserReplies" jdbcType="INTEGER"/>
+        <result column="praise_messages" property="praiseMessages" jdbcType="LONGVARCHAR"/>
+        <result column="encouragement_messages" property="encouragementMessages" jdbcType="LONGVARCHAR"/>
+        <result column="creator" property="creator" jdbcType="BIGINT"/>
+        <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
+        <result column="updater" property="updater" jdbcType="BIGINT"/>
+        <result column="update_date" property="updateDate" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 扩展结果映射，包含步骤数量 -->
+    <resultMap id="ScenarioWithStepCountMap" type="xiaozhi.modules.scenario.entity.ScenarioEntity" extends="BaseResultMap">
+        <result column="step_count" property="stepCount" jdbcType="INTEGER"/>
+        <result column="agent_name" property="agentName" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, scenario_id, agent_id, scenario_code, scenario_name, scenario_type, trigger_type, 
+        trigger_keywords, trigger_cards, description, difficulty_level, target_age, 
+        sort_order, is_active, is_default_teaching, teaching_mode_config, auto_switch_to_free,
+        max_user_replies, praise_messages, encouragement_messages, creator, create_date, updater, update_date
+    </sql>
+
+    <!-- 根据智能体ID获取场景列表 -->
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_scenario
+        WHERE agent_id = #{agentId}
+        ORDER BY sort_order ASC, create_date DESC
+    </select>
+
+    <!-- 获取场景列表（包含步骤数量） -->
+    <select id="selectScenarioList" resultMap="ScenarioWithStepCountMap">
+        SELECT 
+            s.id, s.scenario_id, s.agent_id, s.scenario_code, s.scenario_name, s.scenario_type, 
+            s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
+            s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
+            s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
+            s.max_user_replies, s.praise_messages, s.encouragement_messages,
+            s.creator, s.create_date, s.updater, s.update_date,
+            COALESCE(COUNT(st.id), 0) as step_count,
+            a.agent_name
+        FROM ai_scenario s
+        LEFT JOIN ai_scenario_step st ON s.scenario_id = st.scenario_id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN ai_agent a ON s.agent_id = a.id COLLATE utf8mb4_unicode_ci
+        <where>
+            <if test="agentId != null and agentId != ''">
+                AND s.agent_id = #{agentId}
+            </if>
+            <if test="scenarioType != null and scenarioType != ''">
+                AND s.scenario_type = #{scenarioType}
+            </if>
+            <if test="isActive != null">
+                AND s.is_active = #{isActive}
+            </if>
+            <if test="scenarioName != null and scenarioName != ''">
+                AND s.scenario_name LIKE CONCAT('%', #{scenarioName}, '%')
+            </if>
+        </where>
+        GROUP BY s.id, s.scenario_id, s.agent_id, s.scenario_code, s.scenario_name, s.scenario_type, 
+                 s.trigger_type, s.trigger_keywords, s.trigger_cards, s.description, 
+                 s.difficulty_level, s.target_age, s.sort_order, s.is_active, 
+                 s.is_default_teaching, s.teaching_mode_config, s.auto_switch_to_free,
+                 s.max_user_replies, s.praise_messages, s.encouragement_messages,
+                 s.creator, s.create_date, s.updater, s.update_date, a.agent_name
+        ORDER BY s.sort_order ASC, s.create_date DESC
+        <if test="offset != null and limit != null">
+            LIMIT #{offset}, #{limit}
+        </if>
+    </select>
+
+    <!-- 获取场景列表总数 -->
+    <select id="selectScenarioListCount" resultType="long">
+        SELECT COUNT(DISTINCT s.id)
+        FROM ai_scenario s
+        LEFT JOIN ai_scenario_step st ON s.scenario_id = st.scenario_id COLLATE utf8mb4_unicode_ci
+        LEFT JOIN ai_agent a ON s.agent_id = a.id COLLATE utf8mb4_unicode_ci
+        <where>
+            <if test="agentId != null and agentId != ''">
+                AND s.agent_id = #{agentId}
+            </if>
+            <if test="scenarioType != null and scenarioType != ''">
+                AND s.scenario_type = #{scenarioType}
+            </if>
+            <if test="isActive != null">
+                AND s.is_active = #{isActive}
+            </if>
+            <if test="scenarioName != null and scenarioName != ''">
+                AND s.scenario_name LIKE CONCAT('%', #{scenarioName}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据场景类型获取场景列表 -->
+    <select id="selectByTypeAndStatus" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_scenario
+        WHERE scenario_type = #{scenarioType}
+        AND is_active = #{isActive}
+        ORDER BY sort_order ASC, create_date DESC
+    </select>
+
+</mapper> 

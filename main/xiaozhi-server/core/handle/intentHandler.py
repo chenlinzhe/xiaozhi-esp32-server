@@ -8,6 +8,8 @@ from core.providers.tts.dto.dto import ContentType
 from core.utils.dialogue import Message
 from plugins_func.register import Action, ActionResponse
 from core.providers.tts.dto.dto import TTSMessageDTO, SentenceType
+from core.scenario.scenario_manager import scenario_trigger
+from core.scenario.dialogue_executor import DialogueStepExecutor
 
 TAG = __name__
 
@@ -30,6 +32,40 @@ async def handle_user_intent(conn, text):
     # 检查是否是唤醒词
     if await checkWakeupWords(conn, filtered_text):
         return True
+
+    # 检查场景触发 - 优先使用新的教学系统
+    if not hasattr(conn, 'scenario_executor') or not conn.scenario_executor:
+        triggered_scenario = scenario_trigger.detect_trigger(text, "voice")
+        if triggered_scenario:
+            # 🔥 关键修复：优先使用新的教学系统处理场景触发
+            user_id = conn.device_id if conn.device_id else conn.session_id
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                # 使用新的教学系统处理场景触发
+                result = await conn.teaching_handler.chat_status_manager.handle_user_input(user_id, text, conn.child_name or "小朋友")
+                if result and result.get("success"):
+                    conn.logger.bind(tag=TAG).info(f"✅ 使用新教学系统处理场景触发: {triggered_scenario['id']}")
+                    
+                    # 🔥 关键修复：调用teaching_handler处理结果
+                    action = result.get("action")
+                    if action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next", "start_teaching", "mode_switch"]:
+                        conn.logger.bind(tag=TAG).info(f"🔥 调用teaching_handler处理action: {action}")
+                        handled = conn.teaching_handler.handle_chat_mode(text)
+                        if handled:
+                            conn.logger.bind(tag=TAG).info(f"✅ teaching_handler成功处理action: {action}")
+                        else:
+                            conn.logger.bind(tag=TAG).warning(f"⚠️ teaching_handler未处理action: {action}")
+                    
+                    return True
+                else:
+                    conn.logger.bind(tag=TAG).warning(f"⚠️ 新教学系统处理失败，回退到旧系统: {triggered_scenario['id']}")
+            
+            # 回退到旧的场景执行器系统
+            await start_scenario_dialogue(conn, triggered_scenario['id'])
+            return True
+
+    # 如果正在执行场景对话，优先处理场景逻辑
+    if hasattr(conn, 'scenario_executor') and conn.scenario_executor:
+        return await handle_scenario_dialogue(conn, text)
 
     if conn.intent_type == "function_call":
         # 使用支持function calling的聊天方法,不再进行意图分析
@@ -180,3 +216,94 @@ def speak_txt(conn, text):
         )
     )
     conn.dialogue.put(Message(role="assistant", content=text))
+
+
+async def start_scenario_dialogue(conn, scenario_id):
+    """启动场景对话"""
+    try:
+        # 创建场景执行器
+        executor = DialogueStepExecutor(scenario_id, conn.child_name)
+        success = await executor.initialize()
+        
+        if not success:
+            conn.logger.bind(tag=TAG).error(f"初始化场景执行器失败: {scenario_id}")
+            return
+        
+        conn.scenario_executor = executor
+        conn.logger.bind(tag=TAG).info(f"启动场景对话: {scenario_id}")
+        
+        # 🔥 关键修复：启动场景对话时自动切换到教学模式
+        user_id = conn.device_id if conn.device_id else conn.session_id
+        if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+            # 使用teaching_handler切换到教学模式
+            success = conn.teaching_handler.chat_status_manager.set_user_chat_status(user_id, "teaching_mode")
+            if success:
+                conn.logger.bind(tag=TAG).info(f"✅ 场景触发成功，已切换到教学模式: {user_id}")
+            else:
+                conn.logger.bind(tag=TAG).error(f"❌ 切换到教学模式失败: {user_id}")
+        
+        # 获取第一个步骤
+        if executor.steps:
+            first_step = executor.get_current_step()
+            if first_step:
+                ai_message = first_step.get('aiMessage', '').replace("**{childName}**", conn.child_name or "小朋友")
+                speak_txt(conn, ai_message)
+        
+    except Exception as e:
+        conn.logger.bind(tag=TAG).error(f"启动场景对话失败: {e}")
+
+
+async def handle_scenario_dialogue(conn, text):
+    """处理场景对话"""
+    try:
+        if not hasattr(conn, 'scenario_executor') or not conn.scenario_executor:
+            return False
+        
+        executor = conn.scenario_executor
+        result = executor.execute_current_step(text)
+        
+        if result['type'] == 'complete':
+            # 场景完成
+            speak_txt(conn, result['message'])
+            
+            # 🔥 关键修复：场景完成时切换到自由模式
+            user_id = conn.device_id if conn.device_id else conn.session_id
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                success = conn.teaching_handler.chat_status_manager.set_user_chat_status(user_id, "free_mode")
+                if success:
+                    conn.logger.bind(tag=TAG).info(f"✅ 场景完成，已切换到自由模式: {user_id}")
+                else:
+                    conn.logger.bind(tag=TAG).error(f"❌ 切换到自由模式失败: {user_id}")
+            
+            # 保存学习记录
+            if hasattr(conn, 'scenario_executor') and conn.scenario_executor:
+                try:
+                    record_id = await conn.scenario_executor.end_session()
+                    if record_id:
+                        conn.logger.bind(tag=TAG).info(f"学习记录已保存: {record_id}")
+                except Exception as e:
+                    conn.logger.bind(tag=TAG).error(f"保存学习记录失败: {e}")
+            
+            conn.scenario_executor = None
+            return True
+        elif result['type'] == 'next':
+            # 进入下一步
+            speak_txt(conn, result['message'])
+            return True
+        elif result['type'] == 'retry':
+            # 重试当前步骤
+            speak_txt(conn, result['message'])
+            return True
+        elif result['type'] == 'alternative':
+            # 提供替代方案
+            speak_txt(conn, result['message'])
+            # 如果有手势提示，可以在这里处理
+            if result.get('gesture'):
+                conn.logger.bind(tag=TAG).info(f"手势提示: {result['gesture']}")
+            return True
+        else:
+            return False
+            
+    except Exception as e:
+        conn.logger.bind(tag=TAG).error(f"处理场景对话失败: {e}")
+        return False

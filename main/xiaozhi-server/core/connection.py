@@ -35,11 +35,13 @@ from plugins_func.register import Action, ActionResponse
 from core.auth import AuthMiddleware, AuthenticationError
 from config.config_loader import get_private_config_from_api
 from core.providers.tts.dto.dto import ContentType, TTSMessageDTO, SentenceType
+
 from config.logger import setup_logging, build_module_string, create_connection_logger
 from config.manage_api_client import DeviceNotFoundException, DeviceBindException
 from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
 from core.utils import textUtils
+from core.scenario.teaching_handler import TeachingHandler
 
 TAG = __name__
 
@@ -161,6 +163,12 @@ class ConnectionHandler:
         # 初始化提示词管理器
         self.prompt_manager = PromptManager(config, self.logger)
 
+        # 初始化场景教学处理器
+        self.teaching_handler = TeachingHandler(self)
+        
+        # 添加儿童姓名属性
+        self.child_name = "小朋友"
+
     async def handle_connection(self, ws):
         try:
             # 获取并验证headers
@@ -202,6 +210,16 @@ class ConnectionHandler:
             self.websocket = ws
             self.device_id = self.headers.get("device-id", None)
 
+            # 🔥 使用设备ID作为session_id，这样LLM可以识别同一用户
+            if self.device_id:
+                self.session_id = self.device_id
+                self.logger.bind(tag=TAG).info(f"✅ 获得设备ID: {self.device_id}")
+                self.logger.bind(tag=TAG).info(f"✅ 使用设备ID作为session_id: {self.session_id}")
+            else:
+                self.logger.bind(tag=TAG).warning("❌ 未获取到设备ID，使用随机session_id")
+                self.logger.bind(tag=TAG).warning(f"🎲 随机session_id: {self.session_id}")
+
+
             # 初始化活动时间戳
             self.last_activity_time = time.time() * 1000
 
@@ -213,8 +231,12 @@ class ConnectionHandler:
 
             # 获取差异化配置
             self._initialize_private_config()
-            # 异步初始化
+            # 立即初始化组件（包括TTS）
+            #            # 异步初始化
             self.executor.submit(self._initialize_components)
+
+            # 等待TTS初始化完成后发送欢迎语音
+            await self._send_welcome_voice()
 
             try:
                 async for message in self.websocket:
@@ -357,20 +379,26 @@ class ConnectionHandler:
                 self.vad = self._vad
             if self.asr is None:
                 self.asr = self._initialize_asr()
-
             # 初始化声纹识别
             self._initialize_voiceprint()
-
             # 打开语音识别通道
             asyncio.run_coroutine_threadsafe(
                 self.asr.open_audio_channels(self), self.loop
             )
+            # 立即初始化TTS并确保完全就绪
+            # 立即初始化TTS并确保完全就绪
             if self.tts is None:
                 self.tts = self._initialize_tts()
+
             # 打开语音合成通道
             asyncio.run_coroutine_threadsafe(
                 self.tts.open_audio_channels(self), self.loop
             )
+            
+            # 新增：打印 TTS、ASR、VAD 初始化情况
+            self.logger.bind(tag=TAG).info(f"TTS 实例: {self.tts}, 类型: {type(self.tts)}")
+            self.logger.bind(tag=TAG).info(f"ASR 实例: {self.asr}, 类型: {type(self.asr)}")
+            self.logger.bind(tag=TAG).info(f"VAD 实例: {self.vad}, 类型: {type(self.vad)}")
 
             """加载记忆"""
             self._initialize_memory()
@@ -380,6 +408,9 @@ class ConnectionHandler:
             self._init_report_threads()
             """更新系统提示词"""
             self._init_prompt_enhancement()
+
+            # 新增：打印 LLM 初始化情况
+            self.logger.bind(tag=TAG).info(f"LLM 实例: {self.llm}, 类型: {type(self.llm)}")
 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"实例化组件失败: {e}")
@@ -410,13 +441,163 @@ class ConnectionHandler:
     def _initialize_tts(self):
         """初始化TTS"""
         tts = None
+
+
         if not self.need_bind:
-            tts = initialize_tts(self.config)
+            try:
+                self.logger.bind(tag=TAG).info("开始初始化TTS服务...")
+                tts = initialize_tts(self.config)
+                if tts is not None:
+                    self.logger.bind(tag=TAG).info(f"TTS服务初始化成功: {type(tts).__name__}")
+                else:
+                    self.logger.bind(tag=TAG).warning("TTS服务初始化返回None，将使用DefaultTTS")
+            except Exception as e:
+                self.logger.bind(tag=TAG).error(f"TTS服务初始化失败: {str(e)}")
+                self.logger.bind(tag=TAG).error(f"异常类型: {type(e).__name__}")
+                import traceback
+                self.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+                tts = None
 
         if tts is None:
+            self.logger.bind(tag=TAG).warning("使用DefaultTTS作为备选方案")
             tts = DefaultTTS(self.config, delete_audio_file=True)
 
         return tts
+
+    def _initialize_tts_complete(self):
+        """完整初始化TTS并确保就绪"""
+        try:
+            if self.tts is None:
+                self.logger.bind(tag=TAG).info("开始初始化TTS...")
+                self.tts = self._initialize_tts()
+                self.logger.bind(tag=TAG).info(f"TTS实例创建完成: {type(self.tts).__name__}")
+            
+                            # 确保TTS音频通道已打开
+                if not hasattr(self.tts, 'conn') or self.tts.conn is None:
+                    self.logger.bind(tag=TAG).info("开始打开TTS音频通道...")
+                    try:
+                        # 使用同步方式等待TTS音频通道打开
+                        future = asyncio.run_coroutine_threadsafe(
+                            self.tts.open_audio_channels(self), self.loop
+                        )
+                        # 等待异步操作完成，最多等待5秒
+                        future.result(timeout=5)
+                        self.logger.bind(tag=TAG).info("TTS音频通道已打开")
+                        
+                    except Exception as e:
+                        self.logger.bind(tag=TAG).warning(f"TTS音频通道打开失败: {e}")
+                        # 即使音频通道打开失败，也继续使用TTS实例
+                        self.logger.bind(tag=TAG).info("继续使用TTS实例，音频通道将在需要时重新初始化")
+            else:
+                self.logger.bind(tag=TAG).info("TTS音频通道已存在")
+                
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"TTS完整初始化失败: {e}")
+
+    def _wait_tts_threads_ready(self):
+        """等待TTS线程启动就绪"""
+        max_wait_time = 10  # 最多等待10秒
+        wait_count = 0
+        
+        while wait_count < max_wait_time:
+            try:
+                # 检查TTS文本处理线程是否已启动
+                if (hasattr(self.tts, 'tts_priority_thread') and 
+                    self.tts.tts_priority_thread.is_alive()):
+                    self.logger.bind(tag=TAG).info("TTS文本处理线程已就绪")
+                    
+                    # 检查TTS音频播放线程是否已启动
+                    if (hasattr(self.tts, 'audio_play_priority_thread') and 
+                        self.tts.audio_play_priority_thread.is_alive()):
+                        self.logger.bind(tag=TAG).info("TTS音频播放线程已就绪")
+                        self.logger.bind(tag=TAG).info("TTS完全初始化完成")
+                        return True
+                    else:
+                        self.logger.bind(tag=TAG).info(f"等待TTS音频播放线程启动... ({wait_count + 1}/{max_wait_time})")
+                else:
+                    self.logger.bind(tag=TAG).info(f"等待TTS文本处理线程启动... ({wait_count + 1}/{max_wait_time})")
+                    
+            except Exception as e:
+                self.logger.bind(tag=TAG).warning(f"检查TTS线程状态时出错: {e}")
+            
+            time.sleep(1)
+            wait_count += 1
+        
+        self.logger.bind(tag=TAG).warning("TTS线程启动超时，但继续使用")
+        return False
+
+    async def _send_welcome_voice(self):
+        """发送欢迎语音，询问用户名字"""
+        try:
+            # 等待TTS初始化完成
+            self.logger.bind(tag=TAG).info("等待TTS初始化完成...")
+            max_wait_time = 15  # 最多等待15秒
+            wait_count = 0
+            
+            while wait_count < max_wait_time:
+                if (hasattr(self, 'tts') and self.tts is not None and
+                    hasattr(self.tts, 'tts_priority_thread') and 
+                    self.tts.tts_priority_thread.is_alive() and
+                    hasattr(self.tts, 'audio_play_priority_thread') and 
+                    self.tts.audio_play_priority_thread.is_alive()):
+                    self.logger.bind(tag=TAG).info("TTS初始化完成，开始发送欢迎语音")
+                    break
+                
+                await asyncio.sleep(1)
+                wait_count += 1
+                self.logger.bind(tag=TAG).info(f"等待TTS初始化... ({wait_count}/{max_wait_time})")
+            
+            if wait_count >= max_wait_time:
+                self.logger.bind(tag=TAG).warning("TTS初始化超时，跳过欢迎语音")
+                return
+            
+            # 检查用户是否已有姓名
+            from core.providers.user.user_info_manager import UserInfoManager
+            user_manager = UserInfoManager(self.config)
+            
+            try:
+                has_name = user_manager.has_user_name(self.device_id)
+                
+                if not has_name:
+                    # 用户没有姓名，询问姓名
+                    welcome_message = "你好！我是小智，很高兴认识你！请问你叫什么名字呢？"
+                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 没有姓名，发送欢迎语音询问姓名")
+                    
+                    # 尝试记录交互（如果API不可用则忽略）
+                    try:
+                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
+                    except Exception as record_error:
+                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
+                    
+                    # 发送TTS语音
+                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                else:
+                    # 用户已有姓名，获取用户信息
+                    user_info = user_manager.get_user_info(self.device_id)
+                    user_name = user_info.get("userName") if user_info else "朋友"
+                    
+                    welcome_message = f"你好 {user_name}！很高兴再次见到你！有什么我可以帮助你的吗？"
+                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 已有姓名: {user_name}")
+                    
+                    # 尝试记录交互（如果API不可用则忽略）
+                    try:
+                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
+                    except Exception as record_error:
+                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
+                    
+                    # 发送TTS语音
+                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                    
+            except Exception as api_error:
+                # API调用失败，发送通用欢迎语音
+                self.logger.bind(tag=TAG).warning(f"用户信息API调用失败，发送通用欢迎语音: {api_error}")
+                welcome_message = "你好！我是小智，很高兴认识你！有什么我可以帮助你的吗？"
+                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+                
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"发送欢迎语音失败: {e}")
+            import traceback
+            self.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
 
     def _initialize_asr(self):
         """初始化ASR"""
@@ -446,6 +627,7 @@ class ConnectionHandler:
     def _initialize_private_config(self):
         """如果是从配置文件获取，则进行二次实例化"""
         if not self.read_config_from_api:
+            self.logger.info("[TTS调试] read_config_from_api=False，跳过差异化配置拉取")
             return
         """从接口获取差异化的配置进行二次实例化，非全量重新实例化"""
         try:
@@ -456,19 +638,19 @@ class ConnectionHandler:
                 self.headers.get("client-id", self.headers.get("device-id")),
             )
             private_config["delete_audio"] = bool(self.config.get("delete_audio", True))
-            self.logger.bind(tag=TAG).info(
-                f"{time.time() - begin_time} 秒，获取差异化配置成功: {json.dumps(filter_sensitive_info(private_config), ensure_ascii=False)}"
-            )
+            self.logger.info(f"[TTS调试] {time.time() - begin_time} 秒，获取差异化配置成功: {json.dumps(filter_sensitive_info(private_config), ensure_ascii=False)}")
         except DeviceNotFoundException as e:
             self.need_bind = True
             private_config = {}
+            self.logger.warning(f"[TTS调试] DeviceNotFoundException, need_bind=True")
         except DeviceBindException as e:
             self.need_bind = True
             self.bind_code = e.bind_code
             private_config = {}
+            self.logger.warning(f"[TTS调试] DeviceBindException, need_bind=True, bind_code={self.bind_code}")
         except Exception as e:
             self.need_bind = True
-            self.logger.bind(tag=TAG).error(f"获取差异化配置失败: {e}")
+            self.logger.error(f"[TTS调试] 获取差异化配置失败: {e}")
             private_config = {}
 
         init_llm, init_tts, init_memory, init_intent = (
@@ -483,26 +665,22 @@ class ConnectionHandler:
 
         if init_vad:
             self.config["VAD"] = private_config["VAD"]
-            self.config["selected_module"]["VAD"] = private_config["selected_module"][
-                "VAD"
-            ]
+            self.config["selected_module"]["VAD"] = private_config["selected_module"]["VAD"]
         if init_asr:
             self.config["ASR"] = private_config["ASR"]
-            self.config["selected_module"]["ASR"] = private_config["selected_module"][
-                "ASR"
-            ]
+            self.config["selected_module"]["ASR"] = private_config["selected_module"]["ASR"]
         if private_config.get("TTS", None) is not None:
             init_tts = True
             self.config["TTS"] = private_config["TTS"]
-            self.config["selected_module"]["TTS"] = private_config["selected_module"][
-                "TTS"
-            ]
+            self.config["selected_module"]["TTS"] = private_config["selected_module"]["TTS"]
+            self.logger.info(f"[TTS调试] 检测到TTS差异化配置，init_tts={init_tts}, TTS配置: {json.dumps(self.config['TTS'], ensure_ascii=False)}")
         if private_config.get("LLM", None) is not None:
             init_llm = True
             self.config["LLM"] = private_config["LLM"]
-            self.config["selected_module"]["LLM"] = private_config["selected_module"][
-                "LLM"
-            ]
+            self.config["selected_module"]["LLM"] = private_config["selected_module"]["LLM"]
+
+        self.logger.info(f"[TTS调试] 差异化配置流程结束, init_tts={init_tts}, need_bind={self.need_bind}")
+
         if private_config.get("VLLM", None) is not None:
             self.config["VLLM"] = private_config["VLLM"]
             self.config["selected_module"]["VLLM"] = private_config["selected_module"][
@@ -557,12 +735,19 @@ class ConnectionHandler:
             modules = {}
         if modules.get("tts", None) is not None:
             self.tts = modules["tts"]
+            self.logger.info(f"[TTS调试] self.tts 被赋值于配置初始化阶段: {self.tts}, type: {type(self.tts)}, conn: {getattr(self.tts, 'conn', None)}, tts_priority_thread: {getattr(self.tts, 'tts_priority_thread', None)}")
         if modules.get("vad", None) is not None:
             self.vad = modules["vad"]
         if modules.get("asr", None) is not None:
             self.asr = modules["asr"]
         if modules.get("llm", None) is not None:
             self.llm = modules["llm"]
+        # 新增：打印各模块初始化情况
+        self.logger.bind(tag=TAG).info(f"[modules] TTS: {self.tts}, type: {type(self.tts)}")
+        self.logger.info(f"[TTS调试] [modules] TTS.conn: {getattr(self.tts, 'conn', None)}, tts_priority_thread: {getattr(self.tts, 'tts_priority_thread', None)}")
+        self.logger.bind(tag=TAG).info(f"[modules] VAD: {self.vad}, type: {type(self.vad)}")
+        self.logger.bind(tag=TAG).info(f"[modules] ASR: {self.asr}, type: {type(self.asr)}")
+        self.logger.bind(tag=TAG).info(f"[modules] LLM: {self.llm}, type: {type(self.llm)}")
         if modules.get("intent", None) is not None:
             self.intent = modules["intent"]
         if modules.get("memory", None) is not None:
@@ -664,9 +849,31 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
+
+    def _handle_chat_mode(self, query):
+        """处理聊天模式切换和教学模式逻辑"""
+        return self.teaching_handler.handle_chat_mode(query)
+
+
+
+
+
     def chat(self, query, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
+        # 打印当前 LLM 实例类型和 LLM 配置
+        self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")
+        self.logger.bind(tag=TAG).info(f"当前 LLM 配置: {self.config.get('LLM')}")
+        self.logger.bind(tag=TAG).info(f"当前选中 LLM: {self.config.get('selected_module', {}).get('LLM')}")
         self.llm_finish_task = False
+        depth = 0
+        
+        # 用户信息检查已移至连接时处理，此处不再检查
+        
+        # 检查聊天模式（只在最顶层调用时检查）
+        if depth == 0:
+            chat_result = self._handle_chat_mode(query)
+            if chat_result:
+                return chat_result
 
         if not tool_call:
             self.dialogue.put(Message(role="user", content=query))
@@ -698,7 +905,7 @@ class ConnectionHandler:
                 memory_str = future.result()
 
             if self.intent_type == "function_call" and functions is not None:
-                # 使用支持functions的streaming接口
+                self.logger.bind(tag=TAG).info("调用 LLM response_with_functions ...")
                 llm_responses = self.llm.response_with_functions(
                     self.session_id,
                     self.dialogue.get_llm_dialogue_with_memory(
@@ -707,6 +914,7 @@ class ConnectionHandler:
                     functions=functions,
                 )
             else:
+                self.logger.bind(tag=TAG).info("调用 LLM response ...")
                 llm_responses = self.llm.response(
                     self.session_id,
                     self.dialogue.get_llm_dialogue_with_memory(
@@ -726,12 +934,22 @@ class ConnectionHandler:
         self.client_abort = False
         emotion_flag = True
         for response in llm_responses:
+
+            # self.logger.info(f"[LLM消费] 收到response: {response}")
+
+            
             if self.client_abort:
                 break
             if self.intent_type == "function_call" and functions is not None:
-                content, tools_call = response
-                if "content" in response:
+                # 检查response是否是元组（正常情况）还是字符串（错误情况）
+                if isinstance(response, tuple):
+                    content, tools_call = response
+                elif isinstance(response, dict) and "content" in response:
                     content = response["content"]
+                    tools_call = None
+                else:
+                    # 处理错误情况，response是字符串
+                    content = response
                     tools_call = None
                 if content is not None and len(content) > 0:
                     content_arguments += content
@@ -758,6 +976,13 @@ class ConnectionHandler:
                     self.loop,
                 )
                 emotion_flag = False
+
+
+            # 在推送到TTS队列前，先打印TTS实例和队列状态
+            # self.logger.info(
+            #     f"[TTS调试] chat前 self.tts: {self.tts}, conn: {getattr(self.tts, 'conn', None)}, tts_text_queue: {getattr(self.tts, 'tts_text_queue', None)}"
+            # )
+
 
             if content is not None and len(content) > 0:
                 if not tool_call_flag:
@@ -945,6 +1170,15 @@ class ConnectionHandler:
                         f"清理工具处理器时出错: {cleanup_error}"
                     )
 
+            # 清理教学处理器资源
+            if hasattr(self, "teaching_handler") and self.teaching_handler:
+                try:
+                    await self.teaching_handler.cleanup()
+                except Exception as teaching_cleanup_error:
+                    self.logger.bind(tag=TAG).error(
+                        f"清理教学处理器资源时出错: {teaching_cleanup_error}"
+                    )
+
             # 触发停止事件
             if self.stop_event:
                 self.stop_event.set()
@@ -952,39 +1186,59 @@ class ConnectionHandler:
             # 清空任务队列
             self.clear_queues()
 
-            # 关闭WebSocket连接
+            # 关闭WebSocket连接 - 改进Windows兼容性
             try:
                 if ws:
                     # 安全地检查WebSocket状态并关闭
                     try:
-                        if hasattr(ws, "closed") and not ws.closed:
-                            await ws.close()
-                        elif hasattr(ws, "state") and ws.state.name != "CLOSED":
-                            await ws.close()
-                        else:
-                            # 如果没有closed属性，直接尝试关闭
-                            await ws.close()
-                    except Exception:
-                        # 如果关闭失败，忽略错误
-                        pass
+                        # 检查连接是否已经关闭
+                        is_closed = False
+                        if hasattr(ws, "closed"):
+                            is_closed = ws.closed
+                        elif hasattr(ws, "state"):
+                            is_closed = ws.state.name == "CLOSED"
+                        
+                        if not is_closed:
+                            # 使用更安全的关闭方式，避免Windows socket错误
+                            try:
+                                await asyncio.wait_for(ws.close(), timeout=2.0)
+                            except (asyncio.TimeoutError, ConnectionResetError, OSError) as close_error:
+                                # Windows系统常见的连接重置错误，可以安全忽略
+                                self.logger.bind(tag=TAG).debug(f"WebSocket关闭时出现预期错误（可忽略）: {close_error}")
+                            except Exception as close_error:
+                                self.logger.bind(tag=TAG).warning(f"WebSocket关闭时出现未预期错误: {close_error}")
+                    except Exception as check_error:
+                        # 检查状态时出错，尝试直接关闭
+                        self.logger.bind(tag=TAG).debug(f"检查WebSocket状态时出错: {check_error}")
+                        try:
+                            await asyncio.wait_for(ws.close(), timeout=1.0)
+                        except Exception:
+                            pass
                 elif self.websocket:
                     try:
-                        if (
-                            hasattr(self.websocket, "closed")
-                            and not self.websocket.closed
-                        ):
-                            await self.websocket.close()
-                        elif (
-                            hasattr(self.websocket, "state")
-                            and self.websocket.state.name != "CLOSED"
-                        ):
-                            await self.websocket.close()
-                        else:
-                            # 如果没有closed属性，直接尝试关闭
-                            await self.websocket.close()
-                    except Exception:
-                        # 如果关闭失败，忽略错误
-                        pass
+                        # 检查连接是否已经关闭
+                        is_closed = False
+                        if hasattr(self.websocket, "closed"):
+                            is_closed = self.websocket.closed
+                        elif hasattr(self.websocket, "state"):
+                            is_closed = self.websocket.state.name == "CLOSED"
+                        
+                        if not is_closed:
+                            # 使用更安全的关闭方式
+                            try:
+                                await asyncio.wait_for(self.websocket.close(), timeout=2.0)
+                            except (asyncio.TimeoutError, ConnectionResetError, OSError) as close_error:
+                                # Windows系统常见的连接重置错误，可以安全忽略
+                                self.logger.bind(tag=TAG).debug(f"WebSocket关闭时出现预期错误（可忽略）: {close_error}")
+                            except Exception as close_error:
+                                self.logger.bind(tag=TAG).warning(f"WebSocket关闭时出现未预期错误: {close_error}")
+                    except Exception as check_error:
+                        # 检查状态时出错，尝试直接关闭
+                        self.logger.bind(tag=TAG).debug(f"检查WebSocket状态时出错: {check_error}")
+                        try:
+                            await asyncio.wait_for(self.websocket.close(), timeout=1.0)
+                        except Exception:
+                            pass
             except Exception as ws_error:
                 self.logger.bind(tag=TAG).error(f"关闭WebSocket连接时出错: {ws_error}")
 

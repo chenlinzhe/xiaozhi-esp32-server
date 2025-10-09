@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.ChildLearningRecordMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.ChildLearningRecordEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="record_id" property="recordId" jdbcType="VARCHAR"/>
+        <result column="agent_id" property="agentId" jdbcType="VARCHAR"/>
+        <result column="scenario_id" property="scenarioId" jdbcType="VARCHAR"/>
+        <result column="child_name" property="childName" jdbcType="VARCHAR"/>
+        <result column="start_time" property="startTime" jdbcType="TIMESTAMP"/>
+        <result column="end_time" property="endTime" jdbcType="TIMESTAMP"/>
+        <result column="total_steps" property="totalSteps" jdbcType="INTEGER"/>
+        <result column="completed_steps" property="completedSteps" jdbcType="INTEGER"/>
+        <result column="success_rate" property="successRate" jdbcType="DECIMAL"/>
+        <result column="learning_duration" property="learningDuration" jdbcType="INTEGER"/>
+        <result column="difficulty_rating" property="difficultyRating" jdbcType="INTEGER"/>
+        <result column="notes" property="notes" jdbcType="LONGVARCHAR"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="update_date" property="updateDate" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 扩展结果映射，包含场景和智能体信息 -->
+    <resultMap id="RecordWithInfoMap" type="xiaozhi.modules.scenario.entity.ChildLearningRecordEntity" extends="BaseResultMap">
+        <result column="scenario_name" property="scenarioName" jdbcType="VARCHAR"/>
+        <result column="agent_name" property="agentName" jdbcType="VARCHAR"/>
+        <result column="learning_duration_formatted" property="learningDurationFormatted" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, record_id, agent_id, scenario_id, child_name, start_time, end_time,
+        total_steps, completed_steps, success_rate, learning_duration, difficulty_rating,
+        notes, created_at, update_date
+    </sql>
+
+    <!-- 根据智能体ID获取学习记录 -->
+    <select id="selectByAgentId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_child_learning_record
+        WHERE agent_id = #{agentId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据场景ID获取学习记录 -->
+    <select id="selectByScenarioId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_child_learning_record
+        WHERE scenario_id = #{scenarioId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据儿童姓名获取学习记录 -->
+    <select id="selectByChildName" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_child_learning_record
+        WHERE child_name = #{childName}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 获取学习统计信息 -->
+    <select id="selectStatistics" resultMap="RecordWithInfoMap">
+        SELECT 
+            r.id, r.record_id, r.agent_id, r.scenario_id, r.child_name,
+            r.start_time, r.end_time, r.total_steps, r.completed_steps,
+            r.success_rate, r.learning_duration, r.difficulty_rating,
+            r.notes, r.created_at, r.update_date,
+            s.scenario_name,
+            a.agent_name,
+            CONCAT(
+                FLOOR(r.learning_duration / 3600), '小时',
+                FLOOR((r.learning_duration % 3600) / 60), '分钟',
+                (r.learning_duration % 60), '秒'
+            ) as learning_duration_formatted
+        FROM ai_child_learning_record r
+        LEFT JOIN ai_scenario s ON r.scenario_id = s.scenario_id
+        LEFT JOIN ai_agent a ON r.agent_id = a.id
+        WHERE r.agent_id = #{agentId}
+        AND r.child_name = #{childName}
+        ORDER BY r.created_at DESC
+        LIMIT 1
+    </select>
+
+</mapper>

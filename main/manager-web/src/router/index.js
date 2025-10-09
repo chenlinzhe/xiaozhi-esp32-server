@@ -124,6 +124,62 @@ const routes = [
       return import('../views/ProviderManagement.vue')
     }
   },
+  // 场景配置相关路由
+  {
+    path: '/scenario-config',
+    name: 'ScenarioConfig',
+    component: function () {
+      return import('../views/ScenarioConfig.vue')
+    },
+    meta: {
+      requiresAuth: true,
+      title: '场景配置'
+    }
+  },
+  {
+    path: '/scenario-create',
+    name: 'ScenarioCreate',
+    component: function () {
+      return import('../views/ScenarioCreate.vue')
+    },
+    meta: {
+      requiresAuth: true,
+      title: '创建场景'
+    }
+  },
+  {
+    path: '/scenario-edit/:id',
+    name: 'ScenarioEdit',
+    component: function () {
+      return import('../views/ScenarioEdit.vue')
+    },
+    meta: {
+      requiresAuth: true,
+      title: '编辑场景'
+    }
+  },
+  {
+    path: '/scenario-steps/:id',
+    name: 'ScenarioStepConfig',
+    component: function () {
+      return import('../views/ScenarioStepConfig.vue')
+    },
+    meta: {
+      requiresAuth: true,
+      title: '步骤配置'
+    }
+  },
+  {
+    path: '/learning-record-management',
+    name: 'LearningRecordManagement',
+    component: function () {
+      return import('../views/LearningRecordManagement.vue')
+    },
+    meta: {
+      requiresAuth: true,
+      title: '学习记录管理'
+    }
+  },
 ]
 const router = new VueRouter({
   base: process.env.VUE_APP_PUBLIC_PATH || '/',

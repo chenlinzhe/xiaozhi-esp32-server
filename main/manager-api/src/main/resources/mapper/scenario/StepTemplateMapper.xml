@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.StepTemplateMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.StepTemplateEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="template_id" property="templateId" jdbcType="VARCHAR"/>
+        <result column="template_code" property="templateCode" jdbcType="VARCHAR"/>
+        <result column="template_name" property="templateName" jdbcType="VARCHAR"/>
+        <result column="template_type" property="templateType" jdbcType="VARCHAR"/>
+        <!-- 已删除AI消息字段映射 -->
+        <result column="expected_keywords" property="expectedKeywords" jdbcType="LONGVARCHAR"/>
+        <result column="expected_phrases" property="expectedPhrases" jdbcType="LONGVARCHAR"/>
+        <!-- 已删除替代消息字段映射 -->
+        <result column="description" property="description" jdbcType="LONGVARCHAR"/>
+        <result column="is_default" property="isDefault" jdbcType="TINYINT"/>
+        <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="BIGINT"/>
+        <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, template_id, template_code, template_name, template_type,
+        expected_keywords, expected_phrases, description, 
+        is_default, sort_order, creator, create_date
+    </sql>
+
+    <!-- 根据模板类型获取模板列表 -->
+    <select id="selectByType" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_template
+        WHERE template_type = #{templateType}
+        ORDER BY sort_order ASC, create_date DESC
+    </select>
+
+    <!-- 获取默认模板列表 -->
+    <select id="selectDefaultTemplates" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_template
+        WHERE is_default = 1
+        ORDER BY sort_order ASC, create_date DESC
+    </select>
+
+    <!-- 根据模板类型获取默认模板 -->
+    <select id="selectDefaultByType" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_step_template
+        WHERE template_type = #{templateType}
+        AND is_default = 1
+        ORDER BY sort_order ASC, create_date DESC
+        LIMIT 1
+    </select>
+
+</mapper>

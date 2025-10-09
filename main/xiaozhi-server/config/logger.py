@@ -25,13 +25,13 @@ def get_module_abbreviation(module_name, module_dict):
 def build_module_string(selected_module):
     """构建模块字符串"""
     return (
-        get_module_abbreviation("VAD", selected_module)
-        + get_module_abbreviation("ASR", selected_module)
-        + get_module_abbreviation("LLM", selected_module)
-        + get_module_abbreviation("TTS", selected_module)
-        + get_module_abbreviation("Memory", selected_module)
-        + get_module_abbreviation("Intent", selected_module)
-        + get_module_abbreviation("VLLM", selected_module)
+            get_module_abbreviation("VAD", selected_module)
+            + get_module_abbreviation("ASR", selected_module)
+            + get_module_abbreviation("LLM", selected_module)
+            + get_module_abbreviation("TTS", selected_module)
+            + get_module_abbreviation("Memory", selected_module)
+            + get_module_abbreviation("Intent", selected_module)
+            + get_module_abbreviation("VLLM", selected_module)
     )
 
 
@@ -59,7 +59,7 @@ def setup_logging():
             extra={
                 "selected_module": log_config.get("selected_module", "00000000000000"),
             })
-        
+
         log_format = log_config.get(
             "log_format",
             "<green>{time:YYMMDD HH:mm:ss}</green>[{version}_{extra[selected_module]}][<light-blue>{extra[tag]}</light-blue>]-<level>{level}</level>-<light-green>{message}</light-green>",

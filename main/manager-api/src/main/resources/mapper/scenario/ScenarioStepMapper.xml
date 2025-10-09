@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xiaozhi.modules.scenario.dao.ScenarioStepMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="xiaozhi.modules.scenario.entity.ScenarioStepEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="step_id" property="stepId" jdbcType="VARCHAR"/>
+        <result column="scenario_id" property="scenarioId" jdbcType="VARCHAR"/>
+        <result column="step_code" property="stepCode" jdbcType="VARCHAR"/>
+        <result column="step_name" property="stepName" jdbcType="VARCHAR"/>
+        <result column="step_order" property="stepOrder" jdbcType="INTEGER"/>
+        <result column="step_type" property="stepType" jdbcType="VARCHAR"/>
+        <!-- 已删除AI消息字段映射 -->
+        <result column="expected_keywords" property="expectedKeywords" jdbcType="LONGVARCHAR"/>
+        <result column="expected_phrases" property="expectedPhrases" jdbcType="LONGVARCHAR"/>
+        <result column="max_attempts" property="maxAttempts" jdbcType="INTEGER"/>
+        <result column="timeout_seconds" property="timeoutSeconds" jdbcType="INTEGER"/>
+        <result column="success_condition" property="successCondition" jdbcType="VARCHAR"/>
+        <result column="speech_rate" property="speechRate" jdbcType="DECIMAL"/>
+        <result column="exact_match_step_id" property="exactMatchStepId" jdbcType="VARCHAR"/>
+        <result column="partial_match_step_id" property="partialMatchStepId" jdbcType="VARCHAR"/>
+        <result column="no_match_step_id" property="noMatchStepId" jdbcType="VARCHAR"/>
+        <result column="next_step_id" property="nextStepId" jdbcType="VARCHAR"/>
+        <result column="retry_step_id" property="retryStepId" jdbcType="VARCHAR"/>
+        <!-- 已删除替代消息、夸奖消息、鼓励消息字段映射 -->
+        <result column="correct_response" property="correctResponse" jdbcType="LONGVARCHAR"/>
+        <result column="auto_reply_on_timeout" property="autoReplyOnTimeout" jdbcType="LONGVARCHAR"/>
+        <result column="wait_time_seconds" property="waitTimeSeconds" jdbcType="INTEGER"/>
+        <result column="gesture_hint" property="gestureHint" jdbcType="VARCHAR"/>
+        <result column="music_effect" property="musicEffect" jdbcType="VARCHAR"/>
+        <result column="is_optional" property="isOptional" jdbcType="TINYINT"/>
+        <result column="branch_condition" property="branchCondition" jdbcType="LONGVARCHAR"/>
+        <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
+        <result column="updater" property="updater" jdbcType="BIGINT"/>
+        <result column="update_date" property="updateDate" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 扩展结果映射，包含场景和步骤信息 -->
+    <resultMap id="StepWithInfoMap" type="xiaozhi.modules.scenario.entity.ScenarioStepEntity" extends="BaseResultMap">
+        <result column="scenario_name" property="scenarioName" jdbcType="VARCHAR"/>
+        <result column="next_step_name" property="nextStepName" jdbcType="VARCHAR"/>
+        <result column="retry_step_name" property="retryStepName" jdbcType="VARCHAR"/>
+        <result column="exact_match_step_name" property="exactMatchStepName" jdbcType="VARCHAR"/>
+        <result column="partial_match_step_name" property="partialMatchStepName" jdbcType="VARCHAR"/>
+        <result column="no_match_step_name" property="noMatchStepName" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, step_id, scenario_id, step_code, step_name, step_order, step_type,
+        expected_keywords, expected_phrases, max_attempts, timeout_seconds,
+        success_condition, speech_rate, exact_match_step_id, partial_match_step_id, no_match_step_id,
+        next_step_id, retry_step_id,
+        correct_response, auto_reply_on_timeout,
+        wait_time_seconds, gesture_hint, music_effect, is_optional, branch_condition,
+        create_date, updater, update_date
+    </sql>
+
+    <!-- 根据场景ID获取步骤列表 -->
+    <select id="selectByScenarioId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM ai_scenario_step
+        WHERE scenario_id = #{scenarioId}
+        ORDER BY step_order ASC
+    </select>
+
+    <!-- 根据场景ID获取步骤列表（按顺序排序） -->
+    <select id="selectByScenarioIdOrdered" resultMap="StepWithInfoMap">
+        SELECT 
+            st.id, st.step_id, st.scenario_id, st.step_code, st.step_name, st.step_order,
+            st.step_type, st.expected_keywords, st.expected_phrases,
+            st.max_attempts, st.timeout_seconds, st.success_condition, st.speech_rate,
+            st.exact_match_step_id, st.partial_match_step_id, st.no_match_step_id,
+            st.next_step_id, st.retry_step_id,
+            st.correct_response,
+            st.auto_reply_on_timeout, st.wait_time_seconds,
+            st.gesture_hint, st.music_effect, st.is_optional, st.step_type,
+            st.branch_condition, st.create_date, st.updater, st.update_date,
+            s.scenario_name,
+            next_st.step_name as next_step_name,
+            retry_st.step_name as retry_step_name,
+            exact_st.step_name as exact_match_step_name,
+            partial_st.step_name as partial_match_step_name,
+            no_match_st.step_name as no_match_step_name
+        FROM ai_scenario_step st
+        LEFT JOIN ai_scenario s ON st.scenario_id = s.scenario_id
+        LEFT JOIN ai_scenario_step next_st ON st.next_step_id = next_st.step_id
+        LEFT JOIN ai_scenario_step retry_st ON st.retry_step_id = retry_st.step_id
+        LEFT JOIN ai_scenario_step exact_st ON st.exact_match_step_id = exact_st.step_id
+        LEFT JOIN ai_scenario_step partial_st ON st.partial_match_step_id = partial_st.step_id
+        LEFT JOIN ai_scenario_step no_match_st ON st.no_match_step_id = no_match_st.step_id
+        WHERE st.scenario_id = #{scenarioId}
+        ORDER BY st.step_order ASC
+    </select>
+
+    <!-- 批量删除场景步骤 -->
+    <delete id="deleteByScenarioId">
+        DELETE FROM ai_scenario_step
+        WHERE scenario_id = #{scenarioId}
+    </delete>
+
+    <!-- 获取步骤数量 -->
+    <select id="countByScenarioId" resultType="int">
+        SELECT COUNT(*)
+        FROM ai_scenario_step
+        WHERE scenario_id = #{scenarioId}
+    </select>
+
+</mapper> 

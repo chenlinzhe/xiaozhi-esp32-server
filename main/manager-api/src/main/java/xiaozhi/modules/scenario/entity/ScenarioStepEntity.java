@@ -1,0 +1,181 @@
+package xiaozhi.modules.scenario.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import xiaozhi.common.entity.BaseEntity;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * 对话步骤配置实体类
+ * 
+ * @author xiaozhi
+ * @since 2024-12-01
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@TableName("ai_scenario_step")
+@Schema(description = "对话步骤配置信息")
+public class ScenarioStepEntity extends BaseEntity {
+
+    @Schema(description = "步骤唯一标识")
+    @TableField("step_id")
+    private String stepId;
+
+    @Schema(description = "关联的场景ID")
+    @TableField("scenario_id")
+    private String scenarioId;
+
+    @Schema(description = "步骤编码")
+    @TableField("step_code")
+    private String stepCode;
+
+    @Schema(description = "步骤名称")
+    @TableField("step_name")
+    private String stepName;
+
+    @Schema(description = "步骤顺序")
+    @TableField("step_order")
+    private Integer stepOrder;
+
+    // 已删除AI消息字段，不再使用固定配置的语句
+
+    @Schema(description = "是否使用消息列表：0-使用单个消息 1-使用消息列表")
+    @TableField("use_message_list")
+    private Integer useMessageList;
+
+    @Schema(description = "消息列表配置，JSON格式")
+    @TableField("message_list_config")
+    private String messageListConfig;
+
+    @Schema(description = "期望的关键词，JSON格式")
+    @TableField("expected_keywords")
+    private String expectedKeywords;
+
+    @Schema(description = "期望的完整短语，JSON格式")
+    @TableField("expected_phrases")
+    private String expectedPhrases;
+
+    @Schema(description = "最大尝试次数")
+    @TableField("max_attempts")
+    private Integer maxAttempts;
+
+    @Schema(description = "等待超时时间(秒)")
+    @TableField("timeout_seconds")
+    private Integer timeoutSeconds;
+
+    @Schema(description = "成功条件：exact/partial/none")
+    @TableField("success_condition")
+    private String successCondition;
+
+    @Schema(description = "语速配置：0.5-2.0倍速，1.0为正常语速")
+    @TableField("speech_rate")
+    private BigDecimal speechRate;
+
+    @Schema(description = "完全匹配时的下一步ID")
+    @TableField("exact_match_step_id")
+    private String exactMatchStepId;
+
+    @Schema(description = "部分匹配时的下一步ID")
+    @TableField("partial_match_step_id")
+    private String partialMatchStepId;
+
+    @Schema(description = "完全不匹配时的下一步ID")
+    @TableField("no_match_step_id")
+    private String noMatchStepId;
+
+    @Schema(description = "成功后的下一步ID（兼容旧版本）")
+    @TableField("next_step_id")
+    private String nextStepId;
+
+    @Schema(description = "失败后的重试步骤ID")
+    @TableField("retry_step_id")
+    private String retryStepId;
+
+    // 已删除替代消息字段，不再使用替代提示
+
+    @Schema(description = "正确答案，用于教学模式判断")
+    @TableField("correct_response")
+    private String correctResponse;
+
+    // 已删除夸奖和鼓励消息字段，不再使用固定消息
+
+    @Schema(description = "超时时的自动回复内容")
+    @TableField("auto_reply_on_timeout")
+    private String autoReplyOnTimeout;
+
+    @Schema(description = "等待用户回复的时间（秒）")
+    @TableField("wait_time_seconds")
+    private Integer waitTimeSeconds;
+
+    @Schema(description = "手势提示：point_mouth/point_stomach等")
+    @TableField("gesture_hint")
+    private String gestureHint;
+
+    @Schema(description = "音效文件名")
+    @TableField("music_effect")
+    private String musicEffect;
+
+    @Schema(description = "是否可选步骤：0-必需 1-可选")
+    @TableField("is_optional")
+    private Integer isOptional;
+
+    @Schema(description = "步骤类型：normal/start/end/branch")
+    @TableField("step_type")
+    private String stepType;
+
+    @Schema(description = "分支条件，JSON格式")
+    @TableField("branch_condition")
+    private String branchCondition;
+
+    // 继承自BaseEntity的字段：id, creator, createDate
+    // 需要单独定义的字段：
+    @Schema(description = "更新者ID")
+    @TableField("updater")
+    private Long updater;
+
+    @Schema(description = "更新时间")
+    @TableField("update_date")
+    private Date updateDate;
+
+    // 扩展字段，用于前端显示
+    @Schema(description = "场景名称")
+    @TableField(exist = false)
+    private String scenarioName;
+
+    @Schema(description = "下一步骤名称")
+    @TableField(exist = false)
+    private String nextStepName;
+
+    @Schema(description = "重试步骤名称")
+    @TableField(exist = false)
+    private String retryStepName;
+
+    @Schema(description = "完全匹配步骤名称")
+    @TableField(exist = false)
+    private String exactMatchStepName;
+
+    @Schema(description = "部分匹配步骤名称")
+    @TableField(exist = false)
+    private String partialMatchStepName;
+
+    @Schema(description = "完全不匹配步骤名称")
+    @TableField(exist = false)
+    private String noMatchStepName;
+
+    // 消息列表相关扩展字段
+    @Schema(description = "步骤的消息列表")
+    @TableField(exist = false)
+    private List<StepMessageEntity> stepMessages;
+
+    @Schema(description = "是否显示消息列表编辑器")
+    @TableField(exist = false)
+    private Boolean showMessageListEditor;
+} 

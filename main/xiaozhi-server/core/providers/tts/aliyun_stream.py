@@ -292,7 +292,7 @@ class TTSProvider(TTSProviderBase):
                     f"处理TTS文本失败: {str(e)}, 类型: {type(e).__name__}, 堆栈: {traceback.format_exc()}"
                 )
 
-    async def text_to_speak(self, text, _):
+    async def text_to_speak(self, text, _, speech_rate=None):
         try:
             if self.ws is None:
                 logger.bind(tag=TAG).warning(f"WebSocket连接不存在，终止发送文本")
@@ -512,7 +512,7 @@ class TTSProvider(TTSProviderBase):
         finally:
             self._monitor_task = None
 
-    def to_tts(self, text: str) -> list:
+    def to_tts(self, text: str, speech_rate=None) -> list:
         """非流式TTS处理，用于测试及保存音频文件的场景"""
         try:
             # 创建新的事件循环
@@ -553,7 +553,7 @@ class TTSProvider(TTSProviderBase):
                             "format": self.format,
                             "sample_rate": self.sample_rate,
                             "volume": self.volume,
-                            "speech_rate": self.speech_rate,
+                            "speech_rate": speech_rate if speech_rate is not None else self.speech_rate,
                             "pitch_rate": self.pitch_rate,
                             "enable_subtitle": True,
                         },

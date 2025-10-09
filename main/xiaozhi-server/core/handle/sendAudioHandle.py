@@ -9,7 +9,7 @@ TAG = __name__
 
 async def sendAudioMessage(conn, sentenceType, audios, text):
     # 发送句子开始消息
-    conn.logger.bind(tag=TAG).info(f"发送音频消息: {sentenceType}, {text}")
+    # conn.logger.bind(tag=TAG).info(f"发送音频消息: {sentenceType}, {text}")
 
     pre_buffer = False
     if conn.tts.tts_audio_first_sentence:
@@ -19,6 +19,11 @@ async def sendAudioMessage(conn, sentenceType, audios, text):
 
     await send_tts_message(conn, "sentence_start", text)
 
+    # 🔥 关键修复：在音频开始播放时设置播放状态
+    if sentenceType == SentenceType.MIDDLE and audios:
+        conn.client_is_speaking = True
+        # conn.logger.bind(tag=TAG).info("🎤 音频开始播放，设置播放状态为True")
+
     await sendAudio(conn, audios, pre_buffer)
 
     # 发送结束消息（如果是最后一个文本）
@@ -27,6 +32,11 @@ async def sendAudioMessage(conn, sentenceType, audios, text):
         conn.client_is_speaking = False
         if conn.close_after_chat:
             await conn.close()
+    elif sentenceType == SentenceType.LAST:
+        # 🔥 关键修复：对于消息列表中的独立消息，也要正确设置播放状态
+        await send_tts_message(conn, "stop", None)
+        conn.client_is_speaking = False
+        conn.logger.bind(tag=TAG).info("✅ 独立消息播放完成，清除播放状态")
 
 
 # 播放音频

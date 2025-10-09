@@ -1,0 +1,218 @@
+# 聊天模式管理系统 - 测试配置
+# 测试系统配置文件
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 8000
+  websocket_url: "ws://127.0.0.1:8000/xiaozhi/v1/"
+  health_check_url: "http://127.0.0.1:8000/health"
+  timeout: 30  # 秒
+
+# Redis配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: null
+  db: 0
+  timeout: 5  # 秒
+
+# 测试配置
+test:
+  # 设备配置
+  device:
+    id: "test_device_001"
+    name: "Test Device"
+    mac: "AA:BB:CC:DD:EE:FF"
+    client_id: "test_client"
+    token: "test-token"
+  
+  # 测试用例配置
+  cases:
+    # 基础测试
+    basic:
+      enabled: true
+      timeout: 10  # 秒
+      retry_count: 3
+    
+    # 模式切换测试
+    mode_switch:
+      enabled: true
+      timeout: 15  # 秒
+      retry_count: 2
+    
+    # 超时测试
+    timeout:
+      enabled: true
+      timeout: 20  # 秒
+      retry_count: 2
+    
+    # 压力测试
+    stress:
+      enabled: false
+      concurrent_users: 10
+      duration: 60  # 秒
+      message_interval: 1  # 秒
+  
+  # 测试数据
+  data:
+    # 模式切换命令
+    mode_commands:
+      teaching: "切换到教学模式"
+      free: "切换到自由模式"
+    
+    # 测试消息
+    test_messages:
+      - "你好"
+      - "今天天气怎么样"
+      - "我想学习"
+      - "谢谢"
+    
+    # 超时测试配置
+    timeout_config:
+      wait_time: 5  # 秒
+      check_interval: 1  # 秒
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "test.log"
+  max_size: "10MB"
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# 报告配置
+report:
+  # 测试报告输出
+  output:
+    format: "html"  # html, json, xml
+    directory: "reports"
+    filename: "test_report_{timestamp}"
+  
+  # 邮件通知
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    username: ""
+    password: ""
+    recipients: []
+  
+  # 钉钉/企业微信通知
+  webhook:
+    enabled: false
+    url: ""
+    secret: ""
+
+# 性能监控
+performance:
+  enabled: true
+  metrics:
+    - "response_time"
+    - "throughput"
+    - "error_rate"
+    - "memory_usage"
+    - "cpu_usage"
+  
+  # 性能阈值
+  thresholds:
+    response_time: 1000  # 毫秒
+    error_rate: 0.05     # 5%
+    memory_usage: 80     # 百分比
+    cpu_usage: 80        # 百分比
+
+# 环境配置
+environment:
+  # 测试环境
+  test_env: "local"  # local, dev, staging, prod
+  
+  # 数据库配置
+  database:
+    host: "localhost"
+    port: 3306
+    name: "xiaozhi_test"
+    username: "test_user"
+    password: "test_password"
+  
+  # 外部服务配置
+  external_services:
+    # 语音识别服务
+    asr:
+      enabled: true
+      provider: "aliyun"
+      config:
+        app_key: ""
+        access_key: ""
+        secret_key: ""
+    
+    # 语音合成服务
+    tts:
+      enabled: true
+      provider: "aliyun"
+      config:
+        app_key: ""
+        access_key: ""
+        secret_key: ""
+    
+    # 大语言模型服务
+    llm:
+      enabled: true
+      provider: "openai"
+      config:
+        api_key: ""
+        model: "gpt-3.5-turbo"
+        temperature: 0.7
+
+# 安全配置
+security:
+  # 认证配置
+  auth:
+    enabled: false
+    type: "token"  # token, oauth, basic
+    token: ""
+  
+  # 加密配置
+  encryption:
+    enabled: false
+    algorithm: "AES"
+    key: ""
+  
+  # 访问控制
+  access_control:
+    enabled: false
+    allowed_ips: []
+    allowed_domains: []
+
+# 备份配置
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  retention_days: 7
+  storage:
+    type: "local"  # local, s3, oss
+    path: "backups"
+
+# 通知配置
+notifications:
+  # 测试失败通知
+  on_failure:
+    enabled: true
+    channels: ["console", "log"]
+  
+  # 测试完成通知
+  on_completion:
+    enabled: true
+    channels: ["console", "log"]
+  
+  # 性能告警通知
+  on_performance_alert:
+    enabled: false
+    channels: ["email", "webhook"]
+
+# 调试配置
+debug:
+  enabled: false
+  verbose: false
+  save_screenshots: false
+  save_logs: true
+  mock_external_services: false

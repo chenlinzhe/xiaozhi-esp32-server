@@ -15,13 +15,27 @@ async def handleAudioMessage(conn, audio):
     # 当前片段是否有人说话
     have_voice = conn.vad.is_vad(conn, audio)
     # 如果设备刚刚被唤醒，短暂忽略VAD检测
+    # 但是教学模式中需要保持语音监听，所以检查是否在教学模式中
     if have_voice and hasattr(conn, "just_woken_up") and conn.just_woken_up:
-        have_voice = False
-        # 设置一个短暂延迟后恢复VAD检测
-        conn.asr_audio.clear()
-        if not hasattr(conn, "vad_resume_task") or conn.vad_resume_task.done():
-            conn.vad_resume_task = asyncio.create_task(resume_vad_detection(conn))
-        return
+        # 检查是否在教学模式中，如果是教学模式，不忽略VAD检测
+        is_teaching_mode = False
+        try:
+            # 检查Redis中的聊天状态
+            if hasattr(conn, 'device_id') and conn.device_id:
+                from core.utils.redis_client import redis_client
+                user_id = conn.device_id
+                current_status = redis_client.get_user_chat_status(user_id)
+                is_teaching_mode = (current_status == "teaching_mode")
+        except Exception as e:
+            conn.logger.bind(tag=TAG).debug(f"检查教学模式状态失败: {e}")
+        
+        if not is_teaching_mode:
+            have_voice = False
+            # 设置一个短暂延迟后恢复VAD检测
+            conn.asr_audio.clear()
+            if not hasattr(conn, "vad_resume_task") or conn.vad_resume_task.done():
+                conn.vad_resume_task = asyncio.create_task(resume_vad_detection(conn))
+            return
 
     if have_voice:
         if conn.client_is_speaking:
@@ -64,9 +78,15 @@ async def startToChat(conn, text):
     else:
         conn.current_speaker = None
 
+    # 检查是否需要绑定设备
     if conn.need_bind:
-        await check_bind_device(conn)
-        return
+        # 如果设备已经激活，清除绑定标志
+        if not conn.bind_code:
+            conn.need_bind = False
+            conn.logger.bind(tag=TAG).info("设备已激活，清除绑定标志")
+        else:
+            await check_bind_device(conn)
+            return
 
     # 如果当日的输出字数大于限定的字数
     if conn.max_output_size > 0:
