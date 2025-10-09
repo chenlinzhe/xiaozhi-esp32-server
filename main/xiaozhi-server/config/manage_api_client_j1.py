@@ -1,8 +1,8 @@
 import os
 import time
 import base64
-
 from typing import Optional, Dict, List
+
 import httpx
 
 TAG = __name__
@@ -47,8 +47,8 @@ class ManageApiClient:
         cls._secret = cls.config.get("secret")
         cls.max_retries = cls.config.get("max_retries", 6)  # 最大重试次数
         cls.retry_delay = cls.config.get("retry_delay", 10)  # 初始重试延迟(秒)
-        # NOTE(goody): 2025/4/16 http相关资源统一管理，后续可以增加线程池或者超时
-        # 后续也可以统一配置apiToken之类的走通用的Auth
+
+        # 创建基础客户端（用于服务器密钥认证的API）
         cls._client = httpx.Client(
             base_url=cls.config.get("url"),
             headers={
@@ -59,25 +59,50 @@ class ManageApiClient:
             timeout=cls.config.get("timeout", 30),  # 默认超时时间30秒
         )
 
+
+
     @classmethod
     def _request(cls, method: str, endpoint: str, **kwargs) -> Dict:
         """发送单次HTTP请求并处理响应"""
+        print(f"=== _request 调试 ===")
+        # 打印请求头
+        print(f"请求头: {dict(cls._client.headers)}")
+        print(f"请求方法: {method}")
+        print(f"请求端点: {endpoint}")
+        print(f"请求参数: {kwargs}")
+
         endpoint = endpoint.lstrip("/")
-        response = cls._client.request(method, endpoint, **kwargs)
-        response.raise_for_status()
+        print(f"处理后的端点: {endpoint}")
 
-        result = response.json()
+        try:
+            response = cls._client.request(method, endpoint, **kwargs)
+            print(f"响应状态码: {response.status_code}")
+            print(f"响应头: {dict(response.headers)}")
 
-        # 处理API返回的业务错误
-        if result.get("code") == 10041:
-            raise DeviceNotFoundException(result.get("msg"))
-        elif result.get("code") == 10042:
-            raise DeviceBindException(result.get("msg"))
-        elif result.get("code") != 0:
-            raise Exception(f"API返回错误: {result.get('msg', '未知错误')}")
+            response.raise_for_status()
 
-        # 返回成功数据
-        return result.get("data") if result.get("code") == 0 else None
+            result = response.json()
+            print(f"响应JSON: {result}")
+
+            # 处理API返回的业务错误
+            if result.get("code") == 10041:
+                print(f"设备未找到错误: {result.get('msg')}")
+                raise DeviceNotFoundException(result.get("msg"))
+            elif result.get("code") == 10042:
+                print(f"设备绑定错误: {result.get('msg')}")
+                raise DeviceBindException(result.get("msg"))
+            elif result.get("code") != 0:
+                print(f"API业务错误: {result.get('msg', '未知错误')}")
+                raise Exception(f"API返回错误: {result.get('msg', '未知错误')}")
+
+            # 返回成功数据
+            data = result.get("data") if result.get("code") == 0 else None
+            print(f"返回数据: {data}")
+            return data
+
+        except Exception as e:
+            print(f"_request 异常: {e}")
+            raise
 
     @classmethod
     def _should_retry(cls, exception: Exception) -> bool:
@@ -116,6 +141,8 @@ class ManageApiClient:
                 else:
                     # 不重试，直接抛出异常
                     raise
+
+
 
     @classmethod
     def safe_close(cls):
@@ -187,14 +214,6 @@ def report(
 
 def init_service(config):
     ManageApiClient(config)
-
-
-def manage_api_http_safe_close():
-    ManageApiClient.safe_close()
-
-
-
-
 
 
 # 场景相关API方法
@@ -620,70 +639,6 @@ def delete_learning_record(record_id: str) -> Optional[Dict]:
     except Exception as e:
         print(f"删除学习记录失败: {e}")
         return None
-
-
-# 步骤消息列表相关API
-def get_step_messages(step_id: str) -> Optional[List[Dict]]:
-    """获取步骤消息列表"""
-    try:
-        _ensure_client_initialized()
-        result = ManageApiClient._instance._execute_request(
-            "GET",
-            f"/step-message/list/{step_id}"
-        )
-        if result:
-            messages = result if isinstance(result, list) else result.get("data", [])
-            if isinstance(messages, list):
-                # 按messageOrder字段排序
-                messages.sort(key=lambda x: x.get('messageOrder', 0))
-            return messages
-        return None
-    except Exception as e:
-        print(f"获取步骤消息列表失败: {e}")
-        return None
-
-
-def batch_save_step_messages(step_id: str, messages: List[Dict]) -> Optional[Dict]:
-    """批量保存步骤消息"""
-    try:
-        _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request(
-            "POST",
-            f"/step-message/batch-save/{step_id}",
-            json=messages
-        )
-    except Exception as e:
-        print(f"批量保存步骤消息失败: {e}")
-        return None
-
-
-def delete_step_messages(step_id: str) -> Optional[Dict]:
-    """删除步骤的所有消息"""
-    try:
-        _ensure_client_initialized()
-        return ManageApiClient._instance._execute_request(
-            "DELETE",
-            f"/step-message/step/{step_id}"
-        )
-    except Exception as e:
-        print(f"删除步骤消息失败: {e}")
-        return None
-
-
-def count_step_messages(step_id: str) -> Optional[int]:
-    """获取步骤消息数量"""
-    try:
-        _ensure_client_initialized()
-        result = ManageApiClient._instance._execute_request(
-            "GET",
-            f"/step-message/count/{step_id}"
-        )
-        if result:
-            return result.get("data", 0) if isinstance(result, dict) else result
-        return 0
-    except Exception as e:
-        print(f"获取步骤消息数量失败: {e}")
-        return 0
 
 
 def get_learning_records_by_agent(agent_id: str) -> Optional[List[Dict]]:

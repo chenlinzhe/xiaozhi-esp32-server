@@ -10,10 +10,10 @@ logger = setup_logging()
 
 def create_instance(class_name, *args, **kwargs):
     # 创建TTS实例
-    logger.bind(tag=TAG).info(f"尝试创建TTS实例: {class_name}")
+    # logger.bind(tag=TAG).info(f"尝试创建TTS实例: {class_name}")
     
     tts_file_path = os.path.join('core', 'providers', 'tts', f'{class_name}.py')
-    logger.bind(tag=TAG).info(f"TTS文件路径: {tts_file_path}")
+    # logger.bind(tag=TAG).info(f"TTS文件路径: {tts_file_path}")
     
     if os.path.exists(tts_file_path):
         lib_name = f'core.providers.tts.{class_name}'
@@ -24,7 +24,7 @@ def create_instance(class_name, *args, **kwargs):
                 logger.bind(tag=TAG).info(f"导入TTS模块: {lib_name}")
                 sys.modules[lib_name] = importlib.import_module(f'{lib_name}')
             
-            logger.bind(tag=TAG).info(f"创建TTS实例: {lib_name}.TTSProvider")
+            # logger.bind(tag=TAG).info(f"创建TTS实例: {lib_name}.TTSProvider")
             return sys.modules[lib_name].TTSProvider(*args, **kwargs)
         except Exception as e:
             logger.bind(tag=TAG).error(f"TTS模块导入或实例化失败: {str(e)}")
