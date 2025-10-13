@@ -81,7 +81,8 @@ async def send_tts_message(conn, state, text=None):
     """发送 TTS 状态消息"""
     message = {"type": "tts", "state": state, "session_id": conn.session_id}
     if text is not None:
-        message["text"] = textUtils.check_emoji(text)
+        # message["text"] = textUtils.check_emoji(text)  # 注释掉，因为 check_emoji 函数不存在
+        message["text"] = text
 
     # TTS播放结束
     if state == "stop":

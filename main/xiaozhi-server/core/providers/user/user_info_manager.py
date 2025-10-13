@@ -161,3 +161,12 @@ class UserInfoManager:
         
         return context
 
+
+def extract_name(text):
+    """匹配‘我叫XX’‘我是XX’‘我的名字是XX’中的姓名"""
+    import re
+    m = re.search(r"(?:我叫|我是|我的名字是)([^\s，。,.！!？?\"]+)", text)
+    if m:
+        return m.group(1)
+    return None
+

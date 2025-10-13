@@ -170,6 +170,7 @@ class ConnectionHandler:
         self.child_name = "小朋友"
 
     async def handle_connection(self, ws):
+        self._closed = False  # 初始化关闭标志
         try:
             # 获取并验证headers
             self.headers = dict(ws.request.headers)
@@ -529,6 +530,13 @@ class ConnectionHandler:
     async def _send_welcome_voice(self):
         """发送欢迎语音，询问用户名字"""
         try:
+            # 如果是刚被唤醒，等待6秒让唤醒词播放完成
+            # if hasattr(self, 'just_woken_up') and self.just_woken_up:
+            #     self.logger.bind(tag=TAG).info("检测到唤醒状态，等待唤醒词播放完成(6秒)...")
+            #     await asyncio.sleep(6)  # 固定等待6秒
+            #     self.just_woken_up = False
+            #     self.logger.bind(tag=TAG).info("唤醒词播放完成，继续欢迎流程")
+
             # 等待TTS初始化完成
             self.logger.bind(tag=TAG).info("等待TTS初始化完成...")
             max_wait_time = 15  # 最多等待15秒
@@ -560,7 +568,7 @@ class ConnectionHandler:
                 
                 if not has_name:
                     # 用户没有姓名，询问姓名
-                    welcome_message = "你好！我是小智，很高兴认识你！请问你叫什么名字呢？"
+                    welcome_message = "请问你叫什么名字呢？"
                     self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 没有姓名，发送欢迎语音询问姓名")
                     
                     # 尝试记录交互（如果API不可用则忽略）
@@ -855,10 +863,17 @@ class ConnectionHandler:
         return self.teaching_handler.handle_chat_mode(query)
 
 
-
-
-
     def chat(self, query, tool_call=False, depth=0):
+
+        from core.providers.user.user_info_manager import extract_name, UserInfoManager
+        name = extract_name(query)
+        if name:
+            user_manager = UserInfoManager(self.config)
+            if user_manager.update_user_name(self.device_id, name):
+                self.logger.bind(tag="UPDATE_NAME").info(f"自动保存了用户的新名字: {name}")
+
+
+
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         # 打印当前 LLM 实例类型和 LLM 配置
         self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")
@@ -1151,6 +1166,9 @@ class ConnectionHandler:
 
     async def close(self, ws=None):
         """资源清理方法"""
+        if hasattr(self, '_closed') and self._closed:
+            return  # 如果已经关闭，直接返回
+            
         try:
             # 取消超时任务
             if self.timeout_task and not self.timeout_task.done():
@@ -1256,6 +1274,7 @@ class ConnectionHandler:
                 self.executor = None
 
             self.logger.bind(tag=TAG).info("连接资源已释放")
+            self._closed = True  # 标记为已关闭
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"关闭连接时出错: {e}")
         finally:

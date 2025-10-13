@@ -78,24 +78,30 @@ async def checkWakeupWords(conn, text):
             "voice": "default",
             "file_path": "config/assets/wakeup_words.wav",
             "time": 0,
-            "text": "哈啰啊，我是小智啦，声音好听的台湾女孩一枚，超开心认识你耶，最近在忙啥，别忘了给我来点有趣的料哦，我超爱听八卦的啦",
+            "text": "你好啊，我是晚晚老师",
         }
 
     # 播放唤醒词回复
-    conn.client_abort = False
-    opus_packets, _ = audio_to_data(response.get("file_path"))
+    # conn.client_abort = False
+    # opus_packets, _ = audio_to_data(response.get("file_path"))
 
-    conn.logger.bind(tag=TAG).info(f"播放唤醒词回复: {response.get('text')}")
-    await sendAudioMessage(conn, SentenceType.FIRST, opus_packets, response.get("text"))
-    await sendAudioMessage(conn, SentenceType.LAST, [], None)
+    # conn.logger.bind(tag=TAG).info(f"播放唤醒词回复: {response.get('text')}")
+    # # 设置正在播放状态
+    # conn.client_is_speaking = True
+    # await sendAudioMessage(conn, SentenceType.FIRST, opus_packets, response.get("text"))
+    # await sendAudioMessage(conn, SentenceType.LAST, [], None)
+    # # 等待播放完成
+    # while conn.client_is_speaking:
+    #     await asyncio.sleep(0.1)
+    # conn.logger.bind(tag=TAG).info("唤醒词播放完成")
 
     # 补充对话
-    conn.dialogue.put(Message(role="assistant", content=response.get("text")))
+    # conn.dialogue.put(Message(role="assistant", content=response.get("text")))
 
     # 检查是否需要更新唤醒词回复
-    if time.time() - response.get("time", 0) > WAKEUP_CONFIG["refresh_time"]:
-        if not _wakeup_response_lock.locked():
-            asyncio.create_task(wakeupWordsResponse(conn))
+    # if time.time() - response.get("time", 0) > WAKEUP_CONFIG["refresh_time"]:
+    #     if not _wakeup_response_lock.locked():
+    #         asyncio.create_task(wakeupWordsResponse(conn))
     return True
 
 
@@ -113,8 +119,8 @@ async def wakeupWordsResponse(conn):
         question = (
             "此刻用户正在和你说```"
             + wakeup_word
-            + "```。\n请你根据以上用户的内容进行20-30字回复。要符合系统设置的角色情感和态度，不要像机器人一样说话。\n"
-            + "请勿对这条内容本身进行任何解释和回应，请勿返回表情符号，仅返回对用户的内容的回复。"
+            + "```。\n请你根据以上用户的内容进行10-20字回复，自称晚晚老师，表达很高兴再次见到你，且不要称呼对方。\n"
+            + "请勿返回表情符号"
         )
 
         result = conn.llm.response_no_stream(conn.config["prompt"], question)
