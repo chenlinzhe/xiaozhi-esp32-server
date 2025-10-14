@@ -192,11 +192,6 @@ def init_service(config):
 def manage_api_http_safe_close():
     ManageApiClient.safe_close()
 
-
-
-
-
-
 # 场景相关API方法
 def _ensure_client_initialized():
     """确保客户端已初始化"""
@@ -228,7 +223,7 @@ def get_scenario_list(agent_id: str = None, page: int = 1, limit: int = 100, is_
             "/scenario/list",
             params=params
         )
-        print(f"响应数据: {response}")
+        # print(f"响应数据: {response}")
 
         if response is None:
             print(f"API请求失败或返回None")
@@ -263,11 +258,11 @@ def get_scenario_by_id(scenario_id: str) -> Optional[Dict]:
             print("API返回None，场景不存在或认证失败")
             return None
 
-        print(f"场景数据详情:")
-        print(f"  - 场景ID: {result.get('id', 'N/A')}")
-        print(f"  - 场景名称: {result.get('scenarioName', 'N/A')}")
-        print(f"  - 是否活跃: {result.get('isActive', 'N/A')}")
-        print(f"  - 代理ID: {result.get('agentId', 'N/A')}")
+        # print(f"场景数据详情:")
+        # print(f"  - 场景ID: {result.get('id', 'N/A')}")
+        # print(f"  - 场景名称: {result.get('scenarioName', 'N/A')}")
+        # print(f"  - 是否活跃: {result.get('isActive', 'N/A')}")
+        # print(f"  - 代理ID: {result.get('agentId', 'N/A')}")
         return result
     except Exception as e:
         print(f"获取场景失败: {e}")

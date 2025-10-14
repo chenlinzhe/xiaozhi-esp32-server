@@ -546,7 +546,7 @@ class ChatStatusManager:
                 "steps": steps,
                 "child_name": child_name
             }
-            self.logger.info(f"构建完整会话数据: {full_session}")
+            # self.logger.info(f"构建完整会话数据: {full_session}")
             
             current_step = steps[current_step_index]
             self.logger.info(f"当前步骤详情: {current_step}")
@@ -554,7 +554,7 @@ class ChatStatusManager:
             # 智能评估用户回复
             self.logger.info(f"=== 开始智能评估 ===")
             self.logger.info(f"评估输入: user_text={user_text}")
-            self.logger.info(f"评估会话: {full_session}")
+            # self.logger.info(f"评估会话: {full_session}")
             
             evaluation = self._evaluate_response_with_config(current_step, user_text, session_data)
             score = evaluation["score"]

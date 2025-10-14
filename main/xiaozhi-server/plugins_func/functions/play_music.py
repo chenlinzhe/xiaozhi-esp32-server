@@ -24,7 +24,7 @@ play_music_function_desc = {
             "properties": {
                 "song_name": {
                     "type": "string",
-                    "description": "歌曲名称，如果用户没有指定具体歌名则为'random', 明确指定的时返回音乐的名字 示例: ```用户:播放两只老虎\n参数：两只老虎``` ```用户:播放音乐 \n参数：random ```",
+                    "description": "歌曲名称，如果用户没有指定具体歌名则为'random', 明确指定的时返回音乐的名字",
                 }
             },
             "required": ["song_name"],

@@ -183,7 +183,7 @@ class TTSProvider(TTSProviderBase):
         # 新的转换公式：将0.2-3.0倍速映射到-50到100
         # 0.2倍速 → -50, 1.0倍速 → 0, 3.0倍速 → 100
         # 使用线性映射：(teaching_speech_rate - 0.2) / (3.0 - 0.2) * (100 - (-50)) + (-50)
-        huoshan_speech_rate = int((teaching_speech_rate - 0.2) / 2.8 * 150 - 50)
+        huoshan_speech_rate = int((teaching_speech_rate - 0.2) / 2.8 * 150 - 50+7)
         
         # 确保在火山引擎TTS的有效范围内
         huoshan_speech_rate = max(-50, min(100, huoshan_speech_rate))
@@ -205,28 +205,15 @@ class TTSProvider(TTSProviderBase):
             self.ws = None
             raise
 
+
+
+
     async def _ensure_connection(self):
         """建立新的WebSocket连接"""
         try:
-            # 🔥 关键修复：检查现有连接状态
             if self.ws:
-                try:
-                    # 检查连接是否仍然有效 - 兼容不同的WebSocket对象类型
-                    if hasattr(self.ws, 'closed') and self.ws.closed:
-                        logger.bind(tag=TAG).warning(f"现有连接已关闭，需要重新建立")
-                        self.ws = None
-                    elif hasattr(self.ws, 'close_code') and self.ws.close_code is not None:
-                        logger.bind(tag=TAG).warning(f"现有连接已关闭，关闭代码: {self.ws.close_code}")
-                        self.ws = None
-                    else:
-                        # 尝试ping测试
-                        await self.ws.ping()
-                        logger.bind(tag=TAG).info(f"使用已有有效连接...")
-                        return self.ws
-                except (websockets.ConnectionClosed, websockets.InvalidState, Exception) as e:
-                    logger.bind(tag=TAG).warning(f"现有连接无效，需要重新建立: {str(e)}")
-                    self.ws = None
-            
+                logger.bind(tag=TAG).info(f"使用已有链接...")
+                return self.ws
             logger.bind(tag=TAG).info("开始建立新连接...")
             ws_header = {
                 "X-Api-App-Key": self.appId,
@@ -235,12 +222,7 @@ class TTSProvider(TTSProviderBase):
                 "X-Api-Connect-Id": uuid.uuid4(),
             }
             self.ws = await websockets.connect(
-                self.ws_url, 
-                additional_headers=ws_header, 
-                max_size=1000000000,
-                ping_interval=20,  # 添加ping间隔
-                ping_timeout=10,   # 添加ping超时
-                close_timeout=10   # 添加关闭超时
+                self.ws_url, additional_headers=ws_header, max_size=1000000000
             )
             logger.bind(tag=TAG).info("WebSocket连接建立成功")
             return self.ws
@@ -248,6 +230,52 @@ class TTSProvider(TTSProviderBase):
             logger.bind(tag=TAG).error(f"建立连接失败: {str(e)}")
             self.ws = None
             raise
+
+
+
+    # async def _ensure_connection(self):
+    #     """建立新的WebSocket连接"""
+    #     try:
+    #         # 🔥 关键修复：检查现有连接状态
+    #         if self.ws:
+    #             try:
+    #                 # 检查连接是否仍然有效 - 兼容不同的WebSocket对象类型
+    #                 if hasattr(self.ws, 'closed') and self.ws.closed:
+    #                     logger.bind(tag=TAG).warning(f"现有连接已关闭，需要重新建立")
+    #                     self.ws = None
+    #                 elif hasattr(self.ws, 'close_code') and self.ws.close_code is not None:
+    #                     logger.bind(tag=TAG).warning(f"现有连接已关闭，关闭代码: {self.ws.close_code}")
+    #                     self.ws = None
+    #                 else:
+    #                     # 尝试ping测试
+    #                     await self.ws.ping()
+    #                     logger.bind(tag=TAG).info(f"使用已有有效连接...")
+    #                     return self.ws
+    #             except (websockets.ConnectionClosed, websockets.InvalidState, Exception) as e:
+    #                 logger.bind(tag=TAG).warning(f"现有连接无效，需要重新建立: {str(e)}")
+    #                 self.ws = None
+            
+    #         logger.bind(tag=TAG).info("开始建立新连接...")
+    #         ws_header = {
+    #             "X-Api-App-Key": self.appId,
+    #             "X-Api-Access-Key": self.access_token,
+    #             "X-Api-Resource-Id": self.resource_id,
+    #             "X-Api-Connect-Id": uuid.uuid4(),
+    #         }
+    #         self.ws = await websockets.connect(
+    #             self.ws_url, 
+    #             additional_headers=ws_header, 
+    #             max_size=1000000000,
+    #             ping_interval=20,  # 添加ping间隔
+    #             ping_timeout=10,   # 添加ping超时
+    #             close_timeout=10   # 添加关闭超时
+    #         )
+    #         logger.bind(tag=TAG).info("WebSocket连接建立成功")
+    #         return self.ws
+    #     except Exception as e:
+    #         logger.bind(tag=TAG).error(f"建立连接失败: {str(e)}")
+    #         self.ws = None
+    #         raise
 
     def tts_text_priority_thread(self):
         """火山引擎双流式TTS的文本处理线程"""
@@ -602,7 +630,8 @@ class TTSProvider(TTSProviderBase):
                             # 后续句子缓存
                             opus_datas_cache.extend(opus_datas)
                     elif res.optional.event == EVENT_TTSSentenceEnd:
-                        logger.bind(tag=TAG).info(f"句子语音生成成功：{self.tts_text}")
+                        # logger.bind(tag=TAG).info(f"句子语音生成成功：{self.tts_text}")
+                        print(f"句子语音生成成功-----：{self.tts_text}")
                         if not is_first_sentence or first_sentence_segment_count > 10:
                             # 发送缓存的数据
                             self.tts_audio_queue.put(

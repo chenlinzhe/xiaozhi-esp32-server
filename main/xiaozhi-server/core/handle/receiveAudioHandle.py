@@ -133,7 +133,7 @@ async def no_voice_close_connect(conn, have_voice):
                 return
             prompt = end_prompt.get("prompt")
             if not prompt:
-                prompt = "请你以```时间过得真快```未来头，用富有感情、依依不舍的话来结束这场对话吧。！"
+                prompt = "请你以```时间过得真快```未来头，用富有感情、依依不舍的话来结束这场对话吧！字数不超过30个字"
             await startToChat(conn, prompt)
 
 

@@ -863,17 +863,10 @@ class ConnectionHandler:
         return self.teaching_handler.handle_chat_mode(query)
 
 
+
+
+
     def chat(self, query, tool_call=False, depth=0):
-
-        from core.providers.user.user_info_manager import extract_name, UserInfoManager
-        name = extract_name(query)
-        if name:
-            user_manager = UserInfoManager(self.config)
-            if user_manager.update_user_name(self.device_id, name):
-                self.logger.bind(tag="UPDATE_NAME").info(f"自动保存了用户的新名字: {name}")
-
-
-
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         # 打印当前 LLM 实例类型和 LLM 配置
         self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")

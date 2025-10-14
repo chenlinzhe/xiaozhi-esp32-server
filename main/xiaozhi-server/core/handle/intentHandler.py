@@ -49,7 +49,7 @@ async def handle_user_intent(conn, text):
                     action = result.get("action")
                     if action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next", "start_teaching", "mode_switch"]:
                         conn.logger.bind(tag=TAG).info(f"🔥 调用teaching_handler处理action: {action}")
-                        handled = conn.teaching_handler.handle_chat_mode(text)
+                        handled = await conn.teaching_handler.handle_chat_mode(text)
                         if handled:
                             conn.logger.bind(tag=TAG).info(f"✅ teaching_handler成功处理action: {action}")
                         else:

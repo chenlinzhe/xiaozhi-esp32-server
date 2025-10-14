@@ -515,7 +515,7 @@ class DialogueService:
                     
                     if response.status == 200:
                         data = await response.json()
-                        print(f"响应数据: {data}")
+                        # print(f"响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
@@ -552,8 +552,8 @@ class DialogueService:
     async def _get_scenario_steps(self, scenario_id: str) -> List[Dict]:
         """获取场景步骤"""
         try:
-            print(f"=== _get_scenario_steps 调试 ===")
-            print(f"场景ID: {scenario_id}")
+            # print(f"=== _get_scenario_steps 调试 ===")
+            # print(f"场景ID: {scenario_id}")
             
             async with aiohttp.ClientSession() as session:
                 # 配置文件中的URL已经包含了/xiaozhi路径，所以这里只需要添加/scenario-step/list/{scenario_id}
@@ -572,26 +572,26 @@ class DialogueService:
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             steps = data.get("data", [])
-                            print(f"获取到步骤数据: {steps}")
-                            print(f"步骤数量: {len(steps)}")
+                            # print(f"获取到步骤数据: {steps}")
+                            # print(f"步骤数量: {len(steps)}")
                             
                             # 详细打印每个步骤的数据
-                            print(f"\n=== 详细步骤数据 ===")
-                            for i, step in enumerate(steps):
-                                print(f"\n步骤 {i+1}:")
-                                print(f"  - 步骤ID: {step.get('id', 'N/A')}")
-                                print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
-                                print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
-                                print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
-                                print(f"  - 使用消息列表: {step.get('useMessageList', 'N/A')}")
-                                print(f"  - 消息列表配置: {step.get('messageListConfig', 'N/A')}")
-                                print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
-                                print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
-                                print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")
-                                print(f"  - 场景ID: {step.get('scenarioId', 'N/A')}")
-                                print(f"  - 创建时间: {step.get('createTime', 'N/A')}")
-                                print(f"  - 更新时间: {step.get('updateTime', 'N/A')}")
-                                print(f"  - 完整步骤数据: {step}")
+                            # print(f"\n=== 详细步骤数据 ===")
+                            # for i, step in enumerate(steps):
+                            #     print(f"\n步骤 {i+1}:")
+                            #     print(f"  - 步骤ID: {step.get('id', 'N/A')}")
+                            #     print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
+                            #     print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
+                            #     print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
+                            #     print(f"  - 使用消息列表: {step.get('useMessageList', 'N/A')}")
+                            #     print(f"  - 消息列表配置: {step.get('messageListConfig', 'N/A')}")
+                            #     print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
+                            #     print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
+                            #     print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")
+                            #     print(f"  - 场景ID: {step.get('scenarioId', 'N/A')}")
+                            #     print(f"  - 创建时间: {step.get('createTime', 'N/A')}")
+                            #     print(f"  - 更新时间: {step.get('updateTime', 'N/A')}")
+                            #     print(f"  - 完整步骤数据: {step}")
                             
                             return steps
                         else:
@@ -645,17 +645,17 @@ class DialogueService:
                 active_scenarios = [s for s in scenarios if s.get("isActive", False)]
                 print(f"活跃场景列表: {active_scenarios}")
                 
-                print(f"\n=== 详细场景数据 ===")
-                for i, scenario in enumerate(active_scenarios):
-                    print(f"\n活跃场景 {i+1}:")
-                    print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
-                    print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
-                    print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
-                    print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
-                    print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
-                    print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
-                    print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
-                    print(f"  - 完整场景数据: {scenario}")
+                # print(f"\n=== 详细场景数据 ===")
+                # for i, scenario in enumerate(active_scenarios):
+                #     print(f"\n活跃场景 {i+1}:")
+                #     print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+                #     print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+                #     print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+                #     print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                #     print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
+                #     print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
+                #     print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
+                #     print(f"  - 完整场景数据: {scenario}")
                 
                 return active_scenarios
             else:
