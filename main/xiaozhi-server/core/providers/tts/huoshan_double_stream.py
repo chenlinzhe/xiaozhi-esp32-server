@@ -349,7 +349,7 @@ class TTSProvider(TTSProviderBase):
                                     # logger.bind(tag=TAG).info(f"使用消息中的语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
                                 
                                 # 只保留关键日志：真正发送文本内容到TTS服务
-                                logger.bind(tag=TAG).info(f"TTS发送文本: {message.content_detail}")
+                                logger.bind(tag=TAG).info(f"in火山豆包stream:TTS发送文本: {message.content_detail}")
                                 future = asyncio.run_coroutine_threadsafe(
                                     self.text_to_speak(message.content_detail, None),
                                     loop=self.conn.loop,
