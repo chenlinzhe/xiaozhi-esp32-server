@@ -1,2 +1,51 @@
-cd D:\mypj3\newvad\server\main\xiaozhi-server
+1.CMD
+net start mysql80
+
+2.可能先启动wsl
+桌面docker运行redis
+
+3.api
+运行D:\mypj3\gdz\xiaozhi-esp32-server\main\manager-api\src\main\java\xiaozhi\AdminApplication.java
+
+4.智控台
+cd D:\mypj3\gdz\xiaozhi-esp32-server\main\manager-web
+npm run serve
+
+可能需要：npm install
+
+5.语音
+cd D:\mypj3\gdz\xiaozhi-esp32-server\main\xiaozhi-server
 conda activate py310 
+python app.py
+
+
+
+
+GIT
+
+一、分支上开发后：
+git status #​查一下更改：
+git add . #提交到暂存：
+git commit -m "描述修改内容" # 创建提交 
+git pull #拉取，合并，防止其他人有更新。
+git push # 重新推送
+
+
+二、恢复版本：
+查版本：
+git log --oneline --graph --decorate --all
+恢复：
+git reset --hard 1cbdb5b5
+
+
+
+
+
+--------------------
+
+文杰文件：
+config_loader.py
+application-dev.yml
+config.yaml
+settings.py
+vue.config.js

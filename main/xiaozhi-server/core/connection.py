@@ -87,6 +87,9 @@ class ConnectionHandler:
         # 客户端状态相关
         self.client_abort = False
         self.client_is_speaking = False
+        self.allow_interrupt = True
+
+
         self.client_listen_mode = "auto"
 
         # 线程任务相关

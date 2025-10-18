@@ -158,7 +158,8 @@ class TTSProvider(TTSProviderBase):
         self.header = {"Authorization": f"{self.authorization}{self.access_token}"}
         self.enable_two_way = True
         self.tts_text = ""
-        self.speech_rate = config.get("speech_rate", 0)  # 默认语速为0，取值范围[-50,100]
+        speech_rate = config.get("speech_rate", "0")
+        self.speech_rate = int(speech_rate) if speech_rate else 0
         self._converted_speech_rate = 0  # 转换后的语速，用于实际TTS请求
         self.opus_encoder = opus_encoder_utils.OpusEncoderUtils(
             sample_rate=16000, channels=1, frame_size_ms=60
@@ -211,9 +212,9 @@ class TTSProvider(TTSProviderBase):
     async def _ensure_connection(self):
         """建立新的WebSocket连接"""
         try:
-            if self.ws:
-                logger.bind(tag=TAG).info(f"使用已有链接...")
-                return self.ws
+            # if self.ws:
+            #     logger.bind(tag=TAG).info(f"使用已有链接...")
+            #     return self.ws
             logger.bind(tag=TAG).info("开始建立新连接...")
             ws_header = {
                 "X-Api-App-Key": self.appId,
@@ -232,50 +233,6 @@ class TTSProvider(TTSProviderBase):
             raise
 
 
-
-    # async def _ensure_connection(self):
-    #     """建立新的WebSocket连接"""
-    #     try:
-    #         # 🔥 关键修复：检查现有连接状态
-    #         if self.ws:
-    #             try:
-    #                 # 检查连接是否仍然有效 - 兼容不同的WebSocket对象类型
-    #                 if hasattr(self.ws, 'closed') and self.ws.closed:
-    #                     logger.bind(tag=TAG).warning(f"现有连接已关闭，需要重新建立")
-    #                     self.ws = None
-    #                 elif hasattr(self.ws, 'close_code') and self.ws.close_code is not None:
-    #                     logger.bind(tag=TAG).warning(f"现有连接已关闭，关闭代码: {self.ws.close_code}")
-    #                     self.ws = None
-    #                 else:
-    #                     # 尝试ping测试
-    #                     await self.ws.ping()
-    #                     logger.bind(tag=TAG).info(f"使用已有有效连接...")
-    #                     return self.ws
-    #             except (websockets.ConnectionClosed, websockets.InvalidState, Exception) as e:
-    #                 logger.bind(tag=TAG).warning(f"现有连接无效，需要重新建立: {str(e)}")
-    #                 self.ws = None
-            
-    #         logger.bind(tag=TAG).info("开始建立新连接...")
-    #         ws_header = {
-    #             "X-Api-App-Key": self.appId,
-    #             "X-Api-Access-Key": self.access_token,
-    #             "X-Api-Resource-Id": self.resource_id,
-    #             "X-Api-Connect-Id": uuid.uuid4(),
-    #         }
-    #         self.ws = await websockets.connect(
-    #             self.ws_url, 
-    #             additional_headers=ws_header, 
-    #             max_size=1000000000,
-    #             ping_interval=20,  # 添加ping间隔
-    #             ping_timeout=10,   # 添加ping超时
-    #             close_timeout=10   # 添加关闭超时
-    #         )
-    #         logger.bind(tag=TAG).info("WebSocket连接建立成功")
-    #         return self.ws
-    #     except Exception as e:
-    #         logger.bind(tag=TAG).error(f"建立连接失败: {str(e)}")
-    #         self.ws = None
-    #         raise
 
     def tts_text_priority_thread(self):
         """火山引擎双流式TTS的文本处理线程"""
@@ -310,11 +267,11 @@ class TTSProvider(TTSProviderBase):
                     if message.sentence_type == SentenceType.FIRST:
                         # 初始化参数
                         try:
-                            # 检查消息中是否有语速配置，如果有则转换并使用
+                            # 🔥 关键：在启动会话前，先从 FIRST 消息中提取语速配置
                             if message.speech_rate is not None:
                                 self._converted_speech_rate = self._convert_speech_rate(message.speech_rate)
-                                # logger.bind(tag=TAG).info(f"FIRST消息使用语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
-                            
+                                logger.bind(tag=TAG).info(f"FIRST消息中获取语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
+                          
                             if not getattr(self.conn, "sentence_id", None): 
                                 self.conn.sentence_id = uuid.uuid4().hex
                                 # logger.bind(tag=TAG).info(f"自动生成新的 会话ID: {self.conn.sentence_id}")
@@ -343,11 +300,7 @@ class TTSProvider(TTSProviderBase):
                     elif ContentType.TEXT == message.content_type:
                         if message.content_detail:
                             try:
-                                # 检查消息中是否有语速配置，如果有则转换并使用
-                                if message.speech_rate is not None:
-                                    self._converted_speech_rate = self._convert_speech_rate(message.speech_rate)
-                                    # logger.bind(tag=TAG).info(f"使用消息中的语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
-                                
+                              
                                 # 只保留关键日志：真正发送文本内容到TTS服务
                                 logger.bind(tag=TAG).info(f"in火山豆包stream:TTS发送文本: {message.content_detail}")
                                 future = asyncio.run_coroutine_threadsafe(
@@ -373,28 +326,14 @@ class TTSProvider(TTSProviderBase):
 
                     if message.sentence_type == SentenceType.LAST:
                         try:
-                            # logger.bind(tag=TAG).info("开始结束TTS会话...")
+                            logger.bind(tag=TAG).info("开始结束TTS会话...")
                             future = asyncio.run_coroutine_threadsafe(
                                 self.finish_session(self.conn.sentence_id),
                                 loop=self.conn.loop,
                             )
-                            future.result(timeout=10)  # 增加超时时间到10秒
-                            logger.bind(tag=TAG).info("TTS会话结束成功")
-                            
-                            # 等待一小段时间确保会话完全结束
-                            time.sleep(0.5)
-                            
+                            future.result()
                         except Exception as e:
                             logger.bind(tag=TAG).error(f"结束TTS会话失败: {str(e)}")
-                            # 🔥 关键修复：结束失败时也要清理资源
-                            try:
-                                future = asyncio.run_coroutine_threadsafe(
-                                    self.close(),
-                                    loop=self.conn.loop,
-                                )
-                                future.result(timeout=5)  # 5秒超时
-                            except Exception as close_error:
-                                logger.bind(tag=TAG).error(f"清理TTS资源失败: {str(close_error)}")
                             continue
 
                 except queue.Empty:
@@ -433,28 +372,11 @@ class TTSProvider(TTSProviderBase):
                 self.ws = None
             raise
 
+
+
     async def start_session(self, session_id):
-        # logger.bind(tag=TAG).info(f"开始会话～～{session_id}")
+        logger.bind(tag=TAG).info(f"开始会话～～{session_id}")
         try:
-            # 检查是否需要从队列中获取语速配置
-            if self._converted_speech_rate == 0 and not self.tts_text_queue.empty():
-                try:
-                    # 预览队列中的消息，查找TEXT类型的消息
-                    queue_items = []
-                    while not self.tts_text_queue.empty():
-                        item = self.tts_text_queue.get_nowait()
-                        queue_items.append(item)
-                        if item.content_type.name == "TEXT" and item.speech_rate is not None:
-                            self._converted_speech_rate = self._convert_speech_rate(item.speech_rate)
-                            logger.bind(tag=TAG).info(f"start_session中获取语速配置: {item.speech_rate}倍速 → {self._converted_speech_rate}")
-                            break
-                    
-                    # 将消息放回队列
-                    for item in reversed(queue_items):
-                        self.tts_text_queue.put(item)
-                except Exception as e:
-                    logger.bind(tag=TAG).error(f"start_session中获取语速配置失败: {str(e)}")
-            
             # 会话开始时检测上个会话的监听状态
             if (
                 self._monitor_task is not None
@@ -464,49 +386,90 @@ class TTSProvider(TTSProviderBase):
                 logger.bind(tag=TAG).info("检测到未完成的上个会话，关闭监听任务和连接...")
                 await self.close()
 
-            # 🔥 关键修复：建立新连接并添加重试机制
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    # 建立新连接
-                    await self._ensure_connection()
-                    
-                    # 启动监听任务
-                    self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
+            # 建立新连接
+            await self._ensure_connection()
 
-                    header = Header(
-                        message_type=FULL_CLIENT_REQUEST,
-                        message_type_specific_flags=MsgTypeFlagWithEvent,
-                        serial_method=JSON,
-                    ).as_bytes()
-                    optional = Optional(
-                        event=EVENT_StartSession, sessionId=session_id
-                    ).as_bytes()
-                    payload = self.get_payload_bytes(
-                        event=EVENT_StartSession, speaker=self.voice, speech_rate=self._converted_speech_rate
-                    )
-                    await self.send_event(self.ws, header, optional, payload)
-                    logger.bind(tag=TAG).info("会话启动请求已发送")
-                    break  # 成功发送，跳出重试循环
-                    
-                except (websockets.ConnectionClosed, Exception) as e:
-                    logger.bind(tag=TAG).warning(f"启动会话失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
-                    if attempt < max_retries - 1:
-                        # 清理连接状态
-                        self.ws = None
-                        if self._monitor_task:
-                            self._monitor_task.cancel()
-                            self._monitor_task = None
-                        # 等待一段时间后重试
-                        await asyncio.sleep(1)
-                    else:
-                        # 最后一次尝试失败，抛出异常
-                        raise
+            # 启动监听任务
+            self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
+
+            header = Header(
+                message_type=FULL_CLIENT_REQUEST,
+                message_type_specific_flags=MsgTypeFlagWithEvent,
+                serial_method=JSON,
+            ).as_bytes()
+            optional = Optional(
+                event=EVENT_StartSession, sessionId=session_id
+            ).as_bytes()
+            payload = self.get_payload_bytes(
+                event=EVENT_StartSession, speaker=self.voice
+            )
+            await self.send_event(self.ws, header, optional, payload)
+            logger.bind(tag=TAG).info("会话启动请求已发送")
         except Exception as e:
             logger.bind(tag=TAG).error(f"启动会话失败: {str(e)}")
             # 确保清理资源
             await self.close()
             raise
+
+
+
+    # async def start_session(self, session_id):
+    #     # logger.bind(tag=TAG).info(f"开始会话～～{session_id}")
+    #     try:
+
+            
+    #         # 会话开始时检测上个会话的监听状态
+    #         if (
+    #             self._monitor_task is not None
+    #             and isinstance(self._monitor_task, Task)
+    #             and not self._monitor_task.done()
+    #         ):
+    #             logger.bind(tag=TAG).info("检测到未完成的上个会话，关闭监听任务和连接...")
+    #             await self.close()
+
+    #         # 🔥 关键修复：建立新连接并添加重试机制
+    #         max_retries = 3
+    #         for attempt in range(max_retries):
+    #             try:
+    #                 # 建立新连接
+    #                 await self._ensure_connection()
+                    
+    #                 # 启动监听任务
+    #                 self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
+
+    #                 header = Header(
+    #                     message_type=FULL_CLIENT_REQUEST,
+    #                     message_type_specific_flags=MsgTypeFlagWithEvent,
+    #                     serial_method=JSON,
+    #                 ).as_bytes()
+    #                 optional = Optional(
+    #                     event=EVENT_StartSession, sessionId=session_id
+    #                 ).as_bytes()
+    #                 payload = self.get_payload_bytes(
+    #                     event=EVENT_StartSession, speaker=self.voice, speech_rate=self._converted_speech_rate
+    #                 )
+    #                 await self.send_event(self.ws, header, optional, payload)
+    #                 logger.bind(tag=TAG).info("会话启动请求已发送")
+    #                 break  # 成功发送，跳出重试循环
+                    
+    #             except (websockets.ConnectionClosed, Exception) as e:
+    #                 logger.bind(tag=TAG).warning(f"启动会话失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+    #                 if attempt < max_retries - 1:
+    #                     # 清理连接状态
+    #                     self.ws = None
+    #                     if self._monitor_task:
+    #                         self._monitor_task.cancel()
+    #                         self._monitor_task = None
+    #                     # 等待一段时间后重试
+    #                     await asyncio.sleep(1)
+    #                 else:
+    #                     # 最后一次尝试失败，抛出异常
+    #                     raise
+    #     except Exception as e:
+    #         logger.bind(tag=TAG).error(f"启动会话失败: {str(e)}")
+    #         # 确保清理资源
+    #         await self.close()
+    #         raise
 
     async def finish_session(self, session_id):
         logger.bind(tag=TAG).info(f"关闭会话～～{session_id}")
@@ -613,11 +576,19 @@ class TTSProvider(TTSProviderBase):
                         res.optional.event == EVENT_TTSResponse
                         and res.header.message_type == AUDIO_ONLY_RESPONSE
                     ):
-                        logger.bind(tag=TAG).debug(f"推送数据到队列里面～～")
+                        # 🔥 验证音频流：检查 payload 是否存在
+                        text_preview = self.tts_text[:5] if self.tts_text else "未知"
+                        if res.payload:
+                            logger.bind(tag=TAG).info(
+                                f"✅ 收到音频数据 [{text_preview}...]: {len(res.payload)} 字节 (PCM格式)"
+                            )
+                        else:
+                            logger.bind(tag=TAG).warning(f"⚠️ Payload 为空 [{text_preview}...]，没有音频数据")
+                        
+                        # 转换为 Opus 格式
                         opus_datas = self.wav_to_opus_data_audio_raw(res.payload)
-                        logger.bind(tag=TAG).debug(
-                            f"推送数据到队列里面帧数～～{len(opus_datas)}"
-                        )
+                        
+
                         if is_first_sentence:
                             first_sentence_segment_count += 1
                             if first_sentence_segment_count <= 6:
@@ -630,8 +601,8 @@ class TTSProvider(TTSProviderBase):
                             # 后续句子缓存
                             opus_datas_cache.extend(opus_datas)
                     elif res.optional.event == EVENT_TTSSentenceEnd:
-                        # logger.bind(tag=TAG).info(f"句子语音生成成功：{self.tts_text}")
-                        print(f"句子语音生成成功-----：{self.tts_text}")
+                        # 句子音频流接收完成，将缓存的音频数据发送到播放队列
+
                         if not is_first_sentence or first_sentence_segment_count > 10:
                             # 发送缓存的数据
                             self.tts_audio_queue.put(
@@ -715,26 +686,8 @@ class TTSProvider(TTSProviderBase):
             raise
 
     async def send_text(self, speaker: str, text: str, session_id):
-        # 检查是否需要从队列中获取语速配置
-        if self._converted_speech_rate == 0 and not self.tts_text_queue.empty():
-            try:
-                # 预览队列中的消息，查找TEXT类型的消息
-                queue_items = []
-                while not self.tts_text_queue.empty():
-                    item = self.tts_text_queue.get_nowait()
-                    queue_items.append(item)
-                    if item.content_type.name == "TEXT" and item.speech_rate is not None:
-                        self._converted_speech_rate = self._convert_speech_rate(item.speech_rate)
-                        logger.bind(tag=TAG).info(f"从队列消息中获取语速配置: {item.speech_rate}倍速 → {self._converted_speech_rate}")
-                        break
-                
-                # 将消息放回队列
-                for item in reversed(queue_items):
-                    self.tts_text_queue.put(item)
-            except Exception as e:
-                logger.bind(tag=TAG).error(f"从队列获取语速配置失败: {str(e)}")
-        
-        # logger.bind(tag=TAG).info(f"发送文本到TTS服务，语速参数: {self._converted_speech_rate}")
+
+
         header = Header(
             message_type=FULL_CLIENT_REQUEST,
             message_type_specific_flags=MsgTypeFlagWithEvent,
@@ -828,6 +781,7 @@ class TTSProvider(TTSProviderBase):
         logger.bind(tag=TAG).debug(f"===>{tag_msg} header:{res.header.__dict__}")
         logger.bind(tag=TAG).debug(f"===>{tag_msg} optional:{res.optional.__dict__}")
 
+
     def get_payload_bytes(
         self,
         uid="1234",
@@ -838,30 +792,8 @@ class TTSProvider(TTSProviderBase):
         audio_sample_rate=16000,
         speech_rate=0,
     ):
-        # 如果传入的speech_rate是0，尝试从队列中获取语速配置
-        if speech_rate == 0 and hasattr(self, 'tts_text_queue') and not self.tts_text_queue.empty():
-            try:
-                # 预览队列中的消息，查找TEXT类型的消息
-                queue_items = []
-                temp_items = []
-                while not self.tts_text_queue.empty():
-                    item = self.tts_text_queue.get_nowait()
-                    temp_items.append(item)
-                    if item.content_type.name == "TEXT" and item.speech_rate is not None:
-                        # 转换教学模式语速到火山引擎格式
-                        converted_rate = self._convert_speech_rate(item.speech_rate)
-                        speech_rate = converted_rate
-                        logger.bind(tag=TAG).info(f"get_payload_bytes中获取语速配置: {item.speech_rate}倍速 → {converted_rate}")
-                        break
-                
-                # 将消息放回队列
-                for item in reversed(temp_items):
-                    self.tts_text_queue.put(item)
-            except Exception as e:
-                logger.bind(tag=TAG).error(f"get_payload_bytes中获取语速配置失败: {str(e)}")
-        
-        # logger.bind(tag=TAG).info(f"get_payload_bytes最终使用语速参数: {speech_rate}")
-        
+
+        logger.bind(tag=TAG).info(f"get_payload_bytes最终使用语速参数: {self._converted_speech_rate}")
         return str.encode(
             json.dumps(
                 {
@@ -874,12 +806,15 @@ class TTSProvider(TTSProviderBase):
                         "audio_params": {
                             "format": audio_format,
                             "sample_rate": audio_sample_rate,
-                            "speech_rate": speech_rate,
+                            "speech_rate": self._converted_speech_rate
                         },
                     },
+
                 }
             )
         )
+
+
 
     def wav_to_opus_data_audio_raw(self, raw_data_var, is_end=False):
         opus_datas = self.opus_encoder.encode_pcm_to_opus(raw_data_var, is_end)

@@ -290,18 +290,11 @@ class TeachingHandler:
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"处理聊天模式失败: {e}")
             return None
-<<<<<<< HEAD
         finally:
             # 🔥 确保无论如何都关闭TTS会话（如果使用了_send_tts_message）
             self._end_tts_session()            
 
-
-
-
-
-        
-=======
->>>>>>> 3490651b2a8cd73ed145e0bd1bd290d9e0b0f399
+       
 
     """
     发送单条TTS消息（带重试机制）
@@ -312,13 +305,8 @@ class TeachingHandler:
         wait_time: 等待时间（秒）
     """
 
-    def _send_tts_message(self, message: str, speech_rate: float = 1.0, wait_time: int = 0):
-        """发送单条TTS消息"""
-        if not message:
-            self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")
-            return
 
-<<<<<<< HEAD
+
     def _send_tts_message(self, message: str, speech_rate: float = 1.0, wait_time: int = 0):  
         """发送单条TTS消息"""  
         if not message:  
@@ -353,115 +341,44 @@ class TeachingHandler:
                     sentence_type=SentenceType.MIDDLE,  
                     content_type=ContentType.TEXT,  
                     content_detail=message,  
-                    speech_rate=speech_rate,  
+
                 )  
             )  
             self.logger.bind(tag=TAG).info(f"发送待TTS合成消息到队列: {message}")  
             
         except Exception as e:  
             self.logger.bind(tag=TAG).error(f"发送待TTS合成消息失败: {e}")  
-=======
-        if not self.connection.tts:
-            self.logger.bind(tag=TAG).error("TTS实例不存在，无法发送消息")
-            return
-
-        try:
-            # 如果没有 sentence_id,生成一个新的
-            if not self.connection.sentence_id:
-                self.connection.sentence_id = str(uuid.uuid4().hex)
-                self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")
-
-                # 发送 FIRST 请求
-                self.connection.tts.tts_text_queue.put(
-                    TTSMessageDTO(
-                        sentence_id=self.connection.sentence_id,
-                        sentence_type=SentenceType.FIRST,
-                        content_type=ContentType.ACTION,
-                        speech_rate=speech_rate,
-                    )
-                )
-                self.logger.bind(tag=TAG).info("发送TTS FIRST请求")
-
-            # 发送文本消息
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.connection.sentence_id,
-                    sentence_type=SentenceType.MIDDLE,
-                    content_type=ContentType.TEXT,
-                    content_detail=message,
-                    speech_rate=speech_rate,
-                )
-            )
-            self.logger.bind(tag=TAG).info(f"发送TTS消息到队列: {message}")
-
-        except Exception as e:
-            self.logger.bind(tag=TAG).error(f"发送TTS消息失败: {e}")
->>>>>>> 3490651b2a8cd73ed145e0bd1bd290d9e0b0f399
             raise
         finally:
             # 🔥 无论成功或失败，都确保关闭TTS会话
             self._end_tts_session()
 
-    """
-    发送单条TTS消息（简化版本，不带重试机制），被_send_message_list调用
 
-    Args:
-        message: 要发送的消息文本
-        speech_rate: 语速配置（0.5-2.0倍速，1.0为正常语速）
-    """
-
-    def _calculate_speech_duration(self, text: str, speech_rate: float = 1.0) -> float:
-        """
-        根据字符数估算语音播放时间
-        
-        Args:
-            text: 要播放的文本
-            speech_rate: 语速倍率 (1.0为正常语速)
-            
-        Returns:
-            float: 估算的播放时间（秒）
-        """
-        if not text:
-            return 0.0
-            
-        # 中文字符平均每秒3-4个，英文平均每秒8-10个
-        # 这里使用保守估算：中文每秒3个字符，英文每秒8个字符
-        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-        english_chars = len([c for c in text if c.isalpha()])
-        other_chars = len(text) - chinese_chars - english_chars
-        
-        # 基础时间计算（秒）
-        base_time = (chinese_chars / 3.0) + (english_chars / 8.0) + (other_chars / 5.0)
-        
-        # 根据语速调整
-        actual_time = base_time / speech_rate
-        
-        # 最少0.5秒，避免时间过短
-        return max(0.5, actual_time)
+   
 
     def _send_message_list(self, message_list: List[Dict]):
 
-<<<<<<< HEAD
-        try:  
+        try:
             if not message_list:  
                 return  
-                
-            # 🔥 关键:为整个消息列表生成一个 sentence_id  
-            sentence_id = str(uuid.uuid4().hex)  
-            self.connection.sentence_id = sentence_id  
             
-            # 发送 FIRST 请求(只在开始时发送一次)  
-            self.connection.tts.tts_text_queue.put(  
-                TTSMessageDTO(  
-                    sentence_id=sentence_id,  
-                    sentence_type=SentenceType.FIRST,  
-                    content_type=ContentType.ACTION,  
-                )  
-            )  
-            self.logger.bind(tag=TAG).info("📤 发送TTS FIRST请求")  
+
+
+            
+# 开始播放列表前禁止打断  
+            self.connection.allow_interrupt = False
+
             
             # 遍历消息列表,只发送 MIDDLE 类型的文本消息  
-            for i, message in enumerate(message_list):  
+            for i, message in enumerate(message_list):
+
+
+                #通知设备进入播放
+
+                # from core.handle.sendAudioHandle import send_tts_message
+                # await send_tts_message(conn, "start")  
+
+
                 content = message.get("messageContent", "")  
                 if not content:  
                     continue  
@@ -481,138 +398,70 @@ class TeachingHandler:
                 if wait_time < 0:  
                     wait_time = 0  
                 
-                self.logger.bind(tag=TAG).info(f"将要处理第 {i+1}/{len(message_list)}: {content}") 
+                # self.logger.bind(tag=TAG).info(f"将要处理第 {i+1}/{len(message_list)}: {content}") 
 
 
 
-=======
-        try:
-            if not message_list:
-                return
-
-            # 🔥 关键:为整个消息列表生成一个 sentence_id
-            sentence_id = str(uuid.uuid4().hex)
-            self.connection.sentence_id = sentence_id
-
-            # 发送 FIRST 请求(只在开始时发送一次)
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=sentence_id,
-                    sentence_type=SentenceType.FIRST,
-                    content_type=ContentType.ACTION,
-                )
-            )
-            self.logger.bind(tag=TAG).info("📤 发送TTS FIRST请求")
-
-            # 遍历消息列表,只发送 MIDDLE 类型的文本消息
-            for i, message in enumerate(message_list):
-                content = message.get("messageContent", "")
-                if not content:
-                    continue
-
-                # 替换占位符
-                content = content.replace("{文杰}", self.child_name)
-                content = content.replace("{childName}", self.child_name)
-                if f"{self.child_name}{self.child_name}" in content:
-                    content = content.replace(f"{self.child_name}{self.child_name}", self.child_name)
-
-                # 获取配置
-                speech_rate = float(message.get("speechRate", 1.0))
-                if speech_rate < 0.2 or speech_rate > 3.0:
-                    speech_rate = 1.0
-
-                wait_time = int(message.get("waitTimeSeconds", 0))
-                if wait_time < 0:
-                    wait_time = 0
-
-                self.logger.bind(tag=TAG).info(f"将要处理第 {i+1}/{len(message_list)}: {content}")
->>>>>>> 3490651b2a8cd73ed145e0bd1bd290d9e0b0f399
-
-                # 计算上一句的语音播放时间（如果是第一句，则没有上一句）
-                if i > 0:
-                    prev_message = message_list[i-1]
-                    prev_content = prev_message.get("messageContent", "")
-                    if prev_content:
-                        # 替换占位符
-                        prev_content = prev_content.replace("{文杰}", self.child_name)
-                        prev_content = prev_content.replace("{childName}", self.child_name)
-                        if f"{self.child_name}{self.child_name}" in prev_content:
-                            prev_content = prev_content.replace(f"{self.child_name}{self.child_name}", self.child_name)
-                        
-                        # 获取上一句的语速
-                        prev_speech_rate = float(prev_message.get("speechRate", 1.0))
-                        if prev_speech_rate < 0.2 or prev_speech_rate > 3.0:
-                            prev_speech_rate = 1.0
-                        
-                        # 计算上一句的播放时间
-                        prev_speech_duration = self._calculate_speech_duration(prev_content, prev_speech_rate)
-                        self.logger.bind(tag=TAG).info(f"上一句播放时间估算: {prev_speech_duration:.2f}秒")
-                        
-                        # 将上一句播放时间加到等待时间中
-                        total_wait_time = wait_time + prev_speech_duration
-                        self.logger.bind(tag=TAG).info(f"总等待时间: {wait_time}秒(配置) + {prev_speech_duration:.2f}秒(上一句播放) = {total_wait_time:.2f}秒")
-                    else:
-                        total_wait_time = wait_time
-                else:
-                    # 第一句，没有上一句
-                    total_wait_time = wait_time
-                    self.logger.bind(tag=TAG).info(f"第一句，等待时间: {total_wait_time}秒")
-
-                # 在本句话说之前等待
-                if total_wait_time > 0:
-                    self.logger.bind(tag=TAG).info(f"本句话前等待 {total_wait_time:.2f} 秒...")
-                    time.sleep(total_wait_time)
-
-<<<<<<< HEAD
+                # 🔥 关键:为整个消息列表生成一个 sentence_id  
+                sentence_id = str(uuid.uuid4().hex)  
+                self.connection.sentence_id = sentence_id  
                 
+                # 发送 FIRST 请求(只在开始时发送一次)  
+                self.connection.tts.tts_text_queue.put(  
+                    TTSMessageDTO(  
+                        sentence_id=sentence_id,  
+                        sentence_type=SentenceType.FIRST,  
+                        content_type=ContentType.ACTION,
+                        speech_rate=speech_rate,  # ✅ 添加语速参数
+                    )  
+                )  
+                self.logger.bind(tag=TAG).info("📤 发送TTS FIRST请求-----------------")  
+                
+                # 🔥 关键：等待 WebSocket 连接建立完成
+                self.logger.bind(tag=TAG).info("⏳ 等待 WebSocket 连接建立...")
+                time.sleep(2.0)  # 给异步线程时间去建立连接
+                self.logger.bind(tag=TAG).info("✅ 连接应该已建立，继续发送")
+
                 # 🔥 关键:只发送 MIDDLE 类型的文本消息  
                 self.connection.tts.tts_text_queue.put(  
                     TTSMessageDTO(  
                         sentence_id=sentence_id,  
                         sentence_type=SentenceType.MIDDLE,  
                         content_type=ContentType.TEXT,  
-                        content_detail=content,  
-                        speech_rate=speech_rate,  
+                        content_detail=content,
+
                     )  
                 )  
-                self.logger.bind(tag=TAG).info(f"📝 发送待TTS合成消息到队列: {content}")  
+                self.logger.bind(tag=TAG).info(f"📝 -------------发送待TTS合成消息到队列: {content} (语速: {speech_rate}倍)")  
                 self.connection.dialogue.put(Message(role="assistant", content=content))  
             
-           
-            self.logger.bind(tag=TAG).info("待TTS合成消息列表发送完成")  
 
-            # 发送LAST请求结束TTS会话
-            print("准备结束发送LAST")
-            time.sleep(20)
-            self._end_tts_session()
-            
-=======
-                # 🔥 关键:只发送 MIDDLE 类型的文本消息
-                self.connection.tts.tts_text_queue.put(
-                    TTSMessageDTO(
-                        sentence_id=sentence_id,
-                        sentence_type=SentenceType.MIDDLE,
-                        content_type=ContentType.TEXT,
-                        content_detail=content,
-                        speech_rate=speech_rate,
-                    )
-                )
-                self.logger.bind(tag=TAG).info(f"📝 发送TTS消息到队列: {content}")
-                self.connection.dialogue.put(Message(role="assistant", content=content))
+                #先发送结束TTS,再等待数秒后，才开启下一次连接。
+                self._end_tts_session()
 
-            # 🔥 关键:在所有消息发送完后,只发送一次 LAST 请求
-            self.connection.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=sentence_id,
-                    sentence_type=SentenceType.LAST,
-                    content_type=ContentType.ACTION,
-                )
-            )
-            self.logger.bind(tag=TAG).info("📤 发送TTS LAST请求")
 
-            self.logger.bind(tag=TAG).info("消息列表发送完成")
+                if i == 0:
+                    total_wait_time = 30
+                if i == 1:
+                    total_wait_time = 10
+                if i == 2:
+                    total_wait_time = 10
+                if i == 3:
+                    total_wait_time = 2
 
->>>>>>> 3490651b2a8cd73ed145e0bd1bd290d9e0b0f399
+                                # 在本句话结束前等待
+                if total_wait_time > 0:
+                    self.logger.bind(tag=TAG).info(f"本句话结束后等待 {total_wait_time:.2f} 秒...")
+                    time.sleep(total_wait_time)
+                
+
+
+
+            # 播放完成后恢复打断功能  
+            self.connection.allow_interrupt = True  
+
+
+
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送消息列表失败: {e}")
         finally:
@@ -620,15 +469,7 @@ class TeachingHandler:
             self._end_tts_session()
 
     def _get_step_message_list(self, step_id: str) -> Optional[List[Dict]]:
-        """
-        获取步骤的消息列表
-
-        Args:
-            step_id: 步骤ID
-
-        Returns:
-            List[Dict]: 消息列表，如果获取失败返回None
-        """
+        # 获取步骤的消息列表
         try:
             self.logger.bind(tag=TAG).info(f"🔍 获取步骤消息列表，步骤ID: {step_id}")
             message_list = get_step_messages(step_id)
@@ -649,7 +490,7 @@ class TeachingHandler:
             return None
 
     def _end_tts_session(self):
-        """结束TTS会话"""
+
         try:
             if self.connection.sentence_id and self.connection.tts:
                 self.connection.tts.tts_text_queue.put(
@@ -660,59 +501,13 @@ class TeachingHandler:
                     )
                 )
                 self.logger.bind(tag=TAG).info("发送TTS LAST请求")
-
-                # 清空sentence_id，为下次会话做准备
-                self.connection.sentence_id = None
-
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"结束TTS会话失败: {e}")
 
 
-<<<<<<< HEAD
-    def _calculate_speech_duration(self, text: str, speech_rate: float = 1.0) -> float:
-        """
-        根据字符数估算语音播放时间
-        
-        Args:
-            text: 要播放的文本
-            speech_rate: 语速倍率 (1.0为正常语速)
-            
-        Returns:
-            float: 估算的播放时间（秒）
-        """
-        if not text:
-            return 0.0
-            
-        # 中文字符平均每秒3-4个，英文平均每秒8-10个
-        # 这里使用保守估算：中文每秒3个字符，英文每秒8个字符
-        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-        english_chars = len([c for c in text if c.isalpha()])
-        other_chars = len(text) - chinese_chars - english_chars
-        
-        # 基础时间计算（秒）
-        base_time = (chinese_chars / 3.0) + (english_chars / 8.0) + (other_chars / 5.0)
-        
-        # 根据语速调整
-        actual_time = base_time / speech_rate
-        
-        # 最少0.5秒，避免时间过短
-        return max(0.5, actual_time)
-
 
     def cleanup(self):
-        """
-        清理资源，确保TTS会话正确关闭
-        
-        用途：
-        - 在异常情况下确保TTS会话被正确关闭
-        - 在连接断开时清理未完成的TTS会话
-        - 作为兜底机制，防止资源泄漏
-        
-        调用时机：
-        - 连接断开时
-        - 异常处理中
-        - 会话结束时
-        """
+        # 清理资源 确保TTS会话正确关闭
         try:
             # 检查是否有未关闭的TTS会话
             if self.connection.sentence_id:
@@ -729,5 +524,3 @@ class TeachingHandler:
 
 
     
-=======
->>>>>>> 3490651b2a8cd73ed145e0bd1bd290d9e0b0f399

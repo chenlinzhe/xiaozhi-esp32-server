@@ -38,8 +38,9 @@ async def handleAudioMessage(conn, audio):
             return
 
     if have_voice:
-        if conn.client_is_speaking:
+        if conn.client_is_speaking and conn.allow_interrupt:  # 添加 allow_interrupt 检查  
             await handleAbortMessage(conn)
+            
     # 设备长时间空闲检测，用于say goodbye
     await no_voice_close_connect(conn, have_voice)
     # 接收音频
