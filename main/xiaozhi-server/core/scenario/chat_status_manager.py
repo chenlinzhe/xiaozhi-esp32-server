@@ -277,6 +277,26 @@ class ChatStatusManager:
         status = self.redis_client.get_chat_status(user_id)
         return status if status else "free_mode"
     
+    def clear_user_chat_status(self, user_id: str) -> bool:
+        """清理用户聊天状态
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            bool: 清理是否成功
+        """
+        try:
+            result = self.redis_client.delete_chat_status(user_id)
+            if result:
+                self.logger.info(f"成功清理用户 {user_id} 的聊天状态")
+            else:
+                self.logger.warning(f"用户 {user_id} 的聊天状态不存在或清理失败")
+            return result
+        except Exception as e:
+            self.logger.error(f"清理用户聊天状态失败: {e}")
+            return False
+    
     async def handle_user_input(self, user_id: str, user_text: str, 
                                child_name: str = "小朋友") -> Dict[str, Any]:
         """处理用户输入

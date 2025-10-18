@@ -223,6 +223,9 @@ class ConnectionHandler:
                 self.logger.bind(tag=TAG).warning("❌ 未获取到设备ID，使用随机session_id")
                 self.logger.bind(tag=TAG).warning(f"🎲 随机session_id: {self.session_id}")
 
+            # 🔥 新建连接时清除Redis状态，确保新连接不受之前状态影响
+            await self._clear_redis_state_on_new_connection()
+
 
             # 初始化活动时间戳
             self.last_activity_time = time.time() * 1000
@@ -1349,3 +1352,76 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).error(f"超时检查任务出错: {e}")
         finally:
             self.logger.bind(tag=TAG).info("超时检查任务已退出")
+
+    async def _clear_redis_state_on_new_connection(self):
+        """
+        新建连接时清除Redis状态
+        
+        确保新连接不受之前连接状态的影响，包括：
+        - 聊天状态
+        - 教学会话数据
+        - 其他相关状态
+        """
+        try:
+            self.logger.bind(tag=TAG).info("开始清理Redis状态，为新连接做准备")
+            
+            # 获取用户ID（优先使用device_id，否则使用session_id）
+            user_id = self.device_id if self.device_id else self.session_id
+            
+            if not user_id:
+                self.logger.bind(tag=TAG).warning("无法获取用户ID，跳过Redis状态清理")
+                return
+            
+            self.logger.bind(tag=TAG).info(f"清理用户 {user_id} 的Redis状态")
+            
+            # 清理聊天状态
+            if hasattr(self, 'teaching_handler') and self.teaching_handler:
+                try:
+                    # 清理聊天状态管理器中的用户状态
+                    if hasattr(self.teaching_handler, 'chat_status_manager'):
+                        success = self.teaching_handler.chat_status_manager.clear_user_chat_status(user_id)
+                        if success:
+                            self.logger.bind(tag=TAG).info(f"✅ 成功清理用户 {user_id} 的聊天状态")
+                        else:
+                            self.logger.bind(tag=TAG).warning(f"⚠️ 用户 {user_id} 的聊天状态不存在或清理失败")
+                except Exception as e:
+                    self.logger.bind(tag=TAG).error(f"清理聊天状态失败: {e}")
+            
+            # 清理教学会话数据
+            try:
+                from core.utils.redis_client import get_redis_client
+                redis_client = get_redis_client()
+                
+                # 清理教学会话数据
+                session_key = f"teaching_{user_id}"
+                session_deleted = redis_client.delete_session_data(session_key)
+                if session_deleted:
+                    self.logger.bind(tag=TAG).info(f"✅ 成功清理用户 {user_id} 的教学会话数据")
+                else:
+                    self.logger.bind(tag=TAG).info(f"ℹ️ 用户 {user_id} 没有教学会话数据需要清理")
+                
+                # 清理聊天状态（双重保险）
+                chat_status_deleted = redis_client.delete_chat_status(user_id)
+                if chat_status_deleted:
+                    self.logger.bind(tag=TAG).info(f"✅ 成功清理用户 {user_id} 的聊天状态")
+                else:
+                    self.logger.bind(tag=TAG).info(f"ℹ️ 用户 {user_id} 没有聊天状态需要清理")
+                    
+            except Exception as e:
+                self.logger.bind(tag=TAG).error(f"清理Redis数据失败: {e}")
+            
+            # 重置教学处理器状态
+            if hasattr(self, 'teaching_handler') and self.teaching_handler:
+                try:
+                    # 重置儿童姓名
+                    self.teaching_handler.child_name = "小朋友"
+                    self.logger.bind(tag=TAG).info("✅ 重置教学处理器状态")
+                except Exception as e:
+                    self.logger.bind(tag=TAG).error(f"重置教学处理器状态失败: {e}")
+            
+            self.logger.bind(tag=TAG).info("Redis状态清理完成，新连接已准备就绪")
+            
+        except Exception as e:
+            self.logger.bind(tag=TAG).error(f"清理Redis状态时出错: {e}")
+            # 即使清理失败，也不应该阻止连接建立
+            self.logger.bind(tag=TAG).warning("继续建立连接，但可能存在状态残留")
