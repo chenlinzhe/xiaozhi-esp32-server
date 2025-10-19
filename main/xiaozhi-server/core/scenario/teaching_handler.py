@@ -124,7 +124,6 @@ class TeachingHandler:
                             self.logger.bind(tag=TAG).info(f"没有步骤ID，教学模式切换不发送消息")
 
 
-                        self.logger.bind(tag=TAG).info("超时检查已禁用")
                     else:
                         # 其他模式切换，不发送AI消息
                         self.logger.bind(tag=TAG).info(f"其他模式切换，不发送AI消息")
@@ -164,11 +163,6 @@ class TeachingHandler:
 
                     self.logger.bind(tag=TAG).info(f"开始教学模式: {result.get('scenario_name')}")
 
-
-
-                    # 启动等待超时检查（延迟启动，等待TTS消息发送完成）
-                    # self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
-                    self.logger.bind(tag=TAG).info("超时检查已禁用")
                     return True
 
                 elif action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next"]:
@@ -227,11 +221,6 @@ class TeachingHandler:
                             
                     self.logger.bind(tag=TAG).info(f"教学步骤处理完成: {action}")
 
-
-
-                    # 重新启动等待超时检查（延迟启动，等待TTS消息发送完成）
-                    # self._start_teaching_timeout_check_after_tts(user_id, result.get("timeoutSeconds", 20))
-                    self.logger.bind(tag=TAG).info("超时检查已禁用")
                     return True
 
                 elif action == "completed":
@@ -289,12 +278,9 @@ class TeachingHandler:
 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"处理聊天模式失败: {e}")
+            self._end_tts_session()    
             return None
-        finally:
-            # 🔥 确保无论如何都关闭TTS会话（如果使用了_send_tts_message）
-            self._end_tts_session()            
-
-       
+                    
 
     """
     发送单条TTS消息（带重试机制）
@@ -347,23 +333,17 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).info(f"发送待TTS合成消息到队列: {message}")  
             
         except Exception as e:  
-            self.logger.bind(tag=TAG).error(f"发送待TTS合成消息失败: {e}")  
-            raise
-        finally:
-            # 🔥 无论成功或失败，都确保关闭TTS会话
+            self.logger.bind(tag=TAG).error(f"发送待TTS合成消息失败: {e}") 
             self._end_tts_session()
+            raise
 
-
-   
+        
 
     def _send_message_list(self, message_list: List[Dict]):
 
         try:
             if not message_list:  
-                return  
-            
-
-
+                return
             
 # 开始播放列表前禁止打断  
             self.connection.allow_interrupt = False
@@ -398,8 +378,6 @@ class TeachingHandler:
                 if wait_time < 0:  
                     wait_time = 0  
                 
-                # self.logger.bind(tag=TAG).info(f"将要处理第 {i+1}/{len(message_list)}: {content}") 
-
 
 
                 # 🔥 关键:为整个消息列表生成一个 sentence_id  
@@ -419,7 +397,7 @@ class TeachingHandler:
                 
                 # 🔥 关键：等待 WebSocket 连接建立完成
                 self.logger.bind(tag=TAG).info("⏳ 等待 WebSocket 连接建立...")
-                time.sleep(2.0)  # 给异步线程时间去建立连接
+                time.sleep(1.0)  # 给异步线程时间去建立连接
                 self.logger.bind(tag=TAG).info("✅ 连接应该已建立，继续发送")
 
                 # 🔥 关键:只发送 MIDDLE 类型的文本消息  
@@ -434,39 +412,46 @@ class TeachingHandler:
                 )  
                 self.logger.bind(tag=TAG).info(f"📝 -------------发送待TTS合成消息到队列: {content} (语速: {speech_rate}倍)")  
                 self.connection.dialogue.put(Message(role="assistant", content=content))  
+
+
+                if i == len(message_list) - 1:
+                    self.connection.llm_finish_task = True
             
 
                 #先发送结束TTS,再等待数秒后，才开启下一次连接。
                 self._end_tts_session()
 
 
-                if i == 0:
-                    total_wait_time = 30
-                if i == 1:
-                    total_wait_time = 10
-                if i == 2:
-                    total_wait_time = 10
-                if i == 3:
-                    total_wait_time = 2
+                # if i == 0:
+                #     total_wait_time = 30
+                # if i == 1:
+                #     total_wait_time = 10
+                # if i == 2:
+                #     total_wait_time = 10
+                # if i == 3:
+                #     total_wait_time = 2
 
-                                # 在本句话结束前等待
-                if total_wait_time > 0:
-                    self.logger.bind(tag=TAG).info(f"本句话结束后等待 {total_wait_time:.2f} 秒...")
-                    time.sleep(total_wait_time)
+
+                # 智能计算等待时间：根据当前消息的文本和语速,加上配置的等待时间
+                total_wait_time = self._calculate_speech_duration(content, speech_rate) + wait_time
+                self.logger.bind(tag=TAG).info(f"第 {i+1} 句计算的播放时长: {total_wait_time:.2f}秒")
+
+
+                time.sleep(total_wait_time)
                 
 
 
 
             # 播放完成后恢复打断功能  
-            self.connection.allow_interrupt = True  
+            self.connection.allow_interrupt = True
 
 
 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送消息列表失败: {e}")
-        finally:
-            # 🔥 无论成功或失败，都确保关闭TTS会话
             self._end_tts_session()
+
+            
 
     def _get_step_message_list(self, step_id: str) -> Optional[List[Dict]]:
         # 获取步骤的消息列表
@@ -523,4 +508,31 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).error(f"清理资源失败: {e}")
 
 
-    
+    def _calculate_speech_duration(self, text: str, speech_rate: float = 1.0) -> float:
+        """
+        根据字符数估算语音播放时间
+        
+        Args:
+            text: 要播放的文本
+            speech_rate: 语速倍率 (1.0为正常语速)
+            
+        Returns:
+            float: 估算的播放时间（秒）
+        """
+        if not text:
+            return 0.0
+            
+        # 中文字符平均每秒3-4个，英文平均每秒8-10个
+        # 这里使用保守估算：中文每秒3个字符，英文每秒8个字符
+        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+        english_chars = len([c for c in text if c.isalpha()])
+        other_chars = len(text) - chinese_chars - english_chars
+        
+        # 基础时间计算（秒）
+        base_time = (chinese_chars / 4) + (english_chars / 8.0) + (other_chars / 5.0)
+        
+        # 根据语速调整
+        actual_time = base_time / speech_rate
+        
+        # 最少0.5秒，避免时间过短
+        return max(0.5, actual_time)

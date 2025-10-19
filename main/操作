@@ -39,6 +39,10 @@ git reset --hard 1cbdb5b5
 
 
 
+暂存当前，去历史版本，再回来：
+git stash push -m "保存当前工作状态-日期"
+git log --oneline --graph -n 20
+git checkout 3490651b
 
 
 --------------------

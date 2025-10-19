@@ -364,7 +364,7 @@ class TTSProviderBase(ABC):
                     self.conn.loop,
                 )
                 future.result()
-                logger.bind(tag=TAG).info(f"------sendAudioMessage发送信息: {text}")
+                # logger.bind(tag=TAG).info(f"------sendAudioMessage发送信息: {text}")
                 
                 if self.conn.max_output_size > 0 and text:
                     add_device_output(self.conn.headers.get("device-id"), len(text))

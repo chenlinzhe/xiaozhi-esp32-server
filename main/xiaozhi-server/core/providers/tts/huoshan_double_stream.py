@@ -548,7 +548,7 @@ class TTSProvider(TTSProviderBase):
     async def _start_monitor_tts_response(self):
         """监听TTS响应"""
         opus_datas_cache = []
-        is_first_sentence = True
+        is_first_sentence = False
         first_sentence_segment_count = 0  # 添加计数器
         try:
             session_finished = False  # 标记会话是否正常结束

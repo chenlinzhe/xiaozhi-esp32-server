@@ -1,0 +1,87 @@
+1.CMD
+net start mysql80
+
+2.可能先启动wsl
+桌面docker运行redis
+
+3.api
+运行D:\mypj3\gdz\xiaozhi-esp32-server\main\manager-api\src\main\java\xiaozhi\AdminApplication.java
+
+4.智控台
+cd D:\mypj3\gdz\xiaozhi-esp32-server\main\manager-web
+npm run serve
+
+可能需要：npm install
+
+5.语音
+cd D:\mypj3\gdz\xiaozhi-esp32-server\main\xiaozhi-server
+conda activate py310 
+python app.py
+
+
+
+
+GIT
+
+一、分支上开发后：
+git status #​查一下更改：
+git add . #提交到暂存：
+git commit -m "描述修改内容" # 创建提交 
+git pull #拉取，合并，防止其他人有更新。
+git push # 重新推送
+
+
+二、恢复版本：
+查版本：
+git log --oneline --graph --decorate --all
+恢复：
+git reset --hard 1cbdb5b5
+
+
+
+暂存当前，去历史版本，再回来：
+git stash push -m "保存当前工作状态-日期"
+git log --oneline --graph -n 20
+git checkout 3490651b
+
+
+--------------------
+
+文杰文件：
+config_loader.py
+application-dev.yml
+config.yaml
+settings.py
+vue.config.js
+
+
+
+
+    def _calculate_speech_duration(self, text: str, speech_rate: float = 1.0) -> float:
+        """
+        根据字符数估算语音播放时间
+        
+        Args:
+            text: 要播放的文本
+            speech_rate: 语速倍率 (1.0为正常语速)
+            
+        Returns:
+            float: 估算的播放时间（秒）
+        """
+        if not text:
+            return 0.0
+            
+        # 中文字符平均每秒3-4个，英文平均每秒8-10个
+        # 这里使用保守估算：中文每秒3个字符，英文每秒8个字符
+        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+        english_chars = len([c for c in text if c.isalpha()])
+        other_chars = len(text) - chinese_chars - english_chars
+        
+        # 基础时间计算（秒）
+        base_time = (chinese_chars / 3.0) + (english_chars / 8.0) + (other_chars / 5.0)
+        
+        # 根据语速调整
+        actual_time = base_time / speech_rate
+        
+        # 最少0.5秒，避免时间过短
+        return max(0.5, actual_time)
