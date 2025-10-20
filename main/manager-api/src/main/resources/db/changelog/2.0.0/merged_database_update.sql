@@ -98,6 +98,7 @@ CREATE TABLE `ai_scenario_step` (
   `wait_time_seconds` int(11) DEFAULT 10 COMMENT '等待用户回复的时间（秒）',
   `gesture_hint` varchar(50) DEFAULT NULL COMMENT '手势提示：point_mouth/point_stomach等',
   `music_effect` varchar(100) DEFAULT NULL COMMENT '音效文件名',
+  `encouragement_words` text COMMENT '鼓励词，步骤结束后播放的鼓励内容',
   `is_optional` tinyint(1) DEFAULT 0 COMMENT '是否可选步骤：0-必需 1-可选',
   `branch_condition` text COMMENT '分支条件，JSON格式',
   `creator` bigint(20) DEFAULT NULL COMMENT '创建者ID',

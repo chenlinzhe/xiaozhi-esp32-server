@@ -169,18 +169,18 @@
                       size="small" />
                   </el-form-item>
                 </el-col>
-                <el-col :span="6">
-                  <el-form-item label="语速配置" class="form-item">
-                    <el-select v-model="step.speechRate" placeholder="请选择语速" size="small">
-                      <el-option label="0.5倍速(慢)" :value="0.5" />
-                      <el-option label="0.8倍速(稍慢)" :value="0.8" />
-                      <el-option label="1.0倍速(正常)" :value="1.0" />
-                      <el-option label="1.2倍速(稍快)" :value="1.2" />
-                      <el-option label="1.5倍速(快)" :value="1.5" />
-                      <el-option label="2.0倍速(很快)" :value="2.0" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
+<!--                <el-col :span="6">-->
+<!--                  <el-form-item label="语速配置" class="form-item">-->
+<!--                    <el-select v-model="step.speechRate" placeholder="请选择语速" size="small">-->
+<!--                      <el-option label="0.5倍速(慢)" :value="0.5" />-->
+<!--                      <el-option label="0.8倍速(稍慢)" :value="0.8" />-->
+<!--                      <el-option label="1.0倍速(正常)" :value="1.0" />-->
+<!--                      <el-option label="1.2倍速(稍快)" :value="1.2" />-->
+<!--                      <el-option label="1.5倍速(快)" :value="1.5" />-->
+<!--                      <el-option label="2.0倍速(很快)" :value="2.0" />-->
+<!--                    </el-select>-->
+<!--                  </el-form-item>-->
+<!--                </el-col>-->
                 <el-col :span="6">
                   <el-form-item label="步骤类型" class="form-item">
                     <el-select v-model="step.stepType" placeholder="请选择步骤类型">
@@ -241,6 +241,23 @@
                       v-model="step.autoReplyOnTimeout"
                       :rows="2"
                       placeholder="超时时的自动回复内容" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <!-- 鼓励词配置 -->
+              <el-row :gutter="20">
+                <el-col :span="24">
+                  <el-form-item label="鼓励词" class="form-item">
+                    <el-input
+                      type="textarea"
+                      v-model="step.encouragementWords"
+                      :rows="3"
+                      placeholder="步骤结束后播放的鼓励内容，如：太棒了！继续加油！" />
+                    <div class="form-tip">
+                      <i class="el-icon-info"></i>
+                      鼓励词将在步骤成功完成后播放，用于激励用户继续学习
+                    </div>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -537,6 +554,7 @@ export default {
           waitTimeSeconds: 10, // 等待时间
           gestureHint: '',
           musicEffect: '',
+          encouragementWords: '', // 鼓励词
           stepType: 'normal',
           stepOrder: this.steps.length + 1,
           nextStepId: '', // 兼容旧版本

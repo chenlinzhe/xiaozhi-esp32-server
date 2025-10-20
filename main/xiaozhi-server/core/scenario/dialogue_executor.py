@@ -116,18 +116,38 @@ class DialogueStepExecutor:
         # 记录步骤完成
         self.learning_session.complete_step()
         
+        # 获取当前步骤的鼓励词
+        encouragement_words = step.get('encouragementWords', '')
+        
         if self.current_step_index >= len(self.steps):
             self.is_completed = True
-            return {"type": "complete", "message": "恭喜你完成了这个场景！"}
+            # 场景完成时，如果有鼓励词则播放
+            if encouragement_words:
+                return {
+                    "type": "complete", 
+                    "message": f"{encouragement_words} 恭喜你完成了这个场景！"
+                }
+            else:
+                return {"type": "complete", "message": "恭喜你完成了这个场景！"}
         else:
             next_step = self.get_current_step()
             ai_message = next_step.get('aiMessage', '').replace("**{childName}**", self.child_name)
-            return {
-                "type": "next", 
-                "message": ai_message,
-                "step_index": self.current_step_index,
-                "total_steps": self.total_steps
-            }
+            
+            # 如果有鼓励词，在进入下一步前播放
+            if encouragement_words:
+                return {
+                    "type": "next", 
+                    "message": f"{encouragement_words} {ai_message}",
+                    "step_index": self.current_step_index,
+                    "total_steps": self.total_steps
+                }
+            else:
+                return {
+                    "type": "next", 
+                    "message": ai_message,
+                    "step_index": self.current_step_index,
+                    "total_steps": self.total_steps
+                }
     
     def handle_failure(self, step: Dict) -> Dict:
         """处理失败情况 - 不再使用替代消息和AI消息"""

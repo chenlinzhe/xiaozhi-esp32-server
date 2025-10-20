@@ -1,8 +1,6 @@
 package xiaozhi.modules.scenario.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -122,6 +120,10 @@ public class ScenarioStepEntity extends BaseEntity {
     @Schema(description = "音效文件名")
     @TableField("music_effect")
     private String musicEffect;
+
+    @Schema(description = "鼓励词，步骤结束后播放的鼓励内容")
+    @TableField("encouragement_words")
+    private String encouragementWords;
 
     @Schema(description = "是否可选步骤：0-必需 1-可选")
     @TableField("is_optional")

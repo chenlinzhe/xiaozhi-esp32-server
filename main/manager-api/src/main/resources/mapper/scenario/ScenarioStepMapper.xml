@@ -29,6 +29,7 @@
         <result column="wait_time_seconds" property="waitTimeSeconds" jdbcType="INTEGER"/>
         <result column="gesture_hint" property="gestureHint" jdbcType="VARCHAR"/>
         <result column="music_effect" property="musicEffect" jdbcType="VARCHAR"/>
+        <result column="encouragement_words" property="encouragementWords" jdbcType="LONGVARCHAR"/>
         <result column="is_optional" property="isOptional" jdbcType="TINYINT"/>
         <result column="branch_condition" property="branchCondition" jdbcType="LONGVARCHAR"/>
         <result column="create_date" property="createDate" jdbcType="TIMESTAMP"/>
@@ -53,7 +54,7 @@
         success_condition, speech_rate, exact_match_step_id, partial_match_step_id, no_match_step_id,
         next_step_id, retry_step_id,
         correct_response, auto_reply_on_timeout,
-        wait_time_seconds, gesture_hint, music_effect, is_optional, branch_condition,
+        wait_time_seconds, gesture_hint, music_effect, encouragement_words, is_optional, branch_condition,
         create_date, updater, update_date
     </sql>
 
@@ -76,7 +77,7 @@
             st.next_step_id, st.retry_step_id,
             st.correct_response,
             st.auto_reply_on_timeout, st.wait_time_seconds,
-            st.gesture_hint, st.music_effect, st.is_optional, st.step_type,
+            st.gesture_hint, st.music_effect, st.encouragement_words, st.is_optional, st.step_type,
             st.branch_condition, st.create_date, st.updater, st.update_date,
             s.scenario_name,
             next_st.step_name as next_step_name,

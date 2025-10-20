@@ -855,8 +855,18 @@ class ChatStatusManager:
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 self.logger.info(f"已保存完成状态的会话数据")
                 
+                # 获取最后一个步骤的鼓励词
+                last_step_index = session_data["current_step"] - 1
+                encouragement_words = ''
+                if last_step_index >= 0 and last_step_index < len(steps):
+                    last_step = steps[last_step_index]
+                    encouragement_words = last_step.get('encouragementWords', '')
+                    self.logger.info(f"最后步骤鼓励词: {encouragement_words}")
+                
                 # 生成完成消息
                 completion_message = self._generate_completion_message(final_score, child_name)
+                if encouragement_words:
+                    completion_message = f"{encouragement_words} {completion_message}"
                 self.logger.info(f"生成完成消息: {completion_message}")
                 
                 result = {
@@ -866,12 +876,22 @@ class ChatStatusManager:
                     "ai_message": completion_message,
                     "final_score": final_score,
                     "evaluation": evaluation,
-                    "message": f"教学完成！最终得分：{final_score}分"
+                    "message": f"教学完成！最终得分：{final_score}分",
+                    "encouragement_words": encouragement_words
                 }
                 self.logger.info(f"返回完成结果: {result}")
                 return result
             else:
                 self.logger.info(f"进入下一步，步骤索引: {session_data['current_step']}")
+                # 获取当前步骤的鼓励词（在进入下一步前）
+                current_step_index = session_data["current_step"] - 1  # 当前步骤索引
+                if current_step_index >= 0 and current_step_index < len(steps):
+                    current_step = steps[current_step_index]
+                    encouragement_words = current_step.get('encouragementWords', '')
+                    self.logger.info(f"当前步骤鼓励词: {encouragement_words}")
+                else:
+                    encouragement_words = ''
+                
                 # 进入下一步
                 next_step = steps[session_data["current_step"]]
                 # 不再使用AI消息，直接进入下一步
@@ -917,6 +937,7 @@ class ChatStatusManager:
                     "timeoutSeconds": timeout_seconds,
                     "total_replies": current_replies,
                     "max_replies": max_user_replies,
+                    "encouragement_words": encouragement_words,
                     "reply_progress": reply_progress,
                     "warning_message": warning_message,
                     "branch_type": branch_type
