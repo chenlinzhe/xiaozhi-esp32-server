@@ -293,12 +293,12 @@ class TTSProviderBase(ABC):
                         logger.bind(tag=TAG).info(f"开始处理TTS文本: {segment_text}")
                         # 获取语速参数，如果消息中有则使用，否则使用默认值
                         speech_rate = getattr(message, 'speech_rate', None)
-                        if speech_rate is not None:
-                            logger.bind(tag=TAG).info(f"=== TTS文本处理线程 ===")
-                            logger.bind(tag=TAG).info(f"消息语速配置: {speech_rate}倍速")
-                            logger.bind(tag=TAG).info(f"消息内容: {segment_text}")
-                        else:
-                            logger.bind(tag=TAG).info(f"使用默认语速配置")
+                        # if speech_rate is not None:
+                        #     logger.bind(tag=TAG).info(f"=== TTS文本处理线程 ===")
+                        #     logger.bind(tag=TAG).info(f"消息语速配置: {speech_rate}倍速")
+                        #     logger.bind(tag=TAG).info(f"消息内容: {segment_text}")
+                        # else:
+                        #     logger.bind(tag=TAG).info(f"使用默认语速配置")
                         
                         if self.delete_audio_file:
                             audio_datas = self.to_tts(segment_text, speech_rate=speech_rate)

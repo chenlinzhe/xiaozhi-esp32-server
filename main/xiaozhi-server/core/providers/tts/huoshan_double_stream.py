@@ -189,7 +189,7 @@ class TTSProvider(TTSProviderBase):
         # 确保在火山引擎TTS的有效范围内
         huoshan_speech_rate = max(-50, min(100, huoshan_speech_rate))
         
-        logger.bind(tag=TAG).info(f"语速转换: {teaching_speech_rate}倍速 → {huoshan_speech_rate}")
+        # logger.bind(tag=TAG).info(f"语速转换: {teaching_speech_rate}倍速 → {huoshan_speech_rate}")
         return huoshan_speech_rate
 
     async def open_audio_channels(self, conn):
@@ -413,64 +413,6 @@ class TTSProvider(TTSProviderBase):
 
 
 
-    # async def start_session(self, session_id):
-    #     # logger.bind(tag=TAG).info(f"开始会话～～{session_id}")
-    #     try:
-
-            
-    #         # 会话开始时检测上个会话的监听状态
-    #         if (
-    #             self._monitor_task is not None
-    #             and isinstance(self._monitor_task, Task)
-    #             and not self._monitor_task.done()
-    #         ):
-    #             logger.bind(tag=TAG).info("检测到未完成的上个会话，关闭监听任务和连接...")
-    #             await self.close()
-
-    #         # 🔥 关键修复：建立新连接并添加重试机制
-    #         max_retries = 3
-    #         for attempt in range(max_retries):
-    #             try:
-    #                 # 建立新连接
-    #                 await self._ensure_connection()
-                    
-    #                 # 启动监听任务
-    #                 self._monitor_task = asyncio.create_task(self._start_monitor_tts_response())
-
-    #                 header = Header(
-    #                     message_type=FULL_CLIENT_REQUEST,
-    #                     message_type_specific_flags=MsgTypeFlagWithEvent,
-    #                     serial_method=JSON,
-    #                 ).as_bytes()
-    #                 optional = Optional(
-    #                     event=EVENT_StartSession, sessionId=session_id
-    #                 ).as_bytes()
-    #                 payload = self.get_payload_bytes(
-    #                     event=EVENT_StartSession, speaker=self.voice, speech_rate=self._converted_speech_rate
-    #                 )
-    #                 await self.send_event(self.ws, header, optional, payload)
-    #                 logger.bind(tag=TAG).info("会话启动请求已发送")
-    #                 break  # 成功发送，跳出重试循环
-                    
-    #             except (websockets.ConnectionClosed, Exception) as e:
-    #                 logger.bind(tag=TAG).warning(f"启动会话失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
-    #                 if attempt < max_retries - 1:
-    #                     # 清理连接状态
-    #                     self.ws = None
-    #                     if self._monitor_task:
-    #                         self._monitor_task.cancel()
-    #                         self._monitor_task = None
-    #                     # 等待一段时间后重试
-    #                     await asyncio.sleep(1)
-    #                 else:
-    #                     # 最后一次尝试失败，抛出异常
-    #                     raise
-    #     except Exception as e:
-    #         logger.bind(tag=TAG).error(f"启动会话失败: {str(e)}")
-    #         # 确保清理资源
-    #         await self.close()
-    #         raise
-
     async def finish_session(self, session_id):
         logger.bind(tag=TAG).info(f"关闭会话～～{session_id}")
         try:
@@ -578,12 +520,12 @@ class TTSProvider(TTSProviderBase):
                     ):
                         # 🔥 验证音频流：检查 payload 是否存在
                         text_preview = self.tts_text[:5] if self.tts_text else "未知"
-                        if res.payload:
-                            logger.bind(tag=TAG).info(
-                                f"✅ 收到音频数据 [{text_preview}...]: {len(res.payload)} 字节 (PCM格式)"
-                            )
-                        else:
-                            logger.bind(tag=TAG).warning(f"⚠️ Payload 为空 [{text_preview}...]，没有音频数据")
+                        # if res.payload:
+                        #     logger.bind(tag=TAG).info(
+                        #         f"✅ 收到音频数据 [{text_preview}...]: {len(res.payload)} 字节 (PCM格式)"
+                        #     )
+                        # else:
+                        #     logger.bind(tag=TAG).warning(f"⚠️ Payload 为空 [{text_preview}...]，没有音频数据")
                         
                         # 转换为 Opus 格式
                         opus_datas = self.wav_to_opus_data_audio_raw(res.payload)

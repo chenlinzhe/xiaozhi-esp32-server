@@ -382,6 +382,8 @@ class ChatStatusManager:
             self.logger.info(f"找到现有教学会话: {session_data}")
             # 处理教学会话中的用户回复
             return await self._process_teaching_response(user_id, user_text, session_data, child_name)
+
+
     
     async def _start_teaching_session(self, user_id: str, child_name: str, from_mode_switch: bool = False) -> Dict[str, Any]:
         """开始教学会话
@@ -945,23 +947,151 @@ class ChatStatusManager:
                 "total_replies": session_data.get("total_user_replies", 0) if 'session_data' in locals() else 0
             }
 
-    def _evaluate_response_with_config(self, step_config: Dict, user_text: str, session_data: Dict) -> Dict:
-        """根据步骤配置评估用户回复
+    # # def _evaluate_response_with_config(self, step_config: Dict, user_text: str, session_data: Dict) -> Dict:
+    #     """根据步骤配置评估用户回复
         
-        Args:
-            step_config: 步骤配置
-            user_text: 用户输入文本
-            session_data: 会话数据
+    #     Args:
+    #         step_config: 步骤配置
+    #         user_text: 用户输入文本
+    #         session_data: 会话数据
             
-        Returns:
-            Dict: 评估结果
-        """
+    #     Returns:
+    #         Dict: 评估结果
+    #     """
+    #     self.logger.info(f"=== 根据步骤配置评估用户回复 ===")
+    #     self.logger.info(f"步骤配置: {step_config}")
+    #     self.logger.info(f"用户输入: {user_text}")
+        
+    #     # 获取配置参数
+    #     success_condition = ""
+    #     expected_keywords_str = step_config.get("expectedKeywords", "")
+    #     expected_phrases_str = step_config.get("expectedPhrases", "")
+    #     max_attempts = step_config.get("maxAttempts", 3)
+    #     retry_count = session_data.get("retry_count", 0)
+        
+    #     self.logger.info(f"成功条件: {success_condition}")
+    #     self.logger.info(f"期望关键词: {expected_keywords_str}")
+    #     self.logger.info(f"期望短语: {expected_phrases_str}")
+    #     self.logger.info(f"最大尝试次数: {max_attempts}")
+    #     self.logger.info(f"当前重试次数: {retry_count}")
+        
+    #     # 解析期望关键词和短语
+    #     expected_keywords = self._parse_json_list(expected_keywords_str)
+    #     expected_phrases = self._parse_json_list(expected_phrases_str)
+        
+    #     self.logger.info(f"解析后的期望关键词: {expected_keywords}")
+    #     self.logger.info(f"解析后的期望短语: {expected_phrases}")
+        
+    #     # 获取配置中的鼓励话语
+    #     praise_message = step_config.get("praiseMessage", "")
+    #     encouragement_message = step_config.get("encouragementMessage", "")
+        
+    #     # 替换儿童姓名占位符
+    #     child_name = session_data.get("child_name", "小朋友")
+    #     if praise_message:
+    #         praise_message = praise_message.replace("{childName}", child_name)
+    #         praise_message = praise_message.replace("{文杰}", child_name)
+    #     if encouragement_message:
+    #         encouragement_message = encouragement_message.replace("{childName}", child_name)
+    #         encouragement_message = encouragement_message.replace("{文杰}", child_name)
+        
+    #     # 根据成功条件进行匹配
+    #     if success_condition == "exact":
+    #         # 完全匹配：用户输入与期望短语一模一样
+    #         is_passed = user_text in expected_phrases
+    #         score = 100 if is_passed else 0
+    #         if is_passed and praise_message:
+    #             feedback = praise_message
+    #         else:
+    #             feedback = "回答完全正确！" if is_passed else (encouragement_message if encouragement_message else "请完全按照要求回答。")
+            
+    #     elif success_condition == "partial":
+    #         # 部分匹配：用户输入包含在期望短语内，或者包含期望关键词
+    #         is_passed = False
+    #         score = 0
+            
+    #         # 首先检查期望短语
+    #         if expected_phrases:
+    #             for phrase in expected_phrases:
+    #                 if phrase in user_text or user_text in phrase:
+    #                     is_passed = True
+    #                     score = 80
+    #                     break
+            
+    #         # 如果期望短语为空或没有匹配，检查期望关键词
+    #         if not is_passed and expected_keywords:
+    #             for keyword in expected_keywords:
+    #                 if keyword in user_text:
+    #                     is_passed = True
+    #                     score = 70
+    #                     break
+            
+    #         if is_passed and praise_message:
+    #             feedback = praise_message
+    #         else:
+    #             feedback = "回答正确！" if is_passed else (encouragement_message if encouragement_message else "请尝试更完整的回答。")
+            
+    #     elif success_condition == "keyword":
+    #         # 关键词匹配：用户输入包含期望关键词中的任何一个
+    #         is_passed = False
+    #         score = 0
+            
+    #         if expected_keywords:
+    #             for keyword in expected_keywords:
+    #                 if keyword in user_text:
+    #                     is_passed = True
+    #                     score = 60
+    #                     break
+            
+    #         if is_passed and praise_message:
+    #             feedback = praise_message
+    #         else:
+    #             feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
+            
+    #     else:
+    #         # 默认使用关键词匹配
+    #         is_passed = False
+    #         score = 0
+            
+    #         if expected_keywords:
+    #             for keyword in expected_keywords:
+    #                 if keyword in user_text:
+    #                     is_passed = True
+    #                     score = 60
+    #                     break
+            
+    #         if is_passed and praise_message:
+    #             feedback = praise_message
+    #         else:
+    #             feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
+        
+    #     self.logger.info(f"匹配结果: is_passed={is_passed}, score={score}")
+        
+    #     # 生成评估结果
+    #     result = {
+    #         "score": score,
+    #         "is_passed": is_passed,
+    #         "feedback": feedback,
+    #         "retry_count": retry_count,
+    #         "success_condition": success_condition,
+    #         "user_input": user_text,
+    #         "expected_keywords": expected_keywords,
+    #         "expected_phrases": expected_phrases
+    #     }
+        
+    #     self.logger.info(f"评估结果: {result}")
+    #     return result
+
+    def _evaluate_response_with_config(self, step_config: Dict, user_text: str, session_data: Dict) -> Dict:
+        """根据步骤配置评估用户回复 - 简化匹配逻辑"""
         self.logger.info(f"=== 根据步骤配置评估用户回复 ===")
         self.logger.info(f"步骤配置: {step_config}")
         self.logger.info(f"用户输入: {user_text}")
         
         # 获取配置参数
-        success_condition = step_config.get("successCondition", "exact")
+        success_condition = step_config.get("successCondition", "")  # 保留原有，但实际不直接使用
+        print("--------------------------------success_condition--------------------------------", success_condition)
+        
         expected_keywords_str = step_config.get("expectedKeywords", "")
         expected_phrases_str = step_config.get("expectedPhrases", "")
         max_attempts = step_config.get("maxAttempts", 3)
@@ -993,92 +1123,74 @@ class ChatStatusManager:
             encouragement_message = encouragement_message.replace("{childName}", child_name)
             encouragement_message = encouragement_message.replace("{文杰}", child_name)
         
-        # 根据成功条件进行匹配
-        if success_condition == "exact":
-            # 完全匹配：用户输入与期望短语一模一样
-            is_passed = user_text in expected_phrases
-            score = 100 if is_passed else 0
-            if is_passed and praise_message:
-                feedback = praise_message
-            else:
-                feedback = "回答完全正确！" if is_passed else (encouragement_message if encouragement_message else "请完全按照要求回答。")
-            
-        elif success_condition == "partial":
-            # 部分匹配：用户输入包含在期望短语内，或者包含期望关键词
-            is_passed = False
-            score = 0
-            
-            # 首先检查期望短语
-            if expected_phrases:
-                for phrase in expected_phrases:
-                    if phrase in user_text or user_text in phrase:
-                        is_passed = True
-                        score = 80
-                        break
-            
-            # 如果期望短语为空或没有匹配，检查期望关键词
-            if not is_passed and expected_keywords:
-                for keyword in expected_keywords:
-                    if keyword in user_text:
-                        is_passed = True
-                        score = 70
-                        break
-            
-            if is_passed and praise_message:
-                feedback = praise_message
-            else:
-                feedback = "回答正确！" if is_passed else (encouragement_message if encouragement_message else "请尝试更完整的回答。")
-            
-        elif success_condition == "keyword":
-            # 关键词匹配：用户输入包含期望关键词中的任何一个
-            is_passed = False
-            score = 0
-            
-            if expected_keywords:
-                for keyword in expected_keywords:
-                    if keyword in user_text:
-                        is_passed = True
-                        score = 60
-                        break
-            
-            if is_passed and praise_message:
-                feedback = praise_message
-            else:
-                feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
-            
+        # 简化匹配逻辑：统一计算匹配类型和分数
+        from difflib import SequenceMatcher  # 引入标准库用于相似度计算
+        
+        user_text_clean = user_text.strip().lower()
+        score = 0
+        is_passed = False
+        match_type = "no_match"  # 默认：完全不匹配
+        feedback = encouragement_message or "请尝试更完整的回答。"
+        
+        # 1. 先匹配期望短语：计算最大相似度，如果 >=80%，为完全匹配
+        max_similarity = 0
+        if expected_phrases:
+            for phrase in expected_phrases:
+                phrase_clean = phrase.strip().lower()
+                similarity = SequenceMatcher(None, user_text_clean, phrase_clean).ratio() * 100
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                self.logger.info(f"短语 '{phrase_clean}' 与用户输入相似度: {similarity:.2f}%")
+        
+        if max_similarity >= 80:
+            score = 100
+            is_passed = True
+            match_type = "exact"  # 完全匹配
+            feedback = praise_message or "回答完全正确！"
+            self.logger.info(f"完全匹配：最大相似度 {max_similarity:.2f}% >= 80%")
         else:
-            # 默认使用关键词匹配
-            is_passed = False
-            score = 0
+            self.logger.info(f"短语相似度不足：最大 {max_similarity:.2f}% < 80%，进入关键词匹配")
             
+            # 2. 低于80%时，匹配期望关键词：如果任何一个关键词在用户输入中，为部分匹配
             if expected_keywords:
                 for keyword in expected_keywords:
-                    if keyword in user_text:
+                    keyword_clean = keyword.strip().lower()
+                    if keyword_clean in user_text_clean:
+                        score = 70  # 部分匹配分数
                         is_passed = True
-                        score = 60
-                        break
+                        match_type = "partial"
+                        feedback = praise_message or "回答正确！"
+                        self.logger.info(f"部分匹配：包含关键词 '{keyword_clean}'")
+                        break  # 命中一个即可
             
-            if is_passed and praise_message:
-                feedback = praise_message
+            if match_type == "partial":
+                self.logger.info("确认部分匹配")
             else:
-                feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
+                # 3. 否则，完全不匹配
+                score = 0
+                match_type = "no_match"
+                feedback = encouragement_message or "请使用相关的关键词回答。"
+                self.logger.info("完全不匹配")
         
-        self.logger.info(f"匹配结果: is_passed={is_passed}, score={score}")
+        self.logger.info(f"匹配结果: match_type={match_type}, score={score}, is_passed={is_passed}")
         
-        # 生成评估结果
+        # 生成评估结果（基于实际匹配得出 success_condition 取值）
         result = {
             "score": score,
             "is_passed": is_passed,
             "feedback": feedback,
             "retry_count": retry_count,
-            "success_condition": success_condition,
+            "success_condition": match_type,  # exact / partial / no_match
             "user_input": user_text,
             "expected_keywords": expected_keywords,
-            "expected_phrases": expected_phrases
+            "expected_phrases": expected_phrases,
+            "max_phrase_similarity": max_similarity  # 新增：记录最大相似度，便于调试
         }
         
         self.logger.info(f"评估结果: {result}")
         return result
+
+
 
     def _parse_json_list(self, json_str: str) -> List[str]:
         """解析JSON格式的字符串列表
@@ -1103,59 +1215,8 @@ class ChatStatusManager:
             # 如果JSON解析失败，尝试按逗号分割
             return [item.strip() for item in json_str.split(",") if item.strip()]
 
-    def _check_exact_match(self, user_text: str, expected_phrases: List[str]) -> bool:
-        """检查完全匹配
-        
-        Args:
-            user_text: 用户输入文本
-            expected_phrases: 期望短语列表
-            
-        Returns:
-            bool: 是否完全匹配
-        """
-        user_text_clean = user_text.strip().lower()
-        for phrase in expected_phrases:
-            phrase_clean = phrase.strip().lower()
-            if user_text_clean == phrase_clean:
-                self.logger.info(f"完全匹配成功: '{user_text_clean}' == '{phrase_clean}'")
-                return True
-        return False
 
-    def _check_partial_match(self, user_text: str, expected_phrases: List[str]) -> bool:
-        """检查部分匹配
-        
-        Args:
-            user_text: 用户输入文本
-            expected_phrases: 期望短语列表
-            
-        Returns:
-            bool: 是否部分匹配
-        """
-        user_text_clean = user_text.strip().lower()
-        for phrase in expected_phrases:
-            phrase_clean = phrase.strip().lower()
-            if phrase_clean in user_text_clean or user_text_clean in phrase_clean:
-                self.logger.info(f"部分匹配成功: '{user_text_clean}' contains '{phrase_clean}'")
-                return True
-        return False
 
-    def _check_keyword_match(self, user_text: str, expected_keywords: List[str]) -> bool:
-        """检查关键词匹配
-        
-        Args:
-            user_text: 用户输入文本
-            expected_keywords: 期望关键词列表
-            
-        Returns:
-            bool: 是否关键词匹配
-        """
-        user_text_clean = user_text.strip().lower()
-        for keyword in expected_keywords:
-            keyword_clean = keyword.strip().lower()
-            if keyword_clean in user_text_clean:
-                self.logger.info(f"关键词匹配成功: '{user_text_clean}' contains '{keyword_clean}'")
-                return True
-        return False
     
     def _generate_completion_message(self, final_score: int, child_name: str) -> str:
         """生成教学完成消息"""

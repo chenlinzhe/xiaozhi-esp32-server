@@ -70,8 +70,8 @@ class DialogueService:
             print(f"场景信息详情:")
             print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
             print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
-            print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
-            print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+            # print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+            # print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
             
             # 获取场景步骤
             print(f"正在获取场景步骤: {scenario_id}")
@@ -520,19 +520,19 @@ class DialogueService:
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:
                             scenario = data.get("data")
-                            print(f"获取到场景数据: {scenario}")
+                            # print(f"获取到场景数据: {scenario}")
                             
                             # 详细打印场景数据
-                            if scenario:
-                                print(f"\n=== 详细场景数据 ===")
-                                print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
-                                print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
-                                print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
-                                print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
-                                print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
-                                print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
-                                print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
-                                print(f"  - 完整场景数据: {scenario}")
+                            # if scenario:
+                            #     print(f"\n=== 详细场景数据 ===")
+                            #     print(f"  - 场景ID: {scenario.get('id', 'N/A')}")
+                            #     print(f"  - 场景名称: {scenario.get('scenarioName', 'N/A')}")
+                            #     print(f"  - 是否活跃: {scenario.get('isActive', 'N/A')}")
+                            #     print(f"  - 代理ID: {scenario.get('agentId', 'N/A')}")
+                            #     print(f"  - 是否默认教学: {scenario.get('isDefaultTeaching', 'N/A')}")
+                            #     print(f"  - 创建时间: {scenario.get('createTime', 'N/A')}")
+                            #     print(f"  - 更新时间: {scenario.get('updateTime', 'N/A')}")
+                            #     print(f"  - 完整场景数据: {scenario}")
                             
                             return scenario
                         else:
@@ -567,7 +567,7 @@ class DialogueService:
                     
                     if response.status == 200:
                         data = await response.json()
-                        print(f"响应数据: {data}")
+                        # print(f"响应数据: {data}")
                         
                         # 检查API返回的错误码，与项目中其他地方保持一致
                         if data.get('code') == 0:

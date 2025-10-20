@@ -68,7 +68,7 @@ class TeachingHandler:
             )
             result = future.result()
 
-            self.logger.bind(tag=TAG).info(f"聊天模式处理结果result---------------------------------------: {result}")
+            # self.logger.bind(tag=TAG).info(f"聊天模式处理结果result---------------------------------------: {result}")
 
             if result and result.get("success"):
                 action = result.get("action")
