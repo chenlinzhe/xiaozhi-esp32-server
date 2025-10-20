@@ -165,7 +165,7 @@ class TeachingHandler:
 
                     return True
 
-                elif action in ["next_step", "retry", "perfect_match_next", "partial_match_next", "no_match_next"]:
+                elif action in ["next_step", "retry", "retry_current_step", "perfect_match_next", "partial_match_next", "no_match_next"]:
                     # 教学步骤处理
                     # 确保教学模式中语音监听正常工作，清除just_woken_up标志
                     if hasattr(self.connection, 'just_woken_up'):
