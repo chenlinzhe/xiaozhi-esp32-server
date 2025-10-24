@@ -448,6 +448,14 @@ class DialogueService:
     
     async def _handle_default_next_step(self, session: Dict, evaluation: Dict) -> Dict:
         """处理默认的下一步逻辑"""
+        # 获取当前步骤的鼓励词（在进入下一步前）
+        current_step_index = session["current_step"]
+        if current_step_index < len(session["steps"]):
+            current_step = session["steps"][current_step_index]
+            encouragement_words = current_step.get('encouragementWords', '')
+        else:
+            encouragement_words = ''
+        
         session["current_step"] += 1
         if session["current_step"] >= len(session["steps"]):
             # 场景完成
@@ -456,18 +464,32 @@ class DialogueService:
                 "success": True,
                 "action": "completed",
                 "evaluation": evaluation,
-                "final_score": self._calculate_final_score(session)
+                "final_score": self._calculate_final_score(session),
+                "encouragement_words": encouragement_words
             }
         else:
             # 下一步
             next_step = session["steps"][session["current_step"]]
             messages = self._process_step_messages(next_step, session["child_name"])
+            
+            # 如果有鼓励词，添加到消息中
+            if encouragement_words:
+                # 在消息列表的开头添加鼓励词
+                encouragement_message = {
+                    "content": encouragement_words,
+                    "speechRate": 1.0,
+                    "waitTimeSeconds": 2,
+                    "messageType": "encouragement"
+                }
+                messages.insert(0, encouragement_message)
+            
             return {
                 "success": True,
                 "action": "next_step",
                 "current_step": next_step,
                 "messages": messages,
-                "evaluation": evaluation
+                "evaluation": evaluation,
+                "encouragement_words": encouragement_words
             }
     
     def _handle_retry_current_step(self, session: Dict, current_step: Dict, evaluation: Dict) -> Dict:
