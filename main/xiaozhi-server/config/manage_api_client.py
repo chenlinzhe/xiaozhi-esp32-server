@@ -215,7 +215,7 @@ def get_scenario_list(agent_id: str = None, page: int = 1, limit: int = 100, is_
         if is_active is not None:
             params["isActive"] = 1 if is_active else 0
 
-        print(f"请求参数: {params}")
+        # print(f"请求参数: {params}")
 
         # 场景API使用密钥认证
         response = ManageApiClient._instance._execute_request(

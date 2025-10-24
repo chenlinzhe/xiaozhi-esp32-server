@@ -194,11 +194,11 @@ class TTSProvider(TTSProviderBase):
 
     async def open_audio_channels(self, conn):
         try:
-            logger.bind(tag=TAG).info("火山双流式TTS开始打开音频通道...")
-            logger.bind(tag=TAG).info(f"conn对象: {conn}, stop_event: {getattr(conn, 'stop_event', 'None')}")
+            # logger.bind(tag=TAG).info("火山双流式TTS开始打开音频通道...")
+            # logger.bind(tag=TAG).info(f"conn对象: {conn}, stop_event: {getattr(conn, 'stop_event', 'None')}")
             await super().open_audio_channels(conn)
-            logger.bind(tag=TAG).info("火山双流式TTS音频通道打开成功")
-            logger.bind(tag=TAG).info(f"TTS线程启动后conn对象: {self.conn}, stop_event: {getattr(self.conn, 'stop_event', 'None')}")
+            # logger.bind(tag=TAG).info("火山双流式TTS音频通道打开成功")
+            # logger.bind(tag=TAG).info(f"TTS线程启动后conn对象: {self.conn}, stop_event: {getattr(self.conn, 'stop_event', 'None')}")
         except Exception as e:
             logger.bind(tag=TAG).error(f"Failed to open audio channels: {str(e)}")
             import traceback
@@ -270,7 +270,7 @@ class TTSProvider(TTSProviderBase):
                             # 🔥 关键：在启动会话前，先从 FIRST 消息中提取语速配置
                             if message.speech_rate is not None:
                                 self._converted_speech_rate = self._convert_speech_rate(message.speech_rate)
-                                logger.bind(tag=TAG).info(f"FIRST消息中获取语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
+                                # logger.bind(tag=TAG).info(f"FIRST消息中获取语速配置: {message.speech_rate}倍速 → {self._converted_speech_rate}")
                           
                             if not getattr(self.conn, "sentence_id", None): 
                                 self.conn.sentence_id = uuid.uuid4().hex
@@ -302,7 +302,7 @@ class TTSProvider(TTSProviderBase):
                             try:
                               
                                 # 只保留关键日志：真正发送文本内容到TTS服务
-                                logger.bind(tag=TAG).info(f"in火山豆包stream:TTS发送文本: {message.content_detail}")
+                                # logger.bind(tag=TAG).info(f"in火山豆包stream:TTS发送文本: {message.content_detail}")
                                 future = asyncio.run_coroutine_threadsafe(
                                     self.text_to_speak(message.content_detail, None),
                                     loop=self.conn.loop,
@@ -735,7 +735,7 @@ class TTSProvider(TTSProviderBase):
         speech_rate=0,
     ):
 
-        logger.bind(tag=TAG).info(f"get_payload_bytes最终使用语速参数: {self._converted_speech_rate}")
+        # logger.bind(tag=TAG).info(f"get_payload_bytes最终使用语速参数: {self._converted_speech_rate}")
         return str.encode(
             json.dumps(
                 {

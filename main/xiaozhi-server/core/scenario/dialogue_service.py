@@ -93,14 +93,14 @@ class DialogueService:
                 }]
                 print(f"创建了默认步骤: {steps}")
             
-            print(f"步骤信息详情:")
-            print(f"  - 步骤数量: {len(steps)}")
-            for i, step in enumerate(steps):
-                print(f"  - 步骤 {i+1}:")
-                print(f"    * 步骤ID: {step.get('id', 'N/A')}")
-                print(f"    * 步骤名称: {step.get('stepName', 'N/A')}")
-                print(f"    * 步骤顺序: {step.get('stepOrder', 'N/A')}")
-                print(f"    * AI消息: {step.get('aiMessage', 'N/A')}")
+            # print(f"步骤信息详情:")
+            # print(f"  - 步骤数量: {len(steps)}")
+            # for i, step in enumerate(steps):
+            #     print(f"  - 步骤 {i+1}:")
+            #     print(f"    * 步骤ID: {step.get('id', 'N/A')}")
+            #     print(f"    * 步骤名称: {step.get('stepName', 'N/A')}")
+            #     print(f"    * 步骤顺序: {step.get('stepOrder', 'N/A')}")
+            #     print(f"    * AI消息: {step.get('aiMessage', 'N/A')}")
             
             # 创建会话
             self.sessions[session_id] = {
@@ -637,13 +637,13 @@ class DialogueService:
             print(f"=== get_scenarios 调试 ===")
             from config.manage_api_client import get_scenario_list
             result = get_scenario_list(page=1, limit=100, is_active=True)
-            print(f"API调用结果: {result}")
+            # print(f"API调用结果: {result}")
             
             if result:
                 scenarios = result.get("list", [])
-                print(f"原始场景列表: {scenarios}")
+                # print(f"原始场景列表: {scenarios}")
                 active_scenarios = [s for s in scenarios if s.get("isActive", False)]
-                print(f"活跃场景列表: {active_scenarios}")
+                # print(f"活跃场景列表: {active_scenarios}")
                 
                 # print(f"\n=== 详细场景数据 ===")
                 # for i, scenario in enumerate(active_scenarios):

@@ -133,125 +133,7 @@ class ChatStatusManager:
         
         return None
     
-    def _calculate_dynamic_timeout(self, step_difficulty: int = 1, user_age: int = 6, retry_count: int = 0) -> int:
-        """计算动态超时时间 - 基于思维导图优化
-        
-        Args:
-            step_difficulty: 步骤难度 (1-5)
-            user_age: 用户年龄 (3-12)
-            retry_count: 重试次数
-            
-        Returns:
-            int: 超时时间（秒）
-        """
-        self.logger.info(f"=== 计算动态超时时间 ===")
-        self.logger.info(f"步骤难度: {step_difficulty}")
-        self.logger.info(f"用户年龄: {user_age}")
-        self.logger.info(f"重试次数: {retry_count}")
-        
-        base_timeout = self.TIMEOUT_CONFIG["base_timeout"]
-        difficulty_factor = step_difficulty * self.TIMEOUT_CONFIG["difficulty_factor"]
-        age_factor = max(0, (6 - user_age) * self.TIMEOUT_CONFIG["age_factor"])
-        retry_factor = retry_count * self.TIMEOUT_CONFIG["retry_factor"]
-        
-        self.logger.info(f"基础超时时间: {base_timeout}秒")
-        self.logger.info(f"难度因子: {difficulty_factor}秒")
-        self.logger.info(f"年龄因子: {age_factor}秒")
-        self.logger.info(f"重试因子: {retry_factor}秒")
-        
-        total_timeout = base_timeout + difficulty_factor + age_factor + retry_factor
-        self.logger.info(f"计算总超时时间: {total_timeout}秒")
-        
-        # 确保超时时间在合理范围内
-        final_timeout = max(10, min(60, total_timeout))
-        self.logger.info(f"最终超时时间: {final_timeout}秒")
-        
-        return final_timeout
-    
-    def _evaluate_response_enhanced(self, session: Dict, user_text: str) -> Dict:
-        """增强的响应评估 - 基于思维导图优化
-        
-        Args:
-            session: 会话数据
-            user_text: 用户回复文本
-            
-        Returns:
-            Dict: 评估结果
-        """
-        self.logger.info(f"=== 开始增强响应评估 ===")
-        self.logger.info(f"用户输入: {user_text}")
-        self.logger.info(f"会话数据: {session}")
-        
-        # 获取基础评估结果
-        self.logger.info(f"调用基础评估函数")
-        base_evaluation = self.dialogue_service._evaluate_response(session, user_text)
-        self.logger.info(f"基础评估结果: {base_evaluation}")
-        
-        # 增强评估维度
-        enhanced_evaluation = {
-            **base_evaluation,
-            "confidence": 0.0,           # 评估置信度
-            "suggestions": [],           # 改进建议
-            "next_action": "continue",   # 下一步动作
-            "learning_progress": 0.0,    # 学习进度
-            "engagement_level": 0.0      # 参与度
-        }
-        
-        # 计算置信度（基于匹配质量）
-        score = base_evaluation.get("score", 0)
-        self.logger.info(f"基础分数: {score}")
-        
-        if score >= 90:
-            enhanced_evaluation["confidence"] = 0.95
-        elif score >= 80:
-            enhanced_evaluation["confidence"] = 0.85
-        elif score >= 60:
-            enhanced_evaluation["confidence"] = 0.70
-        else:
-            enhanced_evaluation["confidence"] = 0.50
-        
-        self.logger.info(f"计算置信度: {enhanced_evaluation['confidence']}")
-        
-        # 生成改进建议
-        if score < 60:
-            enhanced_evaluation["suggestions"] = [
-                "可以尝试更完整的表达",
-                "注意关键词的使用",
-                "可以多说一些细节"
-            ]
-        elif score < 80:
-            enhanced_evaluation["suggestions"] = [
-                "回答得很好，可以再详细一些",
-                "尝试用更自然的表达方式"
-            ]
-        
-        self.logger.info(f"生成改进建议: {enhanced_evaluation['suggestions']}")
-        
-        # 确定下一步动作
-        if base_evaluation.get("is_excellent", False):
-            enhanced_evaluation["next_action"] = "next_step"
-        elif base_evaluation.get("is_good", False):
-            enhanced_evaluation["next_action"] = "next_step"
-        elif base_evaluation.get("retry_count", 0) >= self.ASSESSMENT_CONFIG["max_retries"]:
-            enhanced_evaluation["next_action"] = "skip_step"
-        else:
-            enhanced_evaluation["next_action"] = "retry"
-        
-        self.logger.info(f"确定下一步动作: {enhanced_evaluation['next_action']}")
-        
-        # 计算学习进度
-        current_step = session.get("current_step", 0)
-        total_steps = session.get("total_steps", 1)
-        enhanced_evaluation["learning_progress"] = (current_step / total_steps) * 100
-        self.logger.info(f"学习进度: {enhanced_evaluation['learning_progress']}%")
-        
-        # 计算参与度（基于回复长度和内容）
-        engagement_score = min(len(user_text) / 10, 1.0)  # 简单计算
-        enhanced_evaluation["engagement_level"] = engagement_score
-        self.logger.info(f"参与度: {enhanced_evaluation['engagement_level']}")
-        
-        self.logger.info(f"增强评估完成: {enhanced_evaluation}")
-        return enhanced_evaluation
+
     
     def set_user_chat_status(self, user_id: str, status: str) -> bool:
         """设置用户聊天状态
@@ -397,7 +279,7 @@ class ChatStatusManager:
             Dict: 处理结果
         """
         try:
-            self.logger.info(f"开始教学会话: user_id={user_id}, child_name={child_name}, from_mode_switch={from_mode_switch}")
+            # self.logger.info(f"开始教学会话: user_id={user_id}, child_name={child_name}, from_mode_switch={from_mode_switch}")
             
             # 获取默认教学场景
             self.logger.info("正在获取默认教学场景...")
@@ -419,8 +301,8 @@ class ChatStatusManager:
                 self.logger.warning("没有获取到默认教学场景，尝试获取第一个可用场景")
                 # 如果没有默认教学场景，获取第一个可用场景
                 scenarios = self.dialogue_service.get_scenarios()
-                print(f"获取到的所有场景: {scenarios}")
-                self.logger.info(f"获取到 {len(scenarios) if scenarios else 0} 个场景")
+                # print(f"获取到的所有场景: {scenarios}")
+                # self.logger.info(f"获取到 {len(scenarios) if scenarios else 0} 个场景")
                 
                 if not scenarios or len(scenarios) == 0:
                     self.logger.error("没有可用的教学场景")
@@ -429,15 +311,15 @@ class ChatStatusManager:
                         "error": "没有可用的教学场景，请联系管理员配置教学场景"
                     }
                 default_scenario = scenarios[0]
-                print(f"选择第一个场景详情:")
-                print(f"  - 场景ID: {default_scenario.get('id', 'N/A')}")
-                print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
-                print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
-                print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
-                print(f"  - 是否默认教学: {default_scenario.get('isDefaultTeaching', 'N/A')}")
-                print(f"  - 创建时间: {default_scenario.get('createTime', 'N/A')}")
-                print(f"  - 更新时间: {default_scenario.get('updateTime', 'N/A')}")
-                print(f"  - 完整第一个场景数据: {default_scenario}")
+                # print(f"选择第一个场景详情:")
+                # print(f"  - 场景ID: {default_scenario.get('id', 'N/A')}")
+                # print(f"  - 场景名称: {default_scenario.get('scenarioName', 'N/A')}")
+                # print(f"  - 是否活跃: {default_scenario.get('isActive', 'N/A')}")
+                # print(f"  - 代理ID: {default_scenario.get('agentId', 'N/A')}")
+                # print(f"  - 是否默认教学: {default_scenario.get('isDefaultTeaching', 'N/A')}")
+                # print(f"  - 创建时间: {default_scenario.get('createTime', 'N/A')}")
+                # print(f"  - 更新时间: {default_scenario.get('updateTime', 'N/A')}")
+                # print(f"  - 完整第一个场景数据: {default_scenario}")
                 self.logger.info(f"使用第一个场景: {default_scenario.get('scenarioName', 'Unknown')}")
             
             # 使用数据库ID而不是scenarioId，因为API期望数字ID
@@ -473,7 +355,7 @@ class ChatStatusManager:
                     "max_user_replies": default_scenario.get("maxUserReplies", 3),  # 从场景配置获取，默认3次
                     "warning_sent": False,  # 预警是否已发送
                     "completion_reason": None,  # 完成原因
-                    "step_retry_counts": {},  # 每个步骤的重试计数 {step_index: retry_count}
+                    # "step_retry_counts": {},  # 每个步骤的重试计数 {step_index: retry_count}
                     "current_step_retry_count": 0  # 当前步骤的重试计数
                 }
                 
@@ -512,7 +394,7 @@ class ChatStatusManager:
                         "current_step": current_step  # 传递完整的步骤对象
                     }
                 
-                self.logger.info(f"教学会话开始成功: {response}")
+                # self.logger.info(f"教学会话开始成功: {response}")
                 return response
             else:
                 self.logger.error(f"场景对话失败: {result}")
@@ -573,7 +455,7 @@ class ChatStatusManager:
             # self.logger.info(f"构建完整会话数据: {full_session}")
             
             current_step = steps[current_step_index]
-            self.logger.info(f"当前步骤详情: {current_step}")
+            # self.logger.info(f"当前步骤详情: {current_step}")
             
             # 智能评估用户回复
             self.logger.info(f"=== 开始智能评估 ===")
@@ -583,10 +465,9 @@ class ChatStatusManager:
             evaluation = self._evaluate_response_with_config(current_step, user_text, session_data)
             score = evaluation["score"]
             
-            self.logger.info(f"评估结果: {evaluation}")
+            # self.logger.info(f"评估结果: {evaluation}")
             self.logger.info(f"评估分数: {score}")
-            self.logger.info(f"是否通过: {evaluation.get('is_passed', False)}")
-            self.logger.info(f"重试次数: {evaluation.get('retry_count', 0)}")
+            # self.logger.info(f"是否通过: {evaluation.get('is_passed', False)}")
             
             # 记录评估结果
             session_data["evaluations"].append(evaluation)
@@ -604,70 +485,36 @@ class ChatStatusManager:
             is_leaf_step = self._is_leaf_step(current_step)
             
             self.logger.info(f"步骤最大尝试次数: {step_max_attempts}")
-            self.logger.info(f"当前步骤重试次数: {current_step_retry_count}")
+            self.logger.info(f"当前步骤已学习次数: {current_step_retry_count+1}次")
             self.logger.info(f"是否为叶子节点: {is_leaf_step}")
             self.logger.info(f"用户总回复次数: {current_replies}")
             
             # 对于叶子节点，检查是否超过步骤最大尝试次数
-            if is_leaf_step and current_step_retry_count >= step_max_attempts:
-                self.logger.warning(f"叶子节点超过最大尝试次数，结束教学 - 用户: {user_id}, 重试次数: {current_step_retry_count}/{step_max_attempts}")
-                # 叶子节点超过最大尝试次数，结束教学
-                final_score = self._calculate_final_score(session_data)
-                session_data["completed"] = True
-                session_data["final_score"] = final_score
-                session_data["completion_reason"] = "leaf_step_max_attempts_exceeded"
+            # if is_leaf_step and current_step_retry_count >= step_max_attempts:
+            #     self.logger.warning(f"叶子节点超过最大尝试次数，结束教学 - 用户: {user_id}, 重试次数: {current_step_retry_count}/{step_max_attempts}")
+            #     # 叶子节点超过最大尝试次数，结束教学
+            #     final_score = self._calculate_final_score(session_data)
+            #     session_data["completed"] = True
+            #     session_data["final_score"] = final_score
+            #     session_data["completion_reason"] = "leaf_step_max_attempts_exceeded"
                 
-                # 保存会话数据
-                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
+            #     # 保存会话数据
+            #     self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 
-                # 切换到自由模式
-                self.set_user_chat_status(user_id, "free_mode")
+            #     # 切换到自由模式
+            #     self.set_user_chat_status(user_id, "free_mode")
                 
-                return {
-                    "success": True,
-                    "action": "completed",
-                    "reason": "leaf_step_max_attempts_exceeded",
-                    "ai_message": f"你已经尝试了{current_step_retry_count}次，达到了最大尝试次数限制。教学结束，最终得分：{final_score}分。",
-                    "final_score": final_score,
-                    "total_attempts": current_step_retry_count,
-                    "max_attempts": step_max_attempts
-                }
+            #     return {
+            #         "success": True,
+            #         "action": "completed",
+            #         "reason": "leaf_step_max_attempts_exceeded",
+            #         "ai_message": f"你已经尝试了{current_step_retry_count}次，达到了最大尝试次数限制。教学结束，最终得分：{final_score}分。",
+            #         "final_score": final_score,
+            #         "total_attempts": current_step_retry_count,
+            #         "max_attempts": step_max_attempts
+            #     }
             
-            # 对于非叶子节点，检查场景级别的回复次数限制
-            max_user_replies = session_data.get("max_user_replies", 3)
-            if current_replies >= max_user_replies:
-                self.logger.warning(f"超过场景回复次数限制，结束教学 - 用户: {user_id}, 回复次数: {current_replies}/{max_user_replies}")
-                # 教学因回复次数限制结束
-                final_score = self._calculate_final_score(session_data)
-                session_data["completed"] = True
-                session_data["final_score"] = final_score
-                session_data["completion_reason"] = "reply_limit_exceeded"
                 
-                # 保存会话数据
-                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                
-                # 切换到自由模式
-                self.set_user_chat_status(user_id, "free_mode")
-                
-                return {
-                    "success": True,
-                    "action": "completed",
-                    "reason": "reply_limit_exceeded",
-                    "ai_message": f"你已经回复了{current_replies}次，达到了最大回复次数限制。教学结束，最终得分：{final_score}分。",
-                    "final_score": final_score,
-                    "total_replies": current_replies,
-                    "max_replies": max_user_replies
-                }
-            
-            # 检查是否应该显示预警
-            warning_threshold = max(1, int(max_user_replies * 0.7))  # 70%时预警
-            warning_message = None
-            if current_replies >= warning_threshold and not session_data.get("warning_sent", False):
-                session_data["warning_sent"] = True
-                remaining = max_user_replies - current_replies
-                warning_message = f"注意：你已经回复了{current_replies}次，还有{remaining}次机会。"
-                self.logger.warning(f"触发回复次数预警 - 用户: {user_id}, 当前: {current_replies}, 剩余: {remaining}")
-            
             # 根据评估结果决定下一步 - 区分叶子节点和非叶子节点
             self.logger.info(f"=== 根据评估结果决定下一步 ===")
             self.logger.info(f"评估分数: {score}")
@@ -695,12 +542,17 @@ class ChatStatusManager:
                     
                     # 切换到自由模式
                     self.set_user_chat_status(user_id, "free_mode")
+
+                    # ⚠️ 新增：立即清理教学会话数据
+                    self.redis_client.delete_session_data(f"teaching_{user_id}")
+                    self.logger.info(f"已清理教学会话数据: teaching_{user_id}")  
                     
+                                     
                     return {
                         "success": True,
                         "action": "completed",
                         "reason": "leaf_step_max_attempts_exceeded",
-                        "ai_message": f"你已经尝试了{current_step_retry_count + 1}次，达到了最大尝试次数限制。教学结束，最终得分：{final_score}分。",
+                        "ai_message": f"你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
                         "final_score": final_score,
                         "total_attempts": current_step_retry_count + 1,
                         "max_attempts": step_max_attempts
@@ -838,7 +690,6 @@ class ChatStatusManager:
             session_data["wait_start_time"] = time.time()
             session_data["warning_sent"] = False
             session_data["final_reminder_sent"] = False
-            session_data["retry_count"] = 0  # 重置重试次数
             self.logger.info(f"更新步骤索引: {session_data['current_step']}")
             self.logger.info(f"设置等待响应状态: waiting_for_response=True, wait_start_time={session_data['wait_start_time']}")
             
@@ -885,17 +736,6 @@ class ChatStatusManager:
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 self.logger.info(f"已保存会话数据")
                 
-                # 构建回复进度信息
-                reply_progress = {
-                    "current_replies": current_replies,
-                    "max_replies": max_user_replies,
-                    "remaining_replies": max_user_replies - current_replies,
-                    "progress_percentage": round((current_replies / max_user_replies) * 100, 1) if max_user_replies > 0 else 0,
-                    "warning_threshold": warning_threshold,
-                    "warning_sent": session_data.get("warning_sent", False),
-                    "is_warning_active": current_replies >= warning_threshold,
-                    "is_limit_reached": current_replies >= max_user_replies
-                }
                 
                 # 根据分支类型确定action
                 if branch_type == "perfect_match":
@@ -916,9 +756,10 @@ class ChatStatusManager:
                     "message": f"根据{branch_type}分支进入下一步：{evaluation['feedback']}",
                     "timeoutSeconds": timeout_seconds,
                     "total_replies": current_replies,
-                    "max_replies": max_user_replies,
-                    "reply_progress": reply_progress,
-                    "warning_message": warning_message,
+
+                    "max_replies": session_data.get("max_user_replies", 3),
+                    # "reply_progress": reply_progress,
+                    # "warning_message": warning_message,
                     "branch_type": branch_type
                 }
                 self.logger.info(f"返回下一步结果: {result}")
@@ -943,161 +784,25 @@ class ChatStatusManager:
                 "total_replies": session_data.get("total_user_replies", 0) if 'session_data' in locals() else 0
             }
 
-    # # def _evaluate_response_with_config(self, step_config: Dict, user_text: str, session_data: Dict) -> Dict:
-    #     """根据步骤配置评估用户回复
-        
-    #     Args:
-    #         step_config: 步骤配置
-    #         user_text: 用户输入文本
-    #         session_data: 会话数据
-            
-    #     Returns:
-    #         Dict: 评估结果
-    #     """
-    #     self.logger.info(f"=== 根据步骤配置评估用户回复 ===")
-    #     self.logger.info(f"步骤配置: {step_config}")
-    #     self.logger.info(f"用户输入: {user_text}")
-        
-    #     # 获取配置参数
-    #     success_condition = ""
-    #     expected_keywords_str = step_config.get("expectedKeywords", "")
-    #     expected_phrases_str = step_config.get("expectedPhrases", "")
-    #     max_attempts = step_config.get("maxAttempts", 3)
-    #     retry_count = session_data.get("retry_count", 0)
-        
-    #     self.logger.info(f"成功条件: {success_condition}")
-    #     self.logger.info(f"期望关键词: {expected_keywords_str}")
-    #     self.logger.info(f"期望短语: {expected_phrases_str}")
-    #     self.logger.info(f"最大尝试次数: {max_attempts}")
-    #     self.logger.info(f"当前重试次数: {retry_count}")
-        
-    #     # 解析期望关键词和短语
-    #     expected_keywords = self._parse_json_list(expected_keywords_str)
-    #     expected_phrases = self._parse_json_list(expected_phrases_str)
-        
-    #     self.logger.info(f"解析后的期望关键词: {expected_keywords}")
-    #     self.logger.info(f"解析后的期望短语: {expected_phrases}")
-        
-    #     # 获取配置中的鼓励话语
-    #     praise_message = step_config.get("praiseMessage", "")
-    #     encouragement_message = step_config.get("encouragementMessage", "")
-        
-    #     # 替换儿童姓名占位符
-    #     child_name = session_data.get("child_name", "小朋友")
-    #     if praise_message:
-    #         praise_message = praise_message.replace("{childName}", child_name)
-    #         praise_message = praise_message.replace("{文杰}", child_name)
-    #     if encouragement_message:
-    #         encouragement_message = encouragement_message.replace("{childName}", child_name)
-    #         encouragement_message = encouragement_message.replace("{文杰}", child_name)
-        
-    #     # 根据成功条件进行匹配
-    #     if success_condition == "exact":
-    #         # 完全匹配：用户输入与期望短语一模一样
-    #         is_passed = user_text in expected_phrases
-    #         score = 100 if is_passed else 0
-    #         if is_passed and praise_message:
-    #             feedback = praise_message
-    #         else:
-    #             feedback = "回答完全正确！" if is_passed else (encouragement_message if encouragement_message else "请完全按照要求回答。")
-            
-    #     elif success_condition == "partial":
-    #         # 部分匹配：用户输入包含在期望短语内，或者包含期望关键词
-    #         is_passed = False
-    #         score = 0
-            
-    #         # 首先检查期望短语
-    #         if expected_phrases:
-    #             for phrase in expected_phrases:
-    #                 if phrase in user_text or user_text in phrase:
-    #                     is_passed = True
-    #                     score = 80
-    #                     break
-            
-    #         # 如果期望短语为空或没有匹配，检查期望关键词
-    #         if not is_passed and expected_keywords:
-    #             for keyword in expected_keywords:
-    #                 if keyword in user_text:
-    #                     is_passed = True
-    #                     score = 70
-    #                     break
-            
-    #         if is_passed and praise_message:
-    #             feedback = praise_message
-    #         else:
-    #             feedback = "回答正确！" if is_passed else (encouragement_message if encouragement_message else "请尝试更完整的回答。")
-            
-    #     elif success_condition == "keyword":
-    #         # 关键词匹配：用户输入包含期望关键词中的任何一个
-    #         is_passed = False
-    #         score = 0
-            
-    #         if expected_keywords:
-    #             for keyword in expected_keywords:
-    #                 if keyword in user_text:
-    #                     is_passed = True
-    #                     score = 60
-    #                     break
-            
-    #         if is_passed and praise_message:
-    #             feedback = praise_message
-    #         else:
-    #             feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
-            
-    #     else:
-    #         # 默认使用关键词匹配
-    #         is_passed = False
-    #         score = 0
-            
-    #         if expected_keywords:
-    #             for keyword in expected_keywords:
-    #                 if keyword in user_text:
-    #                     is_passed = True
-    #                     score = 60
-    #                     break
-            
-    #         if is_passed and praise_message:
-    #             feedback = praise_message
-    #         else:
-    #             feedback = "包含关键词，回答正确！" if is_passed else (encouragement_message if encouragement_message else "请使用相关的关键词回答。")
-        
-    #     self.logger.info(f"匹配结果: is_passed={is_passed}, score={score}")
-        
-    #     # 生成评估结果
-    #     result = {
-    #         "score": score,
-    #         "is_passed": is_passed,
-    #         "feedback": feedback,
-    #         "retry_count": retry_count,
-    #         "success_condition": success_condition,
-    #         "user_input": user_text,
-    #         "expected_keywords": expected_keywords,
-    #         "expected_phrases": expected_phrases
-    #     }
-        
-    #     self.logger.info(f"评估结果: {result}")
-    #     return result
 
     def _evaluate_response_with_config(self, step_config: Dict, user_text: str, session_data: Dict) -> Dict:
         """根据步骤配置评估用户回复 - 简化匹配逻辑"""
         self.logger.info(f"=== 根据步骤配置评估用户回复 ===")
-        self.logger.info(f"步骤配置: {step_config}")
+        # self.logger.info(f"步骤配置: {step_config}")
         self.logger.info(f"用户输入: {user_text}")
         
         # 获取配置参数
-        success_condition = step_config.get("successCondition", "")  # 保留原有，但实际不直接使用
+        success_condition = ""  # 保留原有，但实际不直接使用
         print("--------------------------------success_condition--------------------------------", success_condition)
         
         expected_keywords_str = step_config.get("expectedKeywords", "")
         expected_phrases_str = step_config.get("expectedPhrases", "")
         max_attempts = step_config.get("maxAttempts", 3)
-        retry_count = session_data.get("retry_count", 0)
         
         self.logger.info(f"成功条件: {success_condition}")
         self.logger.info(f"期望关键词: {expected_keywords_str}")
         self.logger.info(f"期望短语: {expected_phrases_str}")
         self.logger.info(f"最大尝试次数: {max_attempts}")
-        self.logger.info(f"当前重试次数: {retry_count}")
         
         # 解析期望关键词和短语
         expected_keywords = self._parse_json_list(expected_keywords_str)
@@ -1175,7 +880,7 @@ class ChatStatusManager:
             "score": score,
             "is_passed": is_passed,
             "feedback": feedback,
-            "retry_count": retry_count,
+            # "retry_count": retry_count,
             "success_condition": match_type,  # exact / partial / no_match
             "user_input": user_text,
             "expected_keywords": expected_keywords,
@@ -1264,330 +969,7 @@ class ChatStatusManager:
         self.logger.info(f"计算最终分数: {total_score}/{len(evaluations)} = {final_score}")
         return final_score
 
-    async def check_teaching_timeout(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """检查教学会话是否超时 - 优化版本，支持渐进式提示和步骤跳转
-        
-        Args:
-            user_id: 用户ID
-            
-        Returns:
-            Dict: 超时处理结果，如果没有超时返回None
-        """
-        self.logger.info(f"=== 检查教学超时（优化版） ===")
-        self.logger.info(f"用户ID: {user_id}")
-        
-        session_data = self.redis_client.get_session_data(f"teaching_{user_id}")
-        self.logger.info(f"会话数据: {session_data}")
-        
-        if not session_data or not session_data.get("waiting_for_response"):
-            self.logger.info(f"没有等待响应的会话，无需检查超时")
-            return None
-        
-        wait_start_time = session_data.get("wait_start_time")
-        if wait_start_time is None:
-            self.logger.info(f"等待开始时间未设置，跳过超时检查")
-            return None
-            
-        current_time = time.time()
-        wait_duration = current_time - wait_start_time
-        
-        # 获取当前步骤的超时时间
-        scenario_id = session_data.get("scenario_id")
-        current_step_index = session_data.get("current_step", 0)
-        
-        # 获取当前步骤配置
-        steps = await self.dialogue_service._get_scenario_steps(scenario_id)
-        if steps and current_step_index < len(steps):
-            current_step = steps[current_step_index]
-            timeout_seconds = current_step.get("timeoutSeconds", self.WAIT_TIME_MAX)
-        else:
-            timeout_seconds = self.WAIT_TIME_MAX
-        
-        self.logger.info(f"等待开始时间: {wait_start_time}")
-        self.logger.info(f"当前时间: {current_time}")
-        self.logger.info(f"等待时长: {wait_duration}秒")
-        self.logger.info(f"超时时间: {timeout_seconds}秒")
-        
-        # 检查渐进式提示
-        if self.PROGRESSIVE_TIMEOUT_CONFIG.get("enabled", False):
-            warning_threshold = timeout_seconds * self.PROGRESSIVE_TIMEOUT_CONFIG["warning_timeout"]
-            final_threshold = timeout_seconds * self.PROGRESSIVE_TIMEOUT_CONFIG["final_timeout"]
-            
-            # 检查是否需要发出警告提示
-            if (wait_duration >= warning_threshold and 
-                not session_data.get("warning_sent", False)):
-                self.logger.info(f"发出警告提示（{wait_duration}秒 >= {warning_threshold}秒）")
-                session_data["warning_sent"] = True
-                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                
-                warning_message = self._get_random_message(self.DEFAULT_FEEDBACK_MESSAGES["warning_messages"])
-                child_name = session_data.get("child_name", "小朋友")
-                warning_message = warning_message.replace("{childName}", child_name)
-                warning_message = warning_message.replace("{文杰}", child_name)
-                
-                return {
-                    "success": True,
-                    "action": "warning_reminder",
-                    "ai_message": warning_message,
-                    "message": "发出警告提示"
-                }
-            
-            # 检查是否需要发出最终提醒
-            elif (wait_duration >= final_threshold and 
-                  not session_data.get("final_reminder_sent", False)):
-                self.logger.info(f"发出最终提醒（{wait_duration}秒 >= {final_threshold}秒）")
-                session_data["final_reminder_sent"] = True
-                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                
-                final_message = self._get_random_message(self.DEFAULT_FEEDBACK_MESSAGES["final_reminder_messages"])
-                child_name = session_data.get("child_name", "小朋友")
-                final_message = final_message.replace("{childName}", child_name)
-                final_message = final_message.replace("{文杰}", child_name)
-                
-                return {
-                    "success": True,
-                    "action": "final_reminder",
-                    "ai_message": final_message,
-                    "message": "发出最终提醒"
-                }
-        
-        # 检查是否超过等待时间
-        if wait_duration >= timeout_seconds:
-            self.logger.info(f"检测到超时，开始处理超时逻辑")
-            
-            # 获取当前步骤的超时处理配置
-            if steps and current_step_index < len(steps):
-                current_step = steps[current_step_index]
-                self.logger.info(f"当前步骤数据: {current_step}")
-                
-                # 使用auto_reply_on_timeout作为超时消息
-                auto_reply = current_step.get("autoReplyOnTimeout")
-                
-                self.logger.info(f"自动回复消息: {auto_reply}")
-                self.logger.info(f"超时后直接走成功条件分支配置")
-                
-                # 优化超时消息，增加鼓励性
-                if auto_reply:
-                    timeout_message = auto_reply
-                else:
-                    timeout_message = "时间到了，让我们继续学习下一个内容。"
-                
-                # 替换儿童姓名占位符
-                child_name = session_data.get("child_name", "小朋友")
-                if timeout_message:
-                    timeout_message = timeout_message.replace("{childName}", child_name)
-                    timeout_message = timeout_message.replace("{文杰}", child_name)
-            else:
-                self.logger.warning(f"无法获取步骤数据，使用默认超时消息")
-                timeout_message = "时间到了，让我们继续学习下一个内容。"
-            
-            self.logger.info(f"最终超时消息: {timeout_message}")
-            
-            # 更新会话状态 - 超时后进入下一步
-            session_data["waiting_for_response"] = False
-            session_data["warning_sent"] = False
-            session_data["final_reminder_sent"] = False
-            
-            # 检查是否需要进入下一步
-            if steps and current_step_index < len(steps):
-                # 获取当前步骤的最大尝试次数（优先步骤配置，备用场景配置）
-                step_max_attempts = self._get_step_max_attempts(current_step, session_data)
-                current_step_retry_count = session_data.get("current_step_retry_count", 0)
-                
-                # 判断是否为叶子节点
-                is_leaf_step = self._is_leaf_step(current_step)
-                
-                self.logger.info(f"超时检查 - 步骤最大尝试次数: {step_max_attempts}")
-                self.logger.info(f"超时检查 - 当前步骤重试次数: {current_step_retry_count}")
-                self.logger.info(f"超时检查 - 是否为叶子节点: {is_leaf_step}")
-                
-                if is_leaf_step:
-                    # 叶子节点：检查步骤级别的重试次数
-                    if current_step_retry_count >= step_max_attempts:
-                        # 叶子节点超过最大尝试次数，结束教学
-                        self.logger.warning(f"叶子节点超时且超过最大尝试次数，结束教学")
-                        final_score = self._calculate_final_score(session_data)
-                        session_data["completed"] = True
-                        session_data["final_score"] = final_score
-                        session_data["completion_reason"] = "timeout_leaf_step_max_attempts_exceeded"
-                        
-                        # 保存会话数据
-                        self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                        
-                        # 生成完成消息
-                        completion_message = self._generate_completion_message(final_score, child_name)
-                        
-                        return {
-                            "success": True,
-                            "action": "completed",
-                            "ai_message": completion_message,
-                            "final_score": final_score,
-                            "message": f"教学完成！最终得分：{final_score}分"
-                        }
-                    else:
-                        # 叶子节点未超过最大尝试次数，增加重试次数并重复输出AI消息列表
-                        session_data["current_step_retry_count"] = current_step_retry_count + 1
-                        self.logger.info(f"叶子节点超时但未超过最大尝试次数，增加重试次数: {session_data['current_step_retry_count']}/{step_max_attempts}")
-                        
-                        # 获取步骤的消息列表
-                        step_id = current_step.get("stepId")
-                        message_list = None
-                        if step_id:
-                            message_list = self._get_step_message_list(step_id)
-                            self.logger.info(f"超时后获取到步骤 {step_id} 的消息列表: {len(message_list) if message_list else 0} 条消息")
-                        
-                        # 设置等待响应状态
-                        session_data["waiting_for_response"] = True
-                        session_data["wait_start_time"] = time.time()
-                        session_data["warning_sent"] = False
-                        session_data["final_reminder_sent"] = False
-                        
-                        # 保存会话数据
-                        self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                        
-                        # 构建返回结果 - 使用retry_current_step动作
-                        result = {
-                            "success": True,
-                            "action": "retry_current_step",
-                            "session_id": f"teaching_{user_id}",
-                            "current_step": current_step,
-                            "message": "超时后重试当前步骤",
-                            "timeoutSeconds": current_step.get("timeoutSeconds", self.WAIT_TIME_MAX),
-                            "retry_count": session_data["current_step_retry_count"],
-                            "max_attempts": step_max_attempts,
-                            "is_leaf_step": True
-                        }
-                        
-                        # 如果有消息列表，添加到返回结果中
-                        if message_list:
-                            result["message_list"] = message_list
-                            result["message_count"] = len(message_list)
-                            self.logger.info(f"叶子节点超时后返回消息列表，消息数量: {len(message_list)}")
-                        
-                        return result
-                else:
-                    # 非叶子节点：使用原有的分支配置逻辑
-                    if current_step_retry_count >= step_max_attempts:
-                        # 超过最大尝试次数，使用完全不匹配分支配置进入下一步
-                        next_step_id = current_step.get("noMatchNextStepId") or current_step.get("noMatchStepId")
-                        if next_step_id:
-                            self.logger.info(f"超时且超过最大尝试次数，使用noMatchStepId跳转: {next_step_id}")
-                            # 查找指定的下一步骤
-                            next_step_index = self._find_step_by_id(steps, next_step_id)
-                            if next_step_index is not None:
-                                session_data["current_step"] = next_step_index
-                                session_data["current_step_retry_count"] = 0  # 重置新步骤的重试次数
-                                self.logger.info(f"超时后跳转到指定步骤: {next_step_index}")
-                            else:
-                                self.logger.warning(f"超时后未找到指定的下一步骤ID: {next_step_id}，教学结束")
-                                # 如果找不到指定的步骤，结束教学
-                                final_score = self._calculate_final_score(session_data)
-                                session_data["completed"] = True
-                                session_data["final_score"] = final_score
-                                session_data["completion_reason"] = "timeout_branch_step_not_found"
-                                
-                                # 保存会话数据
-                                self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                                
-                                # 生成完成消息
-                                completion_message = self._generate_completion_message(final_score, child_name)
-                                
-                                return {
-                                    "success": True,
-                                    "action": "completed",
-                                    "ai_message": completion_message,
-                                    "final_score": final_score,
-                                    "message": f"教学完成！最终得分：{final_score}分"
-                                }
-                        else:
-                            # 没有配置noMatchStepId，结束教学
-                            self.logger.warning(f"超时且没有配置noMatchStepId，教学结束")
-                            final_score = self._calculate_final_score(session_data)
-                            session_data["completed"] = True
-                            session_data["final_score"] = final_score
-                            session_data["completion_reason"] = "timeout_no_branch_config"
-                            
-                            # 保存会话数据
-                            self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                            
-                            # 生成完成消息
-                            completion_message = self._generate_completion_message(final_score, child_name)
-                            
-                            return {
-                                "success": True,
-                                "action": "completed",
-                                "ai_message": completion_message,
-                                "final_score": final_score,
-                                "message": f"教学完成！最终得分：{final_score}分"
-                            }
-                    
-                        # 重置当前步骤重试次数（进入新步骤时重置）
-                        session_data["current_step_retry_count"] = 0
-                        self.logger.info(f"超时且超过最大尝试次数，进入下一步: {session_data['current_step']}")
-                        
-                        # 检查是否完成所有步骤
-                        if session_data["current_step"] >= len(steps):
-                            self.logger.info(f"已完成所有步骤，教学结束")
-                            # 教学完成
-                            final_score = self._calculate_final_score(session_data)
-                            session_data["completed"] = True
-                            session_data["final_score"] = final_score
-                            
-                            # 保存会话数据
-                            self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                            
-                            # 生成完成消息
-                            completion_message = self._generate_completion_message(final_score, child_name)
-                            
-                            return {
-                                "success": True,
-                                "action": "completed",
-                                "ai_message": completion_message,
-                                "final_score": final_score,
-                                "message": f"教学完成！最终得分：{final_score}分"
-                            }
-                        else:
-                            # 进入下一步
-                            next_step = steps[session_data["current_step"]]
-                            
-                            # 保存会话数据
-                            self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                            
-                            return {
-                                "success": True,
-                                "action": "next_step",
-                                "timeoutSeconds": next_step.get("timeoutSeconds", self.WAIT_TIME_MAX),
-                                "message": "超时后进入下一步"
-                            }
-                    else:
-                        # 非叶子节点未超过最大尝试次数，增加重试次数并继续当前步骤
-                        session_data["current_step_retry_count"] = current_step_retry_count + 1
-                        self.logger.info(f"非叶子节点超时但未超过最大尝试次数，增加重试次数: {session_data['current_step_retry_count']}/{step_max_attempts}")
-                        
-                        # 保存会话数据
-                        self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                        
-                        return {
-                            "success": True,
-                            "action": "retry_current_step",
-                            "message": "超时后重试当前步骤",
-                            "timeoutSeconds": current_step.get("timeoutSeconds", self.WAIT_TIME_MAX),
-                            "retry_count": session_data["current_step_retry_count"],
-                            "max_attempts": step_max_attempts,
-                            "is_leaf_step": False
-                        }
-            
-            result = {
-                "success": True,
-                "action": "timeout_response",
-                "message": "用户超时，进入下一步"
-            }
-            self.logger.info(f"返回超时处理结果: {result}")
-            return result
-        else:
-            self.logger.info(f"未超时，等待时长: {wait_duration}秒 < {timeout_seconds}秒")
-        
-        return None
+    # 
     
     def _find_step_by_id(self, steps: List[Dict], step_id: str) -> Optional[int]:
         """根据步骤ID查找步骤索引
@@ -1601,7 +983,7 @@ class ChatStatusManager:
         """
         # 首先记录所有步骤的ID信息用于调试
         self.logger.info(f"查找步骤ID: {step_id}")
-        self.logger.info("当前所有步骤的ID信息:")
+        # self.logger.info("当前所有步骤的ID信息:")
         for i, step in enumerate(steps):
             self.logger.info(f"  步骤{i}: id={step.get('id')}, stepId={step.get('stepId')}, stepCode={step.get('stepCode')}")
         
@@ -1694,7 +1076,7 @@ class ChatStatusManager:
             from config.manage_api_client import get_step_messages
             
             message_list = get_step_messages(step_id)
-            self.logger.info(f"API返回结果: {message_list}")
+            # self.logger.info(f"API返回结果: {message_list}")
             
             if message_list and len(message_list) > 0:
                 self.logger.info(f"获取到消息列表，消息数量: {len(message_list)}")

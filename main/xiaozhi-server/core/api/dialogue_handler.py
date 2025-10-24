@@ -31,8 +31,8 @@ class DialogueHandler:
                 return await self._handle_get_scenarios(request_data)
             elif action == "free_chat":
                 return await self._handle_free_chat(request_data)
-            elif action == "check_timeout":
-                return await self._handle_check_timeout(request_data)
+            # elif action == "check_timeout":
+            #     return await self._handle_check_timeout(request_data)
             else:
                 return {"success": False, "error": "未知操作"}
                 
@@ -134,19 +134,19 @@ class DialogueHandler:
         result = await self.chat_status_manager.handle_user_input(user_id, user_text, child_name)
         return result
     
-    async def _handle_check_timeout(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        """检查教学会话超时"""
-        user_id = request_data.get("user_id", "default_user")
+    # async def _handle_check_timeout(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    #     """检查教学会话超时"""
+    #     user_id = request_data.get("user_id", "default_user")
         
-        result = await self.chat_status_manager.check_teaching_timeout(user_id)
-        if result:
-            return result
-        else:
-            return {
-                "success": True,
-                "action": "no_timeout",
-                "message": "会话未超时"
-            }
+    #     result = await self.chat_status_manager.check_teaching_timeout(user_id)
+    #     if result:
+    #         return result
+    #     else:
+    #         return {
+    #             "success": True,
+    #             "action": "no_timeout",
+    #             "message": "会话未超时"
+    #         }
     
     async def _handle_free_chat(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """处理自由聊天"""

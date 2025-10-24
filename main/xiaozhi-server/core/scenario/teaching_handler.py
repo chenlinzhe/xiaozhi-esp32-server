@@ -206,9 +206,7 @@ class TeachingHandler:
                         if feedback:
                             self.logger.bind(tag=TAG).info(f"✅ 使用评估反馈: {feedback}")
                             self._send_tts_message(feedback)
-                            self.connection.dialogue.put(Message(role="assistant", content=feedback))
-                            # 结束TTS会话，确保消息能发送到用户端
-                            self._end_tts_session()
+
 
                         else:
                             self.logger.bind(tag=TAG).warning(f"❌ 没有找到任何消息内容")
@@ -216,28 +214,45 @@ class TeachingHandler:
                             default_message = "请尝试更完整的回答。"
                             self.logger.bind(tag=TAG).info(f"✅ 使用默认提示: {default_message}")
                             self._send_tts_message(default_message)
-                            self.connection.dialogue.put(Message(role="assistant", content=default_message))
-                            self._end_tts_session()
+
                             
                     self.logger.bind(tag=TAG).info(f"教学步骤处理完成: {action}")
 
                     return True
 
+
                 elif action == "completed":
                     # 教学完成，切换到自由模式
-                    # 只发送完成消息，不发送评估反馈
-                    self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info(f"教学完成，最终得分: {result.get('final_score')}")
 
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
-                    return True
+
+                    print(f"ai_message--------------------------------------: {ai_message}")
+                    
+                    # 1. 发送完成消息
+                    self._send_tts_message(ai_message)
+                    
+
+
+                    
+                    # 4. ⚠️ 新增：发送自由对话欢迎消息
+                    free_chat_welcome = "现在我们可以自由聊天了，你想聊什么呢？"
+                    self._send_tts_message(free_chat_welcome)
+
+
+                    self.connection.llm_finish_task = True
+                    self.connection.allow_interrupt = True
+                    
+                    # 6. ⚠️ 新增：重置活动时间，避免超时
+                    # self.connection.last_activity_time = time.time() * 1000
+                    
+                    self.logger.bind(tag=TAG).info("教学完成处理结束，系统已切换到自由模式")
+                    return None
+
+
 
                 elif action == "free_chat":
                     # 自由聊天模式，发送简单回复后继续正常流程
                     self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("自由聊天模式")
                     # 不返回True，让流程继续到正常的LLM处理
                     return None
@@ -245,7 +260,6 @@ class TeachingHandler:
                 elif action == "warning_reminder":
                     # 警告提示
                     self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("发出警告提示")
 
                     # 结束TTS会话，确保消息能发送到用户端
@@ -255,7 +269,6 @@ class TeachingHandler:
                 elif action == "final_reminder":
                     # 最终提醒
                     self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("发出最终提醒")
 
                     # 结束TTS会话，确保消息能发送到用户端
@@ -265,11 +278,9 @@ class TeachingHandler:
                 elif action == "timeout_response":
                     # 超时自动回复
                     self._send_tts_message(ai_message)
-                    self.connection.dialogue.put(Message(role="assistant", content=ai_message))
                     self.logger.bind(tag=TAG).info("教学超时自动回复")
 
-                    # 结束TTS会话，确保消息能发送到用户端
-                    self._end_tts_session()
+
                     return True
 
             # 如果没有特殊处理，返回None继续正常流程
@@ -299,27 +310,37 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).warning("TTS消息为空，跳过发送")  
             return  
     
-        if not self.connection.tts:  
-            self.logger.bind(tag=TAG).error("TTS实例不存在，无法发送消息")  
-            return  
     
         try:  
-            # 如果没有 sentence_id,生成一个新的  
-            if not self.connection.sentence_id:  
-                self.connection.sentence_id = str(uuid.uuid4().hex)  
-                self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")  
-                
-                # 发送 FIRST 请求  
-                self.connection.tts.tts_text_queue.put(  
-                    TTSMessageDTO(  
-                        sentence_id=self.connection.sentence_id,  
-                        sentence_type=SentenceType.FIRST,  
-                        content_type=ContentType.ACTION,  
-                        speech_rate=speech_rate,  
-                    )  
+
+
+            self.connection.dialogue.put(Message(role="assistant", content=message))
+
+
+            # 生成一个新的  
+
+            self.connection.sentence_id = str(uuid.uuid4().hex)  
+            self.logger.bind(tag=TAG).info(f"生成新的sentence_id: {self.connection.sentence_id}")  
+            
+            # 发送 FIRST 请求  
+            self.connection.tts.tts_text_queue.put(  
+                TTSMessageDTO(  
+                    sentence_id=self.connection.sentence_id,  
+                    sentence_type=SentenceType.FIRST,  
+                    content_type=ContentType.ACTION,  
+                    speech_rate=speech_rate,  
                 )  
-                self.logger.bind(tag=TAG).info("发送TTS FIRST请求")  
-    
+            )  
+            self.logger.bind(tag=TAG).info("---------发送TTS FIRST请求")  
+
+
+            # 🔥 关键：等待 WebSocket 连接建立完成
+            self.logger.bind(tag=TAG).info("⏳ 等待 WebSocket 连接建立...")
+            time.sleep(1.0)  # 给异步线程时间去建立连接
+            self.logger.bind(tag=TAG).info("✅ 连接应该已建立，继续发送")
+
+
+
             # 发送文本消息  
             self.connection.tts.tts_text_queue.put(  
                 TTSMessageDTO(  
@@ -330,7 +351,16 @@ class TeachingHandler:
 
                 )  
             )  
-            self.logger.bind(tag=TAG).info(f"发送待TTS合成消息到队列: {message}")  
+            # self.logger.bind(tag=TAG).info(f"发送待TTS合成消息到队列: {message}")  
+
+                    # 2. 结束TTS会话
+            self._end_tts_session()
+            
+            # 3. ⚠️ 新增：等待完成消息播放完成
+            completion_duration = self._calculate_speech_duration(message, 1.0)
+            self.logger.bind(tag=TAG).info(f"等待完成消息播放: {completion_duration:.2f}秒")
+            time.sleep(completion_duration+3)
+
             
         except Exception as e:  
             self.logger.bind(tag=TAG).error(f"发送待TTS合成消息失败: {e}") 
@@ -380,7 +410,7 @@ class TeachingHandler:
                 
 
 
-                # 🔥 关键:为整个消息列表生成一个 sentence_id  
+                # 🔥 关键:为每条消息生成一个 sentence_id  
                 sentence_id = str(uuid.uuid4().hex)  
                 self.connection.sentence_id = sentence_id  
                 
@@ -393,7 +423,7 @@ class TeachingHandler:
                         speech_rate=speech_rate,  # ✅ 添加语速参数
                     )  
                 )  
-                self.logger.bind(tag=TAG).info("📤 发送TTS FIRST请求-----------------")  
+
                 
                 # 🔥 关键：等待 WebSocket 连接建立完成
                 self.logger.bind(tag=TAG).info("⏳ 等待 WebSocket 连接建立...")
@@ -420,16 +450,6 @@ class TeachingHandler:
 
                 #先发送结束TTS,再等待数秒后，才开启下一次连接。
                 self._end_tts_session()
-
-
-                # if i == 0:
-                #     total_wait_time = 30
-                # if i == 1:
-                #     total_wait_time = 10
-                # if i == 2:
-                #     total_wait_time = 10
-                # if i == 3:
-                #     total_wait_time = 2
 
 
                 # 智能计算等待时间：根据当前消息的文本和语速,加上配置的等待时间
@@ -459,7 +479,7 @@ class TeachingHandler:
             self.logger.bind(tag=TAG).info(f"🔍 获取步骤消息列表，步骤ID: {step_id}")
             message_list = get_step_messages(step_id)
 
-            self.logger.bind(tag=TAG).info(f"API返回结果: {message_list}")
+            # self.logger.bind(tag=TAG).info(f"API返回结果: {message_list}")
 
             if message_list and len(message_list) > 0:
                 # self.logger.bind(tag=TAG).info(f"✅ 获取到消息列表，消息数量: {len(message_list)}")

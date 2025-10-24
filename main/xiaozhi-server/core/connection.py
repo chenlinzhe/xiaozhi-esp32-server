@@ -193,6 +193,11 @@ class ConnectionHandler:
                     self.headers["device-id"] = query_params["device-id"][0]
                     self.headers["client-id"] = query_params["client-id"][0]
                 else:
+                    # 记录无device-id的连接来源，便于排查
+                    self.logger.bind(tag=TAG).warning(
+                        f"收到无device-id的连接请求，来源IP: {ws.remote_address[0]}, "
+                        f"User-Agent: {self.headers.get('user-agent', 'N/A')}"
+                    )
                     await ws.send("端口正常，如需测试连接，请使用test_page.html")
                     await self.close(ws)
                     return
@@ -875,9 +880,9 @@ class ConnectionHandler:
     def chat(self, query, tool_call=False, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         # 打印当前 LLM 实例类型和 LLM 配置
-        self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")
-        self.logger.bind(tag=TAG).info(f"当前 LLM 配置: {self.config.get('LLM')}")
-        self.logger.bind(tag=TAG).info(f"当前选中 LLM: {self.config.get('selected_module', {}).get('LLM')}")
+        # self.logger.bind(tag=TAG).info(f"当前 LLM 实例: {type(self.llm)}")
+        # self.logger.bind(tag=TAG).info(f"当前 LLM 配置: {self.config.get('LLM')}")
+        # self.logger.bind(tag=TAG).info(f"当前选中 LLM: {self.config.get('selected_module', {}).get('LLM')}")
         self.llm_finish_task = False
         depth = 0
         
@@ -1190,7 +1195,7 @@ class ConnectionHandler:
             # 清理教学处理器资源
             if hasattr(self, "teaching_handler") and self.teaching_handler:
                 try:
-                    await self.teaching_handler.cleanup()
+                    self.teaching_handler.cleanup()
                 except Exception as teaching_cleanup_error:
                     self.logger.bind(tag=TAG).error(
                         f"清理教学处理器资源时出错: {teaching_cleanup_error}"
