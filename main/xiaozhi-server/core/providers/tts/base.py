@@ -163,6 +163,7 @@ class TTSProviderBase(ABC):
         content_detail=None,
         content_file=None,
         sentence_id=None,
+        speech_rate=None,
     ):
         """发送一句话"""
         if not sentence_id:
@@ -178,6 +179,7 @@ class TTSProviderBase(ABC):
                 sentence_id=sentence_id,
                 sentence_type=SentenceType.FIRST,
                 content_type=ContentType.ACTION,
+                speech_rate=speech_rate,
             )
         )
         
@@ -193,6 +195,7 @@ class TTSProviderBase(ABC):
                             content_type=content_type,
                             content_detail=seg,
                             content_file=content_file,
+                            speech_rate=speech_rate,
                         )
                     )
                     # 在句子之间添加等待时间（除了最后一个句子）

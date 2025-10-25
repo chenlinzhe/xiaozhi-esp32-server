@@ -63,9 +63,11 @@ class TeachingHandler:
 
             # 异步处理用户输入
             future = asyncio.run_coroutine_threadsafe(
-                self.chat_status_manager.handle_user_input(user_id, query, self.child_name),
+                self.chat_status_manager.handle_user_input(user_id, query, self.connection.child_name),
                 self.connection.loop
             )
+
+            print("self.connection.child_name--------------------------------------: ",self.connection.child_name)
             result = future.result()
 
             # self.logger.bind(tag=TAG).info(f"聊天模式处理结果result---------------------------------------: {result}")
@@ -228,31 +230,45 @@ class TeachingHandler:
 
                     print(f"ai_message--------------------------------------: {ai_message}")
                     
-                    # 1. 发送完成消息
-                    self._send_tts_message(ai_message)
+                    # 1. 发送完成消息（使用0.5倍语速）
+                    self._send_tts_message(ai_message, speech_rate=0.5)
                     
 
 
                     
-                    # 4. ⚠️ 新增：发送自由对话欢迎消息
+                    # 4. 发送自由对话欢迎消息（使用0.5倍语速）
                     free_chat_welcome = "现在我们可以自由聊天了，你想聊什么呢？"
-                    self._send_tts_message(free_chat_welcome)
-
+                    self._send_tts_message(free_chat_welcome, speech_rate=0.5)
 
                     self.connection.llm_finish_task = True
                     self.connection.allow_interrupt = True
                     
-                    # 6. ⚠️ 新增：重置活动时间，避免超时
-                    # self.connection.last_activity_time = time.time() * 1000
+                    # 🔥 切换到自由对话模式，设置自由对话提示词
+                    free_chat_prompt = f"""你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是{self.connection.child_name}的AI朋友，晚晚小姐姐，现在处于自由聊天模式。
+
+请遵循以下原则：
+1. 用亲切、活泼的语气与{self.connection.child_name}交流，像朋友一样
+2. 可以讲故事、聊天、回答问题、玩文字游戏
+3. 鼓励孩子的好奇心和想象力，给予正面引导
+4. 回答要简短有趣，适合儿童理解，避免过于复杂的表达
+5. 保持耐心和热情，让{self.connection.child_name}感受到陪伴和关爱
+6. 每次回复尽量不超过30个字，讲故事可以适当加长。
+6. 如果{self.connection.child_name}说"讲故事"，直接讲一个适合儿童的有趣故事
+
+当前时间：{{{{current_time}}}}"""
+                    
+                    self.connection.change_system_prompt(free_chat_prompt)
+                    self.logger.bind(tag=TAG).info(f"✅ 已设置自由对话提示词，用户: {self.connection.child_name}")
                     
                     self.logger.bind(tag=TAG).info("教学完成处理结束，系统已切换到自由模式")
+                    # 🔥 关键：返回 None 让LLM处理用户输入
                     return None
 
 
 
                 elif action == "free_chat":
                     # 自由聊天模式，发送简单回复后继续正常流程
-                    self._send_tts_message(ai_message)
+                    # self._send_tts_message(ai_message)
                     self.logger.bind(tag=TAG).info("自由聊天模式")
                     # 不返回True，让流程继续到正常的LLM处理
                     return None
@@ -394,6 +410,8 @@ class TeachingHandler:
                     continue  
                     
                 # 替换占位符  
+                self.child_name = self.connection.child_name
+                
                 content = content.replace("{文杰}", self.child_name)  
                 content = content.replace("{childName}", self.child_name)  
                 if f"{self.child_name}{self.child_name}" in content:  

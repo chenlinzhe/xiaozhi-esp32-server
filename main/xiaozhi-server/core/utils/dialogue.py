@@ -66,11 +66,9 @@ class Dialogue:
         dialogue = []
 
         # 添加系统提示和记忆
-        # system_message = next(
-        #     (msg for msg in self.dialogue if msg.role == "system"), None
-        # )
-
-        system_message = None
+        system_message = next(
+            (msg for msg in self.dialogue if msg.role == "system"), None
+        )
 
         if system_message:
             # 基础系统提示
@@ -113,8 +111,16 @@ class Dialogue:
             dialogue.append({"role": "system", "content": enhanced_system_prompt})
 
         # 添加用户和助手的对话
-        for m in self.dialogue:
-            if m.role != "system":  # 跳过原始的系统消息
-                self.getMessages(m, dialogue)
+        # for m in self.dialogue:
+        #     if m.role != "system":  # 跳过原始的系统消息
+        #         self.getMessages(m, dialogue)
+
+        # 添加用户和助手的对话（只取最后2句，避免教学对话干扰LLM）
+        non_system_messages = [m for m in self.dialogue if m.role != "system"]
+        last_n_messages = non_system_messages[-2:] if len(non_system_messages) >= 2 else non_system_messages
+
+        for m in last_n_messages:
+            self.getMessages(m, dialogue)
+
 
         return dialogue

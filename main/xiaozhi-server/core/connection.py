@@ -224,6 +224,28 @@ class ConnectionHandler:
                 self.session_id = self.device_id
                 self.logger.bind(tag=TAG).info(f"✅ 获得设备ID: {self.device_id}")
                 self.logger.bind(tag=TAG).info(f"✅ 使用设备ID作为session_id: {self.session_id}")
+                
+                # 🔥 获取到设备ID后，立即从数据库读取用户名
+                try:
+                    from core.providers.user.user_info_manager import UserInfoManager
+                    user_manager = UserInfoManager(self.config)
+                    self.logger.bind(tag=TAG).info(f"🔍 检查设备 {self.device_id} 是否有用户名...")
+                    has_name = user_manager.has_user_name(self.device_id)
+                    self.logger.bind(tag=TAG).info(f"🔍 has_user_name 返回: {has_name}")
+                    
+                    if has_name:
+                        user_info = user_manager.get_user_info(self.device_id)
+                        self.logger.bind(tag=TAG).info(f"🔍 获取到用户信息: {user_info}")
+                        user_name = user_info.get("userName") if user_info else "小朋友"
+                        self.child_name = user_name
+                        self.teaching_handler.child_name = user_name
+                        self.logger.bind(tag=TAG).info(f"✅ 从数据库加载用户名: {user_name}")
+                    else:
+                        self.logger.bind(tag=TAG).info(f"⚠️ 设备 {self.device_id} 没有用户名记录，使用默认值: 小朋友")
+                except Exception as e:
+                    self.logger.bind(tag=TAG).error(f"❌ 加载用户名失败: {e}")
+                    import traceback
+                    self.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
             else:
                 self.logger.bind(tag=TAG).warning("❌ 未获取到设备ID，使用随机session_id")
                 self.logger.bind(tag=TAG).warning(f"🎲 随机session_id: {self.session_id}")
@@ -570,48 +592,18 @@ class ConnectionHandler:
                 self.logger.bind(tag=TAG).warning("TTS初始化超时，跳过欢迎语音")
                 return
             
-            # 检查用户是否已有姓名
-            from core.providers.user.user_info_manager import UserInfoManager
-            user_manager = UserInfoManager(self.config)
+            # 🔥 直接使用 self.child_name（已在连接初始化时加载）
+            if self.child_name == "小朋友":
+                # 用户没有姓名，询问姓名
+                welcome_message = "请问你叫什么名字呢？"
+                self.logger.bind(tag=TAG).info(f"用户没有姓名，发送欢迎语音询问姓名")
+            else:
+                # 用户已有姓名，使用姓名打招呼
+                welcome_message = f"你好 {self.child_name}！我很高兴再次见到你！有什么我可以帮助你的吗？"
+                self.logger.bind(tag=TAG).info(f"用户姓名: {self.child_name}")
             
-            try:
-                has_name = user_manager.has_user_name(self.device_id)
-                
-                if not has_name:
-                    # 用户没有姓名，询问姓名
-                    welcome_message = "请问你叫什么名字呢？"
-                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 没有姓名，发送欢迎语音询问姓名")
-                    
-                    # 尝试记录交互（如果API不可用则忽略）
-                    try:
-                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
-                    except Exception as record_error:
-                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
-                    
-                    # 发送TTS语音
-                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
-                else:
-                    # 用户已有姓名，获取用户信息
-                    user_info = user_manager.get_user_info(self.device_id)
-                    user_name = user_info.get("userName") if user_info else "朋友"
-                    
-                    welcome_message = f"你好 {user_name}！很高兴再次见到你！有什么我可以帮助你的吗？"
-                    self.logger.bind(tag=TAG).info(f"用户 {self.device_id} 已有姓名: {user_name}")
-                    
-                    # 尝试记录交互（如果API不可用则忽略）
-                    try:
-                        user_manager.record_interaction(self.device_id, "greeting", "", welcome_message)
-                    except Exception as record_error:
-                        self.logger.bind(tag=TAG).warning(f"记录交互失败，但继续发送欢迎语音: {record_error}")
-                    
-                    # 发送TTS语音
-                    self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
-                    
-            except Exception as api_error:
-                # API调用失败，发送通用欢迎语音
-                self.logger.bind(tag=TAG).warning(f"用户信息API调用失败，发送通用欢迎语音: {api_error}")
-                welcome_message = "你好！我是小智，很高兴认识你！有什么我可以帮助你的吗？"
-                self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message)
+            # 发送TTS语音（使用0.5倍语速）
+            self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=welcome_message, speech_rate=0.5)
                 
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"发送欢迎语音失败: {e}")
@@ -905,6 +897,7 @@ class ConnectionHandler:
                     sentence_id=self.sentence_id,
                     sentence_type=SentenceType.FIRST,
                     content_type=ContentType.ACTION,
+                    speech_rate=0.5,  # 🔥 自由对话使用0.5倍语速
                 )
             )
 
@@ -923,23 +916,14 @@ class ConnectionHandler:
                 )
                 memory_str = future.result()
 
-            if self.intent_type == "function_call" and functions is not None:
-                self.logger.bind(tag=TAG).info("调用 LLM response_with_functions ...")
-                llm_responses = self.llm.response_with_functions(
-                    self.session_id,
-                    self.dialogue.get_llm_dialogue_with_memory(
-                        memory_str, self.config.get("voiceprint", {})
-                    ),
-                    functions=functions,
-                )
-            else:
-                self.logger.bind(tag=TAG).info("调用 LLM response ...")
-                llm_responses = self.llm.response(
-                    self.session_id,
-                    self.dialogue.get_llm_dialogue_with_memory(
-                        memory_str, self.config.get("voiceprint", {})
-                    ),
-                )
+            # 🔥 弃用 response_with_functions，统一使用 response
+            self.logger.bind(tag=TAG).info("调用 LLM response ...")
+            llm_responses = self.llm.response(
+                self.session_id,
+                self.dialogue.get_llm_dialogue_with_memory(
+                    memory_str, self.config.get("voiceprint", {})
+                ),
+            )
         except Exception as e:
             self.logger.bind(tag=TAG).error(f"LLM 处理出错 {query}: {e}")
             return None
@@ -1012,6 +996,7 @@ class ConnectionHandler:
                             sentence_type=SentenceType.MIDDLE,
                             content_type=ContentType.TEXT,
                             content_detail=content,
+                            speech_rate=0.5,  # 🔥 自由对话使用0.5倍语速
                         )
                     )
         # 处理function call
@@ -1073,6 +1058,7 @@ class ConnectionHandler:
                     sentence_id=self.sentence_id,
                     sentence_type=SentenceType.LAST,
                     content_type=ContentType.ACTION,
+                    speech_rate=0.5,  # 🔥 自由对话使用0.5倍语速
                 )
             )
         self.llm_finish_task = True
@@ -1419,8 +1405,8 @@ class ConnectionHandler:
             if hasattr(self, 'teaching_handler') and self.teaching_handler:
                 try:
                     # 重置儿童姓名
-                    self.teaching_handler.child_name = "小朋友"
-                    self.logger.bind(tag=TAG).info("✅ 重置教学处理器状态")
+                    self.teaching_handler.child_name = self.child_name
+                    self.logger.bind(tag=TAG).info(f"✅ 重置教学处理器状态，儿童姓名: {self.child_name}")
                 except Exception as e:
                     self.logger.bind(tag=TAG).error(f"重置教学处理器状态失败: {e}")
             

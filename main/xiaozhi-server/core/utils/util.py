@@ -146,10 +146,25 @@ def remove_punctuation_and_length(text):
         ]
     )
 
+    def is_single_word_regex(word):
+        # 模式解释：
+        # ^ 表示字符串的开始
+        # [A-Za-z]+ 匹配一个或多个字母（核心部分）
+        # (?:[-'][A-Za-z]+)* 非捕获组，匹配：零个或多个“连字符或撇号后跟字母”的组合
+        # $ 表示字符串的结束
+        pattern = r"^[A-Za-z]+(?:[-'][A-Za-z]+)*$"
+        return bool(re.match(pattern, word))
+    
+    if len(result)<1:
+        return 0, ""
+        
+    if is_single_word_regex(result) or len(result) ==1:
+        return 0, ""   
+
     if result == "Yeah":
         return 0, ""
+        
     return len(result), result
-
 
 def check_model_key(modelType, modelKey):
     if "你" in modelKey:

@@ -489,31 +489,7 @@ class ChatStatusManager:
             self.logger.info(f"是否为叶子节点: {is_leaf_step}")
             self.logger.info(f"用户总回复次数: {current_replies}")
             
-            # 对于叶子节点，检查是否超过步骤最大尝试次数
-            # if is_leaf_step and current_step_retry_count >= step_max_attempts:
-            #     self.logger.warning(f"叶子节点超过最大尝试次数，结束教学 - 用户: {user_id}, 重试次数: {current_step_retry_count}/{step_max_attempts}")
-            #     # 叶子节点超过最大尝试次数，结束教学
-            #     final_score = self._calculate_final_score(session_data)
-            #     session_data["completed"] = True
-            #     session_data["final_score"] = final_score
-            #     session_data["completion_reason"] = "leaf_step_max_attempts_exceeded"
-                
-            #     # 保存会话数据
-            #     self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-                
-            #     # 切换到自由模式
-            #     self.set_user_chat_status(user_id, "free_mode")
-                
-            #     return {
-            #         "success": True,
-            #         "action": "completed",
-            #         "reason": "leaf_step_max_attempts_exceeded",
-            #         "ai_message": f"你已经尝试了{current_step_retry_count}次，达到了最大尝试次数限制。教学结束，最终得分：{final_score}分。",
-            #         "final_score": final_score,
-            #         "total_attempts": current_step_retry_count,
-            #         "max_attempts": step_max_attempts
-            #     }
-            
+
                 
             # 根据评估结果决定下一步 - 区分叶子节点和非叶子节点
             self.logger.info(f"=== 根据评估结果决定下一步 ===")
@@ -552,7 +528,7 @@ class ChatStatusManager:
                         "success": True,
                         "action": "completed",
                         "reason": "leaf_step_max_attempts_exceeded",
-                        "ai_message": f"你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
+                            "ai_message": f"{child_name}小朋友你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
                         "final_score": final_score,
                         "total_attempts": current_step_retry_count + 1,
                         "max_attempts": step_max_attempts
@@ -561,7 +537,7 @@ class ChatStatusManager:
                     # 叶子节点未超过最大尝试次数，重复输出AI消息列表
                     self.logger.info(f"叶子节点重复输出AI消息列表，重试次数: {session_data['current_step_retry_count']}/{step_max_attempts}")
                     
-                    # 获取步骤的消息列表
+                    # 获取步骤的消息列
                     step_id = current_step.get("stepId")
                     message_list = None
                     if step_id:
@@ -705,6 +681,10 @@ class ChatStatusManager:
                 # 保存会话数据
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 self.logger.info(f"已保存完成状态的会话数据")
+                
+                # 🔥 切换到自由模式
+                self.set_user_chat_status(user_id, "free_mode")
+                self.logger.info(f"✅ 已切换用户 {user_id} 到自由模式")
                 
                 # 获取最后一个步骤的鼓励词
                 last_step_index = session_data["current_step"] - 1
