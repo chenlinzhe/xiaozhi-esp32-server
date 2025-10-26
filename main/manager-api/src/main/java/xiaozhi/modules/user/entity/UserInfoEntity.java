@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import xiaozhi.common.entity.BaseEntity;
 
 /**
  * 用户信息实体
@@ -16,7 +15,11 @@ import xiaozhi.common.entity.BaseEntity;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @TableName("user_info")
-public class UserInfoEntity extends BaseEntity {
+public class UserInfoEntity {
+    /**
+     * 主键ID
+     */
+    private Long id;
     /**
      * 设备ID
      */
@@ -76,5 +79,17 @@ public class UserInfoEntity extends BaseEntity {
      * 是否活跃：0-不活跃，1-活跃
      */
     private Integer isActive;
+    
+    /**
+     * 创建时间
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Date createdAt;
+    
+    /**
+     * 更新时间
+     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updatedAt;
 }
 
