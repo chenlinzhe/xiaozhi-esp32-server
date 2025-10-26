@@ -233,10 +233,14 @@ class TeachingHandler:
                     # 1. 发送完成消息（使用0.5倍语速）
                     self._send_tts_message(ai_message, speech_rate=0.5)
                     
+<<<<<<< HEAD
 
 
                     
                     # 4. 发送自由对话欢迎消息（使用0.5倍语速）
+=======
+                    # 2. 发送自由对话欢迎消息（使用0.5倍语速）
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                     free_chat_welcome = "现在我们可以自由聊天了，你想聊什么呢？"
                     self._send_tts_message(free_chat_welcome, speech_rate=0.5)
 
@@ -260,6 +264,11 @@ class TeachingHandler:
                     self.connection.change_system_prompt(free_chat_prompt)
                     self.logger.bind(tag=TAG).info(f"✅ 已设置自由对话提示词，用户: {self.connection.child_name}")
                     
+<<<<<<< HEAD
+=======
+                    # 6. 重置活动时间，避免超时
+                    # self.connection.last_activity_time = time.time() * 1000
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                     self.logger.bind(tag=TAG).info("教学完成处理结束，系统已切换到自由模式")
                     # 🔥 关键：返回 None 让LLM处理用户输入
                     return None
@@ -405,6 +414,7 @@ class TeachingHandler:
                 # await send_tts_message(conn, "start")
 
 
+<<<<<<< HEAD
                 content = message.get("messageContent", "")  
                 if not content:  
                     continue  
@@ -426,6 +436,27 @@ class TeachingHandler:
                 if wait_time < 0:  
                     wait_time = 0  
                 
+=======
+                content = message.get("messageContent", "")
+                if not content:
+                    continue
+
+                # 替换占位符
+                self.child_name = self.connection.child_name
+                content = content.replace("{文杰}", self.child_name)
+                content = content.replace("{childName}", self.child_name)
+                if f"{self.child_name}{self.child_name}" in content:
+                    content = content.replace(f"{self.child_name}{self.child_name}", self.child_name)
+
+                # 获取配置
+                speech_rate = float(message.get("speechRate", 1.0))
+                if speech_rate < 0.2 or speech_rate > 3.0:
+                    speech_rate = 1.0
+
+                wait_time = int(message.get("waitTimeSeconds", 0))
+                if wait_time < 0:
+                    wait_time = 0
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
 
 
 

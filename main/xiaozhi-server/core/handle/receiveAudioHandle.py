@@ -99,6 +99,12 @@ async def startToChat(conn, text):
     if conn.client_is_speaking:
         await handleAbortMessage(conn)
 
+    # 🔥 新增：检测用户姓名并自动存储
+    name_detected = await detect_and_store_user_name(conn, actual_text)
+    if name_detected:
+        # 如果检测到姓名并已存储，继续正常流程
+        pass
+
     # 首先进行意图分析，使用实际文本内容
     intent_handled = await handle_user_intent(conn, actual_text)
 
@@ -181,3 +187,100 @@ async def check_bind_device(conn):
         music_path = "config/assets/bind_not_found.wav"
         opus_packets, _ = audio_to_data(music_path)
         conn.tts.tts_audio_queue.put((SentenceType.LAST, opus_packets, text))
+
+
+async def detect_and_store_user_name(conn, text):
+    """
+    检测用户输入中的姓名并自动存储
+    
+    Args:
+        conn: 连接对象
+        text: 用户输入的文本
+        
+    Returns:
+        bool: 是否检测到并存储了姓名
+    """
+    try:
+        # 检查是否有设备ID
+        if not conn.device_id:
+            return False
+            
+        # 检查用户是否已经有姓名
+        from core.providers.user.user_info_manager import UserInfoManager
+        user_manager = UserInfoManager(conn.config)
+        has_name = user_manager.has_user_name(conn.device_id)
+        
+        if has_name:
+            # 用户已经有姓名，不需要检测
+            return False
+            
+        # 使用extract_name函数检测姓名
+        from core.providers.user.user_info_manager import extract_name
+        detected_name = extract_name(text)
+        
+        if detected_name:
+            conn.logger.bind(tag=TAG).info(f"🔍 检测到用户姓名: {detected_name}")
+            
+            # 验证姓名有效性（过滤无效输入）
+            if is_valid_name(detected_name):
+                # 存储姓名到数据库
+                success = user_manager.update_user_name(conn.device_id, detected_name)
+                
+                if success:
+                    # 更新连接对象中的姓名
+                    conn.child_name = detected_name
+                    if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                        conn.teaching_handler.child_name = detected_name
+                    
+                    conn.logger.bind(tag=TAG).info(f"✅ 成功存储用户姓名: {detected_name}")
+                    
+                    # 发送确认消息
+                    confirmation_message = f"好的，{detected_name}！很高兴认识你！"
+                    await send_stt_message(conn, confirmation_message)
+                    
+                    return True
+                else:
+                    conn.logger.bind(tag=TAG).error(f"❌ 存储用户姓名失败: {detected_name}")
+            else:
+                conn.logger.bind(tag=TAG).info(f"⚠️ 检测到无效姓名，忽略: {detected_name}")
+        
+        return False
+        
+    except Exception as e:
+        conn.logger.bind(tag=TAG).error(f"❌ 检测用户姓名失败: {e}")
+        import traceback
+        conn.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+        return False
+
+
+def is_valid_name(name):
+    """
+    验证姓名是否有效
+    
+    Args:
+        name: 检测到的姓名
+        
+    Returns:
+        bool: 姓名是否有效
+    """
+    if not name or not isinstance(name, str):
+        return False
+        
+    # 去除首尾空格
+    name = name.strip()
+    
+    # 检查长度（1-10个字符）
+    if len(name) < 1 or len(name) > 10:
+        return False
+        
+    # 检查是否包含无效字符（只允许中文、英文字母、数字）
+    import re
+    if not re.match(r'^[\u4e00-\u9fa5a-zA-Z0-9]+$', name):
+        return False
+        
+    # 过滤常见的无效输入
+    invalid_names = ['我', '你', '他', '她', '它', '这个', '那个', '什么', '怎么', '为什么', '哪里', '什么时候']
+    if name.lower() in [n.lower() for n in invalid_names]:
+        return False
+        
+    return True

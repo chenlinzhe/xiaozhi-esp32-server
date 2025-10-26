@@ -28,6 +28,11 @@ git status #​查一下更改：
 git add . #提交到暂存：
 git commit -m "描述修改内容" # 创建提交 
 git pull #拉取，合并，防止其他人有更新。
+
+如果有冲突，手工合并，再一次
+git add .
+git commit -m "解决合并冲突"
+
 git push # 重新推送
 
 

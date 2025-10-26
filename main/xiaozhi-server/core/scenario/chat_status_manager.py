@@ -447,6 +447,9 @@ class ChatStatusManager:
                 }
             
             # 构建完整的session数据供评估使用
+            # 🔥 更新session_data中的child_name，确保后续步骤使用正确的姓名
+            session_data["child_name"] = child_name
+            
             full_session = {
                 **session_data,
                 "steps": steps,
@@ -485,8 +488,11 @@ class ChatStatusManager:
             self.logger.info(f"当前步骤已学习次数: {current_step_retry_count+1}次")
             self.logger.info(f"用户总回复次数: {current_replies}")
             
+<<<<<<< HEAD
 
                 
+=======
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
             # 根据评估结果决定下一步 - 区分叶子节点和非叶子节点
             self.logger.info(f"=== 根据评估结果决定下一步 ===")
             self.logger.info(f"评估分数: {score}")
@@ -638,6 +644,20 @@ class ChatStatusManager:
             else:
                 # 没有配置分支跳转，结束教学
                 self.logger.warning(f"没有配置{branch_type}分支跳转，教学结束")
+<<<<<<< HEAD
+=======
+            
+            # 简化逻辑：所有步骤都按叶子节点处理，重复输出AI消息列表
+            self.logger.info(f"处理步骤逻辑 - 重复输出AI消息列表")
+            
+            # 增加当前步骤重试次数
+            session_data["current_step_retry_count"] = current_step_retry_count + 1
+            self.logger.info(f"增加重试次数: {session_data['current_step_retry_count']}/{step_max_attempts}")
+            
+            # 检查是否超过最大尝试次数
+            if session_data["current_step_retry_count"] >= step_max_attempts:
+                self.logger.warning(f"超过最大尝试次数，结束教学")
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                 final_score = self._calculate_final_score(session_data)
                 session_data["completed"] = True
                 session_data["final_score"] = final_score
@@ -709,6 +729,11 @@ class ChatStatusManager:
                     "action": "completed",
                     "session_id": f"teaching_{user_id}",
                     "ai_message": completion_message,
+<<<<<<< HEAD
+=======
+                    "reason": "max_attempts_exceeded",
+                    "ai_message": f"你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
+>>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                     "final_score": final_score,
                     "total_attempts": current_step_retry_count + 1,
                     "max_attempts": step_max_attempts,
@@ -805,7 +830,8 @@ class ChatStatusManager:
         encouragement_message = step_config.get("encouragementMessage", "")
         
         # 替换儿童姓名占位符
-        child_name = session_data.get("child_name", "小朋友")
+        # 🔥 优先使用传入的child_name参数，确保获取到最新的姓名
+        child_name = child_name if child_name and child_name != "小朋友" else session_data.get("child_name", "小朋友")
         if praise_message:
             praise_message = praise_message.replace("{childName}", child_name)
             praise_message = praise_message.replace("{文杰}", child_name)
