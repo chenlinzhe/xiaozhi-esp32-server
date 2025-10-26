@@ -229,7 +229,6 @@ class TeachingHandler:
 
 
                     print(f"ai_message--------------------------------------: {ai_message}")
-<<<<<<< HEAD
                     
                     # 1. 发送完成消息（使用0.5倍语速）
                     self._send_tts_message(ai_message, speech_rate=0.5)
@@ -238,25 +237,14 @@ class TeachingHandler:
 
                     
                     # 4. 发送自由对话欢迎消息（使用0.5倍语速）
-=======
-
-                    # 1. 发送完成消息
-                    self._send_tts_message(ai_message)
-
-
-
-
-                    # 4. ⚠️ 新增：发送自由对话欢迎消息
->>>>>>> ae3be9acee0292abe2def91eec17176ba117f69d
                     free_chat_welcome = "现在我们可以自由聊天了，你想聊什么呢？"
                     self._send_tts_message(free_chat_welcome, speech_rate=0.5)
 
                     self.connection.llm_finish_task = True
                     self.connection.allow_interrupt = True
-<<<<<<< HEAD
                     
                     # 🔥 切换到自由对话模式，设置自由对话提示词
-                    free_chat_prompt = f"""你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是{self.connection.child_name}的AI朋友，晚晚小姐姐，现在处于自由聊天模式。
+                    free_chat_prompt = f"""你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是{self.connection.child_name}的AI朋友，你叫天王星，现在处于自由聊天模式。
 
 请遵循以下原则：
 1. 用亲切、活泼的语气与{self.connection.child_name}交流，像朋友一样
@@ -272,12 +260,6 @@ class TeachingHandler:
                     self.connection.change_system_prompt(free_chat_prompt)
                     self.logger.bind(tag=TAG).info(f"✅ 已设置自由对话提示词，用户: {self.connection.child_name}")
                     
-=======
-
-                    # 6. ⚠️ 新增：重置活动时间，避免超时
-                    # self.connection.last_activity_time = time.time() * 1000
-
->>>>>>> ae3be9acee0292abe2def91eec17176ba117f69d
                     self.logger.bind(tag=TAG).info("教学完成处理结束，系统已切换到自由模式")
                     # 🔥 关键：返回 None 让LLM处理用户输入
                     return None
@@ -423,7 +405,6 @@ class TeachingHandler:
                 # await send_tts_message(conn, "start")
 
 
-<<<<<<< HEAD
                 content = message.get("messageContent", "")  
                 if not content:  
                     continue  
@@ -445,26 +426,6 @@ class TeachingHandler:
                 if wait_time < 0:  
                     wait_time = 0  
                 
-=======
-                content = message.get("messageContent", "")
-                if not content:
-                    continue
-
-                # 替换占位符
-                content = content.replace("{文杰}", self.child_name)
-                content = content.replace("{childName}", self.child_name)
-                if f"{self.child_name}{self.child_name}" in content:
-                    content = content.replace(f"{self.child_name}{self.child_name}", self.child_name)
-
-                # 获取配置
-                speech_rate = float(message.get("speechRate", 1.0))
-                if speech_rate < 0.2 or speech_rate > 3.0:
-                    speech_rate = 1.0
-
-                wait_time = int(message.get("waitTimeSeconds", 0))
-                if wait_time < 0:
-                    wait_time = 0
->>>>>>> ae3be9acee0292abe2def91eec17176ba117f69d
 
 
 

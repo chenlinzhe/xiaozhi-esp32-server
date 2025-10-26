@@ -78,7 +78,7 @@ async def checkWakeupWords(conn, text):
             "voice": "default",
             "file_path": "config/assets/wakeup_words.wav",
             "time": 0,
-            "text": """你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是用户的AI朋友，晚晚小姐姐。
+            "text": """你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是用户的AI朋友，天王星小姐姐。
 
 请遵循以下原则：
 1. 用亲切、活泼的语气与用户交流，像朋友一样
@@ -130,7 +130,7 @@ async def wakeupWordsResponse(conn):
         question = (
             "此刻用户正在和你说```"
             + wakeup_word
-            + "```。\n请你根据以上用户的内容进行10-20字回复，自称晚晚老师，表达很高兴再次见到你，且不要称呼对方。\n"
+            + "```。\n请你根据以上用户的内容进行10-20字回复，自称天王星，表达很高兴再次见到你，且不要称呼对方。\n"
             + "请勿返回表情符号"
         )
 
