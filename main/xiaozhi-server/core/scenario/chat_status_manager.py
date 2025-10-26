@@ -488,11 +488,8 @@ class ChatStatusManager:
             self.logger.info(f"当前步骤已学习次数: {current_step_retry_count+1}次")
             self.logger.info(f"用户总回复次数: {current_replies}")
             
-<<<<<<< HEAD
 
                 
-=======
->>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
             # 根据评估结果决定下一步 - 区分叶子节点和非叶子节点
             self.logger.info(f"=== 根据评估结果决定下一步 ===")
             self.logger.info(f"评估分数: {score}")
@@ -644,8 +641,6 @@ class ChatStatusManager:
             else:
                 # 没有配置分支跳转，结束教学
                 self.logger.warning(f"没有配置{branch_type}分支跳转，教学结束")
-<<<<<<< HEAD
-=======
             
             # 简化逻辑：所有步骤都按叶子节点处理，重复输出AI消息列表
             self.logger.info(f"处理步骤逻辑 - 重复输出AI消息列表")
@@ -657,7 +652,6 @@ class ChatStatusManager:
             # 检查是否超过最大尝试次数
             if session_data["current_step_retry_count"] >= step_max_attempts:
                 self.logger.warning(f"超过最大尝试次数，结束教学")
->>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                 final_score = self._calculate_final_score(session_data)
                 session_data["completed"] = True
                 session_data["final_score"] = final_score
@@ -729,11 +723,8 @@ class ChatStatusManager:
                     "action": "completed",
                     "session_id": f"teaching_{user_id}",
                     "ai_message": completion_message,
-<<<<<<< HEAD
-=======
                     "reason": "max_attempts_exceeded",
                     "ai_message": f"你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
->>>>>>> f93af1351094ef5510b1ffebce7e4cd9f6389f4a
                     "final_score": final_score,
                     "total_attempts": current_step_retry_count + 1,
                     "max_attempts": step_max_attempts,
