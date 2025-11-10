@@ -203,10 +203,8 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
         // 获取服务器密钥
         String secretParam = getValue(Constant.SERVER_SECRET, false);
         if (StringUtils.isBlank(secretParam) || "null".equals(secretParam)) {
-            // 设置固定的服务器密钥，便于测试
-            String newSecret = "xiaozhi-server-secret-2025";
+            String newSecret = UUID.randomUUID().toString();
             updateValueByCode(Constant.SERVER_SECRET, newSecret);
-            System.out.println("服务器密钥已设置为: " + newSecret);
         }
     }
 

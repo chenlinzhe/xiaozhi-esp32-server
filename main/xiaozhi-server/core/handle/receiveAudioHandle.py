@@ -212,6 +212,12 @@ async def detect_and_store_user_name(conn, text):
         
         if has_name:
             user_info = user_manager.get_user_info(conn.device_id)
+            if user_info is None:
+                conn.logger.bind(tag=TAG).error("❌ get_user_info 返回 None，可能 token 失效，使用默认姓名")
+                conn.child_name = "小朋友"
+                if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                    conn.teaching_handler.child_name = conn.child_name
+                return False  # 或 True，根据需要
             conn.child_name = user_info.get("userName", "小朋友")
             if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
                 conn.teaching_handler.child_name = conn.child_name

@@ -74,7 +74,6 @@ class ScenarioManager:
             return result
         except Exception as e:
             print(f"获取场景失败: {e}")
-            import traceback
             traceback.print_exc()
             return None
     

@@ -485,7 +485,7 @@ class ChatStatusManager:
                         "success": True,
                         "action": "completed",
                         "reason": "leaf_step_max_attempts_exceeded",
-                        "ai_message": f"{encouragement_words}，{child_name}小朋友你真棒！你已经学习了{session_data['current_step_retry_count']}次，出色地完成了学习任务,送你一朵小红花!教学结束",
+                        "ai_message": f"{encouragement_words}，{child_name}你真棒！你已经学习了{session_data['current_step_retry_count']}次，出色地完成了学习任务,送你一朵小红花!教学结束",
                         "final_score": final_score,
                         "total_attempts": session_data["current_step_retry_count"],
                         "max_attempts": step_max_attempts
@@ -611,132 +611,108 @@ class ChatStatusManager:
             # 如果非叶子结点，没有分支的，直接结束教学
             else:
                 
+                # 没有配置分支跳转，结束教学
                 self.logger.warning(f"没有配置{branch_type}分支跳转，教学结束")
-            
-            # 简化逻辑：所有步骤都按叶子节点处理，重复输出AI消息列表
-            self.logger.info(f"处理步骤逻辑 - 重复输出AI消息列表")
-            
-            # 增加当前步骤重试次数
-            session_data["current_step_retry_count"] = current_step_retry_count + 1
-            self.logger.info(f"增加重试次数: {session_data['current_step_retry_count']}/{step_max_attempts}")
-            
-            # 检查是否超过最大尝试次数
-            if session_data["current_step_retry_count"] >= step_max_attempts:
-                self.logger.warning(f"超过最大尝试次数，结束教学")
                 final_score = self._calculate_final_score(session_data)
                 session_data["completed"] = True
                 session_data["final_score"] = final_score
                 session_data["completion_reason"] = "no_branch_config"
-
+                
                 # 保存会话数据
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
-
+                
                 # 切换到自由模式
                 self.set_user_chat_status(user_id, "free_mode")
-
+                
                 return {
                     "success": True,
                     "action": "completed",
                     "reason": "no_branch_config",
-                    "ai_message": f"教学完成，你真棒，下次我们再继续！",
+                    "ai_message": f"教学完成，最终得分：{final_score}分。",
                     "final_score": final_score
                 }
 
 
-
-            # 执行场景: 非叶子节点，有有效的 next_step_id，找到了步骤，
-            # 且未到达所有步骤末尾（e.g., 正常步骤跳转时）。
-
-
+            
+            # 简化逻辑：所有步骤都按叶子节点处理，重复输出AI消息列表
+            self.logger.info(f"处理步骤逻辑 - 重复输出AI消息列表")
             # 设置等待响应状态
             session_data["waiting_for_response"] = True
             session_data["wait_start_time"] = time.time()
             session_data["warning_sent"] = False
             session_data["final_reminder_sent"] = False
-            self.logger.info(f"更新步骤: {session_data['current_step']+1}")
-            self.logger.info(
-                f"设置等待响应状态: waiting_for_response=True, wait_start_time={session_data['wait_start_time']}")
-
-
+            self.logger.info(f"更新步骤索引: {session_data['current_step']}")
+            self.logger.info(f"设置等待响应状态: waiting_for_response=True, wait_start_time={session_data['wait_start_time']}")
+            
             # 检查是否完成所有步骤
             if session_data["current_step"] >= len(steps):
-
-
                 self.logger.info(f"已完成所有步骤，教学结束")
                 # 教学完成
                 final_score = self._calculate_final_score(session_data)
                 session_data["completed"] = True
                 session_data["final_score"] = final_score
                 self.logger.info(f"最终得分: {final_score}")
-
+                
                 # 保存会话数据
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 self.logger.info(f"已保存完成状态的会话数据")
-
+                
                 # 🔥 切换到自由模式
                 self.set_user_chat_status(user_id, "free_mode")
                 self.logger.info(f"✅ 已切换用户 {user_id} 到自由模式")
-
+                
                 # 获取最后一个步骤的鼓励词
                 last_step_index = session_data["current_step"] - 1
-                encouragement_words = ''
-                if last_step_index >= 0 and last_step_index < len(steps):
-                    last_step = steps[last_step_index]
-                    encouragement_words = last_step.get('encouragementWords', '')
-                    self.logger.info(f"------------------最后步骤鼓励词: {encouragement_words}")
-
-                # 生成完成消息
-                completion_message = self._generate_completion_message(final_score, child_name)
-                if last_encouragement_words:
-                    completion_message = f"{last_encouragement_words} {completion_message}"
-                self.logger.info(f"生成完成消息: {completion_message}")
-
+                # encouragement_words = ''
+                # if last_step_index >= 0 and last_step_index < len(steps):
+                #     last_step = steps[last_step_index]
+                #     encouragement_words = last_step.get('encouragementWords', '')
+                #     self.logger.info(f"最后步骤鼓励词: {encouragement_words}")
+                
+                # # 生成完成消息
+                # completion_message = self._generate_completion_message(final_score, child_name)
+                # if encouragement_words:
+                #     completion_message = f"{encouragement_words} {completion_message}"
+                # self.logger.info(f"生成完成消息: {completion_message}")
+                
                 result = {
                     "success": True,
                     "action": "completed",
                     "session_id": f"teaching_{user_id}",
                     "ai_message": completion_message,
-                    "reason": "max_attempts_exceeded",
-                    "ai_message": f"你真棒！你已经学习了{current_step_retry_count + 1}次，出色地完成了学习任务。教学结束，最终得分：{final_score}分。",
                     "final_score": final_score,
                     "evaluation": evaluation,
-                    "message": f"教学完成，你真棒，下次我们再继续！",
-                    "encouragement_words": last_encouragement_words
+                    "encouragement_words": encouragement_words
                 }
                 self.logger.info(f"返回完成结果: {result}")
                 return result
 
-            # 非叶子节点、未完成所有步骤
+            #未完成的情况
             else:
-                self.logger.info(f"进入下一步，步骤: {session_data['current_step']+1}")
-
+                self.logger.info(f"进入下一步，步骤索引: {session_data['current_step']}")
                 # 获取当前步骤的鼓励词（在进入下一步前）
-                # current_step_index = session_data["current_step"] - 1  # 当前步骤索引
-
-                # print("current_step_index======非叶子节点、未完成所有步骤=============",current_step_index)
-
-                # if current_step_index >= 0 and current_step_index < len(steps):
-                #     current_step = steps[current_step_index]
+                current_step_index = session_data["current_step"] - 1  # 当前步骤索引
+                if current_step_index >= 0 and current_step_index < len(steps):
+                    current_step = steps[current_step_index]
                 #     encouragement_words = current_step.get('encouragementWords', '')
-
-
-                #     self.logger.info(f"-----------非叶子节点、未完成所有步骤--------当前步骤鼓励词: {encouragement_words}")
+                #     self.logger.info(f"当前步骤鼓励词: {encouragement_words}")
                 # else:
-                #     encouragement_words = '在最后一步的鼓励词  非叶子节点、未完成所有步骤'
-
+                #     encouragement_words = ''
+                
                 # 进入下一步
                 next_step = steps[session_data["current_step"]]
                 # 不再使用AI消息，直接进入下一步
                 self.logger.info(f"进入下一步，步骤: {next_step.get('stepName', '未知步骤')}")
-
+                
                 # 获取下一步的超时时间
                 timeout_seconds = next_step.get("timeoutSeconds", self.WAIT_TIME_MAX)
                 self.logger.info(f"下一步超时时间: {timeout_seconds}秒")
-
+                
                 # 保存会话数据
                 self.redis_client.set_session_data(f"teaching_{user_id}", session_data)
                 self.logger.info(f"已保存会话数据")
-
+                
+                
                 # 根据分支类型确定action
                 if branch_type == "perfect_match":
                     action = "perfect_match_next"
@@ -746,21 +722,16 @@ class ChatStatusManager:
                     action = "no_match_next"
                 else:
                     action = "next_step"
-
-                feedback_message = evaluation['feedback']
-                if encouragement_words:
-                    feedback_message = f"{encouragement_words} {feedback_message}"
-
+                
                 result = {
                     "success": True,
-                    "action": "retry_current_step",
+                    "action": action,
                     "session_id": f"teaching_{user_id}",
-                    "current_step": current_step,
+                    "current_step": next_step,
                     "evaluation": evaluation,
-                    "ai_message": f"{feedback_message}",
+                    "ai_message": f"{encouragement_words}",
                     "timeoutSeconds": timeout_seconds,
                     "total_replies": current_replies,
-
                     "max_replies": session_data.get("max_user_replies", 3),
                     # "reply_progress": reply_progress,
                     # "warning_message": warning_message,
@@ -768,7 +739,10 @@ class ChatStatusManager:
                 }
                 self.logger.info(f"返回下一步结果: {result}")
                 return result
-            # 注意：移除了重试逻辑，现在用户回复后直接进入下一步
+            # 注意：移除了重试逻辑，现在用户回复后直接进入下一步            
+                    
+                    
+
 
         except Exception as e:
             self.logger.error(f"处理教学回复失败: {e}", exc_info=True)
