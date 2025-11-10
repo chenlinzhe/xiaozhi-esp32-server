@@ -6,7 +6,7 @@ from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
 from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
-
+import traceback
 TAG = __name__
 
 

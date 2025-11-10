@@ -38,13 +38,16 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoDao, UserInfoEn
             userInfo.setLastInteractionTime(new Date());
             userInfo.setInteractionCount(1);
             userInfo.setIsActive(1);
-            insert(userInfo);
+            userInfo.setCreatedAt(new Date());
+            userInfo.setUpdatedAt(new Date());
+            userInfoMapper.insert(userInfo);
             return userInfo;
         } else {
             // 更新现有用户
             existingUser.setLastInteractionTime(new Date());
+            existingUser.setUpdatedAt(new Date());
             userInfoMapper.incrementInteractionCount(userInfo.getDeviceId());
-            updateById(existingUser);
+            userInfoMapper.updateById(existingUser);
             return existingUser;
         }
     }
@@ -62,13 +65,16 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoDao, UserInfoEn
             user.setLastInteractionTime(new Date());
             user.setInteractionCount(1);
             user.setIsActive(1);
-            insert(user);
+            user.setCreatedAt(new Date());
+            user.setUpdatedAt(new Date());
+            userInfoMapper.insert(user);
         } else {
             // 更新现有用户
             user.setUserName(userName);
             user.setLastInteractionTime(new Date());
+            user.setUpdatedAt(new Date());
             userInfoMapper.incrementInteractionCount(deviceId);
-            updateById(user);
+            userInfoMapper.updateById(user);
         }
         return true;
     }
@@ -80,7 +86,8 @@ public class UserInfoServiceImpl extends BaseServiceImpl<UserInfoDao, UserInfoEn
         if (user != null) {
             user.setKnowledgeBase(knowledgeBase);
             user.setLastInteractionTime(new Date());
-            updateById(user);
+            user.setUpdatedAt(new Date());
+            userInfoMapper.updateById(user);
             return true;
         }
         return false;

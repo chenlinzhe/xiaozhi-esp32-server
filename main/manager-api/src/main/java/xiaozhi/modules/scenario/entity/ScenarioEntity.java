@@ -98,7 +98,7 @@ public class ScenarioEntity extends BaseEntity {
 
     @Schema(description = "夸奖消息列表，JSON格式")
     @TableField("praise_messages")
-    private String praiseMessages;
+    private String s;
 
     @Schema(description = "鼓励消息列表，JSON格式")
     @TableField("encouragement_messages")

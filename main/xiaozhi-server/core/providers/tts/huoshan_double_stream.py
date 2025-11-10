@@ -201,7 +201,6 @@ class TTSProvider(TTSProviderBase):
             # logger.bind(tag=TAG).info(f"TTS线程启动后conn对象: {self.conn}, stop_event: {getattr(self.conn, 'stop_event', 'None')}")
         except Exception as e:
             logger.bind(tag=TAG).error(f"Failed to open audio channels: {str(e)}")
-            import traceback
             logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
             self.ws = None
             raise

@@ -76,7 +76,7 @@ class DialogueService:
             # 获取场景步骤
             print(f"正在获取场景步骤: {scenario_id}")
             steps = await self._get_scenario_steps(scenario_id)
-            print(f"步骤获取结果: {steps}")
+            # print(f"步骤获取结果: {steps}")
             
             if not steps:
                 print(f"场景步骤不存在，创建默认步骤: {scenario_id}")
@@ -567,7 +567,6 @@ class DialogueService:
                         return None
         except Exception as e:
             print(f"_get_scenario 异常: {e}")
-            import traceback
             traceback.print_exc()
             return None
     
@@ -598,22 +597,22 @@ class DialogueService:
                             # print(f"步骤数量: {len(steps)}")
                             
                             # 详细打印每个步骤的数据
-                            # print(f"\n=== 详细步骤数据 ===")
-                            # for i, step in enumerate(steps):
-                            #     print(f"\n步骤 {i+1}:")
-                            #     print(f"  - 步骤ID: {step.get('id', 'N/A')}")
-                            #     print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
-                            #     print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
-                            #     print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
-                            #     print(f"  - 使用消息列表: {step.get('useMessageList', 'N/A')}")
-                            #     print(f"  - 消息列表配置: {step.get('messageListConfig', 'N/A')}")
-                            #     print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
-                            #     print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
-                            #     print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")
-                            #     print(f"  - 场景ID: {step.get('scenarioId', 'N/A')}")
-                            #     print(f"  - 创建时间: {step.get('createTime', 'N/A')}")
-                            #     print(f"  - 更新时间: {step.get('updateTime', 'N/A')}")
-                            #     print(f"  - 完整步骤数据: {step}")
+                            print(f"\n=== 详细步骤数据 ===")
+                            for i, step in enumerate(steps):
+                                print(f"\n步骤 {i+1}:")
+                                # print(f"  - 步骤ID: {step.get('id', 'N/A')}")
+                                # print(f"  - 步骤名称: {step.get('stepName', 'N/A')}")
+                                # print(f"  - 步骤顺序: {step.get('stepOrder', 'N/A')}")
+                                # print(f"  - AI消息: {step.get('aiMessage', 'N/A')}")
+                                # print(f"  - 使用消息列表: {step.get('useMessageList', 'N/A')}")
+                                # print(f"  - 消息列表配置: {step.get('messageListConfig', 'N/A')}")
+                                # print(f"  - 期望关键词: {step.get('expectedKeywords', 'N/A')}")
+                                # print(f"  - 替代消息: {step.get('alternativeMessage', 'N/A')}")
+                                # print(f"  - 超时时间: {step.get('timeoutSeconds', 'N/A')}")
+                                # print(f"  - 场景ID: {step.get('scenarioId', 'N/A')}")
+                                # print(f"  - 创建时间: {step.get('createTime', 'N/A')}")
+                                # print(f"  - 更新时间: {step.get('updateTime', 'N/A')}")
+                                # print(f"  - 在_get_scenario_steps 完整步骤数据: {step}")
                             
                             return steps
                         else:
@@ -626,7 +625,6 @@ class DialogueService:
                         return []
         except Exception as e:
             print(f"_get_scenario_steps 异常: {e}")
-            import traceback
             traceback.print_exc()
             return []
     
@@ -685,7 +683,6 @@ class DialogueService:
                 return []
         except Exception as e:
             print(f"get_scenarios 异常: {e}")
-            import traceback
             traceback.print_exc()
             return []
     
@@ -707,6 +704,5 @@ class DialogueService:
             else:
                 return None
         except Exception as e:
-            import traceback
             traceback.print_exc()
             return None

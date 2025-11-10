@@ -168,7 +168,7 @@ class ASRProviderBase(ABC):
             text_len, _ = remove_punctuation_and_length(raw_text)
             self.stop_ws_connection()
             
-            if text_len > 2:
+            if text_len >= 1:
                 # 构建包含说话人信息的JSON字符串
                 enhanced_text = self._build_enhanced_text(raw_text, speaker_name)
                 
@@ -178,7 +178,6 @@ class ASRProviderBase(ABC):
                 
         except Exception as e:
             logger.bind(tag=TAG).error(f"处理语音停止失败: {e}")
-            import traceback
             logger.bind(tag=TAG).debug(f"异常详情: {traceback.format_exc()}")
 
     def _build_enhanced_text(self, text: str, speaker_name: Optional[str]) -> str:

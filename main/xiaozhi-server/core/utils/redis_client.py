@@ -74,7 +74,7 @@ class RedisClient:
             key = f"setting:chat_status:{user_id}"
             status = self.redis_client.get(key)
             if status:
-                self.logger.info(f"获取用户 {user_id} 聊天状态: {status}")
+                self.logger.info(f"在redis中获取用户 {user_id} 的聊天状态: {status}")
             return status
         except Exception as e:
             self.logger.error(f"获取聊天状态失败: {e}")

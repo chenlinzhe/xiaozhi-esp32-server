@@ -230,7 +230,9 @@ class ConnectionHandler:
                     from core.providers.user.user_info_manager import UserInfoManager
                     user_manager = UserInfoManager(self.config)
                     self.logger.bind(tag=TAG).info(f"🔍 检查设备 {self.device_id} 是否有用户名...")
+
                     has_name = user_manager.has_user_name(self.device_id)
+                    
                     self.logger.bind(tag=TAG).info(f"🔍 has_user_name 返回: {has_name}")
                     
                     if has_name:
@@ -600,6 +602,10 @@ class ConnectionHandler:
             else:
                 # 用户已有姓名，使用姓名打招呼
                 welcome_message = f"你好 {self.child_name}！我很高兴再次见到你！有什么我可以帮助你的吗？"
+
+                
+
+
                 self.logger.bind(tag=TAG).info(f"用户姓名: {self.child_name}")
             
             # 发送TTS语音（使用0.5倍语速）

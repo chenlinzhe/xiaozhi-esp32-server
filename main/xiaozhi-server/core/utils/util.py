@@ -158,10 +158,10 @@ def remove_punctuation_and_length(text):
     if len(result)<1:
         return 0, ""
         
-    if is_single_word_regex(result) or len(result) ==1:
+    if is_single_word_regex(result):
         return 0, ""   
 
-    if result == "Yeah":
+    if result.startswith("Yeah"):
         return 0, ""
         
     return len(result), result

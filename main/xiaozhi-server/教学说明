@@ -1,0 +1,158 @@
+# 用户输入到 handle_chat_mode 的完整调用链
+
+## 完整调用顺序
+
+### 1. 用户音频输入
+```
+WebSocket 接收音频数据
+↓
+connection.py: handle_connection() 
+  → 通过 WebSocket 接收音频帧
+↓
+receiveAudioHandle.py: handleAudioMessage(conn, audio)
+```
+
+### 2. VAD 检测和 ASR 处理
+```
+receiveAudioHandle.py: handleAudioMessage()
+  → 检测是否有语音 (VAD)
+  → 调用 conn.asr.receive_audio(conn, audio, have_voice)
+↓
+asr/base.py: receive_audio()
+  → 接收音频片段，累积到 asr_audio 列表
+  → 当检测到语音停止时，调用 handle_voice_stop()
+↓
+asr/base.py: handle_voice_stop(conn, asr_audio_task)
+  → 并行处理 ASR 识别和声纹识别
+  → ASR 识别完成后得到文本: raw_text
+  → 如果文本长度 > 2，调用 startToChat()
+```
+
+### 3. 开始聊天处理
+```
+receiveAudioHandle.py: startToChat(conn, text)
+  → 检查设备绑定状态
+  → 检查输出字数限制
+  → 处理中断逻辑
+  ↓
+  → 调用 handle_user_intent(conn, actual_text)  // 🔥 意图处理入口
+```
+
+### 4. 意图处理
+```
+intentHandler.py: handle_user_intent(conn, text)
+  → 检查退出命令
+  → 检查唤醒词
+  → 检查场景触发 (scenario_trigger)
+  → 如果正在执行场景对话，处理场景逻辑
+  → 否则进行 LLM 意图分析
+  
+  // 如果场景触发成功，会调用 teaching_handler.handle_chat_mode()
+  // 但在 intentHandler 中的调用是异步的：
+  // handled = await conn.teaching_handler.handle_chat_mode(text)
+  
+  → 如果意图已被处理 (返回 True)，直接返回，不继续
+  → 如果意图未被处理 (返回 False)，继续执行
+↓
+receiveAudioHandle.py: startToChat() 继续
+  → 调用 send_stt_message(conn, actual_text)  // 发送识别结果到前端
+  → 调用 conn.executor.submit(conn.chat, actual_text)  // 🔥 提交到线程池执行 chat()
+```
+
+### 5. 聊天处理 - handle_chat_mode 的调用时机
+```
+connection.py: chat(query, tool_call=False, depth=0)
+  
+  // 🔥 关键：在最顶层调用时（depth == 0），首先检查聊天模式
+  if depth == 0:
+      chat_result = self._handle_chat_mode(query)  // 🔥 这里调用
+      if chat_result:
+          return chat_result  // 如果返回 True，直接返回，不继续 LLM 处理
+  
+  // 如果 handle_chat_mode 返回 None 或 False，继续执行：
+  → 添加用户消息到对话历史
+  → 调用 LLM 生成回复
+  → 处理流式响应
+  → 发送 TTS 消息
+```
+
+### 6. handle_chat_mode 内部处理
+```
+connection.py: _handle_chat_mode(query)
+  → 调用 self.teaching_handler.handle_chat_mode(query)
+↓
+teaching_handler.py: handle_chat_mode(query)
+  
+  1. 获取用户ID (device_id 或 session_id)
+  2. 检查当前聊天状态 (从 Redis)
+  3. 异步调用 chat_status_manager.handle_user_input()
+     → future = asyncio.run_coroutine_threadsafe(...)
+     → result = future.result()  // 等待异步结果
+  4. 根据返回的 action 处理：
+     
+     - "mode_switch": 模式切换
+     - "start_teaching": 开始教学
+     - "next_step" / "perfect_match_next" / "partial_match_next" / "no_match_next": 教学步骤处理
+     - "retry" / "retry_current_step": 重试当前步骤
+     - "completed": 教学完成
+     
+  5. 返回 True (已处理) 或 None (继续正常流程)
+```
+
+## 关键时间点
+
+### handle_chat_mode 什么时候被调用？
+
+1. **主要调用路径**：
+   - 用户输入文本 → `startToChat()` → `handle_user_intent()` → `conn.chat()` → `_handle_chat_mode()` → `handle_chat_mode()`
+
+2. **调用时机**：
+   - **每次用户输入时**，在 `chat()` 方法的最开始（depth == 0 时）调用
+   - **在 LLM 处理之前**，如果 `handle_chat_mode` 返回 True，就不会调用 LLM
+
+3. **异步处理**：
+   - `handle_chat_mode` 内部使用 `asyncio.run_coroutine_threadsafe()` 调用 `chat_status_manager.handle_user_input()`
+   - 这是一个**同步阻塞**调用，会等待异步结果完成
+
+4. **返回值影响**：
+   - 返回 `True`: 表示已处理，`chat()` 方法直接返回，不调用 LLM
+   - 返回 `None`: 表示继续正常流程，`chat()` 方法继续执行 LLM 处理
+
+## 循环时的调用流程（完全匹配后）
+
+当用户输入"渴水"完全匹配后：
+
+1. **当前输入**：用户说"渴水"
+   - `startToChat("渴水")` 
+   - `handle_user_intent("渴水")` → 返回 False (未处理)
+   - `conn.chat("渴水")` 
+   - `_handle_chat_mode("渴水")`
+   - `handle_chat_mode("渴水")`
+     - 调用 `chat_status_manager.handle_user_input()`
+     - 评估为完全匹配，返回 `action="perfect_match_next"`, `current_step=下一步骤`
+   - `handle_chat_mode` 处理 `perfect_match_next`：
+     - 获取下一步骤的 `step_id`
+     - 如果有消息列表，发送消息列表
+     - 如果没有消息列表，发送评估反馈或默认提示
+   - 返回 `True`，`chat()` 方法返回，**不调用 LLM**
+
+2. **下一次循环**：用户再说"渴水"（第二次）
+   - 同样的流程
+   - 如果这次也是完全匹配，继续循环
+   - 如果这次不完全匹配，进入 `partial_match_next` 或 `no_match_next` 分支
+
+## 问题定位
+
+用户说"逻辑并没有走到'没有步骤消息，检查评估反馈'"，可能的原因：
+
+1. **有消息列表**：下一步骤有消息列表，`message_sent = True`，所以不会走到 `if not message_sent` 分支
+
+2. **提前返回**：在某个地方提前返回了，没有执行到检查评估反馈的代码
+
+3. **异常中断**：在 `_send_message_list` 或其他地方抛出异常，导致后续代码未执行
+
+需要查看日志确认：
+- `step_id` 是否有值
+- `message_list` 是否为空
+- `message_sent` 的最终值
+- 是否有异常日志

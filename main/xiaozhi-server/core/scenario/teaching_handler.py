@@ -67,7 +67,7 @@ class TeachingHandler:
                 self.connection.loop
             )
 
-            print("self.connection.child_name--------------------------------------: ",self.connection.child_name)
+            print("in  -handle_chat_mode-------------------------------------: ",self.connection.child_name)
             result = future.result()
 
             # self.logger.bind(tag=TAG).info(f"聊天模式处理结果result---------------------------------------: {result}")
@@ -76,7 +76,7 @@ class TeachingHandler:
                 action = result.get("action")
                 ai_message = result.get("ai_message", "")
 
-
+                print("test2---------------------------------------")       
                 print(f"action--------------------------------------: {action}")
 
                 if action == "mode_switch":
@@ -170,11 +170,17 @@ class TeachingHandler:
                 elif action in ["next_step", "retry", "retry_current_step", "perfect_match_next", "partial_match_next", "no_match_next"]:
                     # 教学步骤处理
                     # 确保教学模式中语音监听正常工作，清除just_woken_up标志
-                    if hasattr(self.connection, 'just_woken_up'):
-                        self.connection.just_woken_up = False
-                        self.logger.bind(tag=TAG).info("教学步骤处理：清除just_woken_up标志，确保语音监听正常")
+                    # if hasattr(self.connection, 'just_woken_up'):
+                    #     self.connection.just_woken_up = False
+                    #     self.logger.bind(tag=TAG).info("教学步骤处理：清除just_woken_up标志，确保语音监听正常")
 
                     # 优先使用步骤的AI消息，如果没有才使用评估反馈
+
+                    print("test3---------------------------------------")   
+
+                                        # 1. 发送完成消息（使用0.5倍语速）
+                    self._send_tts_message(ai_message, speech_rate=0.5)    
+
                     current_step = result.get("current_step", {})
                     step_id = current_step.get("stepId") if current_step else None
 
@@ -195,6 +201,8 @@ class TeachingHandler:
                             # 使用消息列表
                             self.logger.bind(tag=TAG).info(f"✅ 检测到消息列表，消息数量: {len(message_list)}")
                             self._send_message_list(message_list)
+
+                            print("test   3.2222---------------------------------------")        
                             message_sent = True
                         else:
                             # 没有消息列表，不发送任何消息
@@ -205,6 +213,9 @@ class TeachingHandler:
                         evaluation = result.get("evaluation", {})
                         feedback = evaluation.get("feedback", "")
                         self.logger.bind(tag=TAG).info(f"没有步骤消息，检查评估反馈: {feedback}")
+
+                        print("test   3.3333---------------------------------------")        
+
                         if feedback:
                             self.logger.bind(tag=TAG).info(f"✅ 使用评估反馈: {feedback}")
                             self._send_tts_message(feedback)
@@ -217,8 +228,8 @@ class TeachingHandler:
                             self.logger.bind(tag=TAG).info(f"✅ 使用默认提示: {default_message}")
                             self._send_tts_message(default_message)
 
-                            
-                    self.logger.bind(tag=TAG).info(f"教学步骤处理完成: {action}")
+                    print("test4---------------------------------------")        
+                    self.logger.bind(tag=TAG).info(f"教学步骤处理完成了: {action}")
 
                     return True
 
@@ -410,8 +421,7 @@ class TeachingHandler:
                     continue  
                     
                 # 替换占位符  
-                self.child_name = self.connection.child_name
-                
+                # self.child_name = self.connection.child_name
                 content = content.replace("{文杰}", self.child_name)  
                 content = content.replace("{childName}", self.child_name)  
                 if f"{self.child_name}{self.child_name}" in content:  
