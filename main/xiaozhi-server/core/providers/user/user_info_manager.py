@@ -165,7 +165,7 @@ class UserInfoManager:
 def extract_name(text):
     """匹配'我叫XX''我是XX''我的名字是XX'中的姓名"""
     import re
-
+    
     # 扩展匹配模式，支持更多表达方式
     patterns = [
         r"我叫([^\s，。,.！!？?\"]+)",           # 我叫张三
@@ -178,7 +178,7 @@ def extract_name(text):
         r"我是([^\s，。,.！!？?\"]+)！",         # 我是李四！
         r"我的名字是([^\s，。,.！!？?\"]+)！",   # 我的名字是王五！
     ]
-
+    
     for pattern in patterns:
         m = re.search(pattern, text)
         if m:
@@ -187,6 +187,6 @@ def extract_name(text):
             name = re.sub(r'[，。,.！!？?\"]+$', '', name)
             if name:
                 return name
-
+    
     return None
 

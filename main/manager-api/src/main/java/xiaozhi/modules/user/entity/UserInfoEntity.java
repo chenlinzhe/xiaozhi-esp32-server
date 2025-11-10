@@ -79,13 +79,13 @@ public class UserInfoEntity {
      * 是否活跃：0-不活跃，1-活跃
      */
     private Integer isActive;
-
+    
     /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)
     private Date createdAt;
-
+    
     /**
      * 更新时间
      */
