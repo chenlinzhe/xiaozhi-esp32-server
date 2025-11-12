@@ -1,6 +1,9 @@
 """
 用户信息管理器
 负责管理设备绑定的用户信息，包括姓名收集和知识库管理
+
+所有API调用都通过ManageApiClient，它已配置固定密钥认证（从config.yaml的manager-api.secret读取）
+无需用户登录token，直接使用服务器密钥进行认证
 """
 
 import json
@@ -14,7 +17,10 @@ logger = setup_logging()
 
 
 class UserInfoManager:
-    """用户信息管理器"""
+    """用户信息管理器
+    
+    所有API调用使用ManageApiClient的固定密钥认证，无需用户token
+    """
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -27,9 +33,10 @@ class UserInfoManager:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")
                 return None
                 
+            # 使用正确的API路径，ManageApiClient已配置固定密钥认证
             result = ManageApiClient._instance._execute_request(
                 "GET",
-                "/user/info",
+                "/user/device-info",
                 params={"deviceId": device_id}
             )
             return result
@@ -38,7 +45,7 @@ class UserInfoManager:
             return None
     
     def has_user_name(self, device_id: str) -> bool:
-        """检查用户是否已设置姓名"""
+        """检查用户是否已设置姓名（使用固定密钥认证）"""
         try:
             if not ManageApiClient._instance:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")
@@ -55,7 +62,7 @@ class UserInfoManager:
             return False
     
     def update_user_name(self, device_id: str, user_name: str) -> bool:
-        """更新用户姓名"""
+        """更新用户姓名（使用固定密钥认证）"""
         try:
             if not ManageApiClient._instance:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")
@@ -75,7 +82,7 @@ class UserInfoManager:
             return False
     
     def update_knowledge_base(self, device_id: str, knowledge_base: str) -> bool:
-        """更新用户知识库"""
+        """更新用户知识库（使用固定密钥认证）"""
         try:
             if not ManageApiClient._instance:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")
@@ -95,7 +102,7 @@ class UserInfoManager:
             return False
     
     def get_knowledge_base(self, device_id: str) -> Optional[str]:
-        """获取用户知识库"""
+        """获取用户知识库（使用固定密钥认证）"""
         try:
             if not ManageApiClient._instance:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")
@@ -113,7 +120,7 @@ class UserInfoManager:
     
     def record_interaction(self, device_id: str, interaction_type: str, 
                           user_input: str, ai_response: str) -> bool:
-        """记录用户交互"""
+        """记录用户交互（使用固定密钥认证）"""
         try:
             if not ManageApiClient._instance:
                 self.logger.bind(tag=TAG).error("ManageApiClient未初始化")

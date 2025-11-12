@@ -193,6 +193,9 @@ async def detect_and_store_user_name(conn, text):
     """
     检测用户输入中的姓名并自动存储
     
+    优先检测文本中的姓名，如果检测到新姓名则更新（即使已有姓名也会更新）
+    如果没有检测到新姓名，则使用已有的姓名
+    
     Args:
         conn: 连接对象
         text: 用户输入的文本
@@ -205,26 +208,10 @@ async def detect_and_store_user_name(conn, text):
         if not conn.device_id:
             return False
             
-        # 检查用户是否已经有姓名
-        from core.providers.user.user_info_manager import UserInfoManager
+        from core.providers.user.user_info_manager import UserInfoManager, extract_name
         user_manager = UserInfoManager(conn.config)
-        has_name = user_manager.has_user_name(conn.device_id)
         
-        if has_name:
-            user_info = user_manager.get_user_info(conn.device_id)
-            if user_info is None:
-                conn.logger.bind(tag=TAG).error("❌ get_user_info 返回 None，可能 token 失效，使用默认姓名")
-                conn.child_name = "小朋友"
-                if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
-                    conn.teaching_handler.child_name = conn.child_name
-                return False  # 或 True，根据需要
-            conn.child_name = user_info.get("userName", "小朋友")
-            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
-                conn.teaching_handler.child_name = conn.child_name
-            return True
-            
-        # 使用extract_name函数检测姓名
-        from core.providers.user.user_info_manager import extract_name
+        # 优先检测文本中的姓名（无论是否已有姓名，都允许更新）
         detected_name = extract_name(text)
         
         if detected_name:
@@ -232,7 +219,21 @@ async def detect_and_store_user_name(conn, text):
             
             # 验证姓名有效性（过滤无效输入）
             if is_valid_name(detected_name):
-                # 存储姓名到数据库
+                # 获取当前姓名（用于比较）
+                user_info = user_manager.get_user_info(conn.device_id)
+                current_name = None
+                if user_info:
+                    current_name = user_info.get("userName")
+                
+                # 如果新姓名与当前姓名相同，不需要更新
+                if current_name == detected_name:
+                    conn.logger.bind(tag=TAG).info(f"姓名未变化，保持: {detected_name}")
+                    conn.child_name = detected_name
+                    if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                        conn.teaching_handler.child_name = detected_name
+                    return True
+                
+                # 存储姓名到数据库（更新或新建）
                 success = user_manager.update_user_name(conn.device_id, detected_name)
                 
                 if success:
@@ -243,8 +244,11 @@ async def detect_and_store_user_name(conn, text):
                     
                     conn.logger.bind(tag=TAG).info(f"✅ 成功存储用户姓名: {detected_name}")
                     
-                    # 发送确认消息
-                    confirmation_message = f"好的，{detected_name}！很高兴认识你！"
+                    # 发送确认消息（如果是更新已有姓名，使用不同的提示）
+                    if current_name:
+                        confirmation_message = f"好的，{detected_name}！我已经记住你的新名字了！"
+                    else:
+                        confirmation_message = f"好的，{detected_name}！很高兴认识你！"
                     await send_stt_message(conn, confirmation_message)
                     
                     return True
@@ -253,12 +257,37 @@ async def detect_and_store_user_name(conn, text):
             else:
                 conn.logger.bind(tag=TAG).info(f"⚠️ 检测到无效姓名，忽略: {detected_name}")
         
-        return False
+        # 如果没有检测到新姓名，尝试使用已有姓名
+        user_info = user_manager.get_user_info(conn.device_id)
+        if user_info is None:
+            conn.logger.bind(tag=TAG).error("❌ get_user_info 返回 None，可能 API 调用失败，使用默认姓名")
+            conn.child_name = "小朋友"
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                conn.teaching_handler.child_name = conn.child_name
+            return False
+        
+        # 使用已有姓名
+        existing_name = user_info.get("userName")
+        if existing_name:
+            conn.child_name = existing_name
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                conn.teaching_handler.child_name = existing_name
+            return True
+        else:
+            # 没有姓名，使用默认值
+            conn.child_name = "小朋友"
+            if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+                conn.teaching_handler.child_name = conn.child_name
+            return False
         
     except Exception as e:
         conn.logger.bind(tag=TAG).error(f"❌ 检测用户姓名失败: {e}")
         import traceback
         conn.logger.bind(tag=TAG).error(f"异常堆栈: {traceback.format_exc()}")
+        # 发生异常时使用默认姓名
+        conn.child_name = "小朋友"
+        if hasattr(conn, 'teaching_handler') and conn.teaching_handler:
+            conn.teaching_handler.child_name = conn.child_name
         return False
 
 
