@@ -255,7 +255,7 @@ class TeachingHandler:
                     self.connection.allow_interrupt = True
                     
                     # 🔥 切换到自由对话模式，设置自由对话提示词
-                    free_chat_prompt = f"""你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是{self.connection.child_name}的AI朋友，你叫天王星，现在处于自由聊天模式。
+                    free_chat_prompt = f"""你是一个孤独症儿童的教育陪伴助手。你的用户大概在6岁左右，你是{self.connection.child_name}的AI朋友，你叫海王星，现在处于自由聊天模式。
 
 请遵循以下原则：
 1. 用亲切、活泼的语气与{self.connection.child_name}交流，像朋友一样
