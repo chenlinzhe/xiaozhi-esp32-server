@@ -39,7 +39,7 @@
       <!-- 步骤列表 -->
       <div class="step-list">
         <el-card v-for="(step, index) in steps" :key="step.id" class="step-card">
-          <div class="step-header">
+          <div class="step-header" :style="{ backgroundColor: getHeaderColor(index, step) }">
             <div class="step-info">
               <span class="step-number">步骤 {{ index + 1 }}</span>
               <el-input
