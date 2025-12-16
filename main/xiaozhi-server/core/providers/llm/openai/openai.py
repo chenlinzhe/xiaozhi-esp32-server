@@ -53,6 +53,7 @@ class LLMProvider(LLMProviderBase):
             responses = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=dialogue,
+                user=session_id,  # 🔥 同样通过user参数传递设备ID
                 stream=True,
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 temperature=kwargs.get("temperature", self.temperature),
@@ -91,8 +92,15 @@ class LLMProvider(LLMProviderBase):
     def response_with_functions(self, session_id, dialogue, functions=None):
         try:
             stream = self.client.chat.completions.create(
-                model=self.model_name, messages=dialogue, stream=True, tools=functions
+                model=self.model_name, 
+                messages=dialogue, 
+                user=session_id,  # 🔥 同样通过user参数传递设备ID
+                stream=True, 
+                tools=functions
             )
+
+            print("-----------------dialogue:",dialogue)
+            print("-----------------functions:",functions)
 
             for chunk in stream:
                 # 检查是否存在有效的choice且content不为空

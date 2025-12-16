@@ -128,7 +128,10 @@ class ConnectionHandler:
 
         # llm相关变量
         self.llm_finish_task = True
-        self.dialogue = Dialogue()
+        # self.dialogue = Dialogue()
+        max_rounds = self.config.get("dialogue", {}).get("max_history_rounds", 5)
+        # print("--------------------------max_rounds----------------",max_rounds)
+        self.dialogue = Dialogue(max_history_rounds=max_rounds)    
 
         # tts相关变量
         self.sentence_id = None
@@ -200,6 +203,16 @@ class ConnectionHandler:
             # 认证通过,继续处理
             self.websocket = ws
             self.device_id = self.headers.get("device-id", None)
+
+            # 🔥 使用设备ID作为session_id，这样LLM可以识别同一用户
+            if self.device_id:
+                self.session_id = self.device_id
+                self.logger.bind(tag=TAG).info(f"✅ 获得设备ID: {self.device_id}")
+                self.logger.bind(tag=TAG).info(f"✅ 使用设备ID作为session_id: {self.session_id}")
+            else:
+                self.logger.bind(tag=TAG).warning("❌ 未获取到设备ID，使用随机session_id")
+                self.logger.bind(tag=TAG).warning(f"🎲 随机session_id: {self.session_id}")
+
 
             # 检查是否来自MQTT连接
             request_path = ws.request.path

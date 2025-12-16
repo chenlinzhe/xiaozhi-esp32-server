@@ -37,6 +37,8 @@ class WebSocketServer:
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
 
+        # logger.info(f"当前活动连接数: {len(self.active_connections)}")
+
         async with websockets.serve(
             self._handle_connection, host, port, process_request=self._http_response
         ):

@@ -121,9 +121,10 @@ class PromptManager:
         
         today_date = get_current_date()
         today_weekday = get_current_weekday()
-        lunar_date = get_current_lunar_date() + "\n"
+        # lunar_date = get_current_lunar_date() + "\n"
 
-        return today_date, today_weekday, lunar_date
+        # return today_date, today_weekday, lunar_date
+        return today_date, today_weekday
 
     def _get_location_info(self, client_ip: str) -> str:
         """获取位置信息"""
@@ -192,7 +193,7 @@ class PromptManager:
 
         try:
             # 获取最新的时间信息（不缓存）
-            today_date, today_weekday, lunar_date = (
+            today_date, today_weekday = (
                 self._get_current_time_info()
             )
 
@@ -220,7 +221,7 @@ class PromptManager:
                 current_time="{{current_time}}",
                 today_date=today_date,
                 today_weekday=today_weekday,
-                lunar_date=lunar_date,
+                # lunar_date=lunar_date,
                 local_address=local_address,
                 weather_info=weather_info,
                 emojiList=EMOJI_List,

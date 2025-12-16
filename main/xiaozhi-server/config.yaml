@@ -99,17 +99,7 @@ module_test:
 
 # 唤醒词，用于识别唤醒词还是讲话内容
 wakeup_words:
-  - "你好小智"
-  - "嘿你好呀"
-  - "你好小志"
-  - "小爱同学"
-  - "你好小鑫"
-  - "你好小新"
-  - "小美同学"
-  - "小龙小龙"
-  - "喵喵同学"
-  - "小滨小滨"
-  - "小冰小冰"
+
 # MCP接入点地址，地址格式为：ws://你的mcp接入点ip或者域名:端口号/mcp/?token=你的token
 # 详细教程 https://github.com/xinnan-tech/xiaozhi-esp32-server/blob/main/docs/mcp-endpoint-integration.md
 mcp_endpoint: 你的接入点 websocket地址
@@ -147,6 +137,11 @@ plugins:
       - ".wav"
       - ".p3"
     refresh_time: 300 # 刷新音乐列表的时间间隔，单位为秒
+
+# 对话历史轮数配置  
+dialogue:  
+  max_history_rounds: 5  # 保留最近 5 轮对话
+
 
 # 声纹识别配置
 voiceprint:
@@ -225,7 +220,7 @@ Intent:
     # 下面是加载查天气、角色切换、加载查新闻的插件示例
     functions:
       - get_weather
-      - get_news_from_newsnow
+      # - get_news_from_newsnow
       - play_music
   function_call:
     # 不需要动type
@@ -234,10 +229,10 @@ Intent:
     # 系统默认已经记载"handle_exit_intent(退出识别)"、"play_music(音乐播放)"插件，请勿重复加载
     # 下面是加载查天气、角色切换、加载查新闻的插件示例
     functions:
-      - change_role
+    #   - change_role
       - get_weather
       # - get_news_from_chinanews
-      - get_news_from_newsnow
+    #   - get_news_from_newsnow
       # play_music是服务器自带的音乐播放，hass_play_music是通过home assistant控制的独立外部程序音乐播放
       # 如果用了hass_play_music，就不要开启play_music，两者只留一个
       - play_music

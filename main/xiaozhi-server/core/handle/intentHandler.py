@@ -28,9 +28,123 @@ async def handle_user_intent(conn, text):
     if await check_direct_exit(conn, filtered_text):
         return True
 
+
     # 检查是否是唤醒词
     if await checkWakeupWords(conn, filtered_text):
         return True
+
+
+
+
+
+    # 新增：手工处理音量调节（支持绝对值和相对调节）  
+    import re
+
+    # speak_txt(conn,"手工处理音量调节（支持绝对值和相对调节）")
+
+    # 先检查是否包含音量相关关键词  
+    if any(keyword in text for keyword in ['音量', '声音', '大声', '小声']):  
+        volume = None  
+        is_relative = False  
+
+
+        # speak_txt(conn,"手工处理音量调节（支持绝对值和相对调节）")
+
+          
+        # 1. 检查相对调节  
+        if any(word in text for word in ['调大', '调高', '大声', '增大', '提高']):  
+            is_relative = True  
+            volume_delta = 10  
+        elif any(word in text for word in ['调小', '调低','小声', '减小', '降低']):  
+            is_relative = True  
+            volume_delta = -10  
+        else:  
+            # 2. 尝试提取绝对数值 - 使用更简单的正则  
+            # 直接提取文本中的所有数字  
+            numbers = re.findall(r'\d+', text)  
+              
+            if numbers:  
+                # 取第一个数字作为音量值  
+                volume = int(numbers[0])  
+                # 确保音量在0-100范围内  
+                volume = max(0, min(100, volume)) 
+
+                if volume < 60:
+                    volume = 60
+
+                conn.logger.bind(tag=TAG).info(f"提取到音量数值-----------------: {volume}")  
+            else:
+                pass
+
+
+        # speak_txt(conn,"测试点2测试点2测试点2测试点2测试点2")
+          
+        # 处理相对调节:需要先获取当前音量  
+        if is_relative:  
+            if hasattr(conn, 'mcp_client') and conn.mcp_client:  
+                try:  
+                    get_status_data = {  
+                        "name": "self_get_device_status",  
+                        "id": str(uuid.uuid4().hex),  
+                        "arguments": json.dumps({})  
+                    }  
+                      
+                    status_result = await conn.func_handler.handle_llm_function_call(  
+                        conn, get_status_data  
+                    )  
+                      
+                    # 解析返回的设备状态,提取当前音量  
+                    if status_result and status_result.result:  
+                        status_data = json.loads(status_result.result)  
+                        current_volume = status_data.get('audio_speaker', {}).get('volume', 50)  
+                          
+                        # 计算新音量,确保在0-100范围内  
+                        volume = max(0, min(100, current_volume + volume_delta))  
+                        conn.logger.bind(tag=TAG).info(  
+                            f"相对调节: 当前音量{current_volume} → 目标音量{volume}"  
+                        )  
+                except Exception as e:  
+                    conn.logger.bind(tag=TAG).error(f"获取当前音量失败: {e}")  
+                    # 失败时使用默认基准值  
+                    volume = max(0, min(100, 50 + volume_delta)) 
+
+        # speak_txt(conn,"第3测试点第3测试点第3测试点第3测试点") 
+          
+        # 执行音量设置  
+        if volume is not None and hasattr(conn, 'mcp_client') and conn.mcp_client:  
+            function_call_data = {  
+                "name": "self_audio_speaker_set_volume",  
+                "id": str(uuid.uuid4().hex),  
+                "arguments": json.dumps({"volume": volume})  
+            }  
+            
+            conn.logger.bind(tag=TAG).info(f"已进入硬编码、调节音量,音量值: {volume}")  
+            
+            # 定义处理函数  
+            def process_volume_adjustment():  
+                # 初始化必要状态  
+                if not hasattr(conn, 'sentence_id') or not conn.sentence_id:  
+                    conn.sentence_id = str(uuid.uuid4().hex)  
+                conn.llm_finish_task = True  
+                
+                # 执行工具调用  
+                result = asyncio.run_coroutine_threadsafe(  
+                    conn.func_handler.handle_llm_function_call(conn, function_call_data),  
+                    conn.loop  
+                ).result()  
+                
+                # 处理结果  
+                if result.action == Action.RESPONSE:  
+                    speak_txt(conn, result.response)  
+                elif result.action == Action.REQLLM:  
+                    speak_txt(conn, f"已将音量设置为{volume}")
+            
+            # 将函数执行放在线程池中  
+            conn.executor.submit(process_volume_adjustment)  
+            return True
+
+
+
 
     if conn.intent_type == "function_call":
         # 使用支持function calling的聊天方法,不再进行意图分析

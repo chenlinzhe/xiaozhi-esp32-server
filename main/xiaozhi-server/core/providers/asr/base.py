@@ -164,7 +164,7 @@ class ASRProviderBase(ABC):
             text_len, _ = remove_punctuation_and_length(raw_text)
             self.stop_ws_connection()
             
-            if text_len > 0:
+            if text_len >= 2:
                 # 构建包含说话人信息的JSON字符串
                 enhanced_text = self._build_enhanced_text(raw_text, speaker_name)
                 

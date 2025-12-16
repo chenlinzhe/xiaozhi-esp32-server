@@ -40,18 +40,38 @@ const useCDN = process.env.VUE_APP_USE_CDN === 'true';
 
 module.exports = defineConfig({
   productionSourceMap: process.env.NODE_ENV !=='production', // 生产环境不生成 source map
-  devServer: {
-    port: 8001, // 指定端口为 8001
+   devServer: {
+    host: '0.0.0.0', 
+    port: 6006, // 指定端口为 8001
+    allowedHosts: 'all',  // Vue CLI 5+ 语法  
+    static: {  
+      directory: path.join(__dirname, 'test'), 
+      publicPath: '/test'  
+    },  
+      
     proxy: {
       '/xiaozhi': {
         target: 'http://127.0.0.1:8002',
-        changeOrigin: true
+        changeOrigin: true,
+        // 添加新的代理路径给外部 xiaozhi-server 使用  
+      '/api': {
+          target: 'http://127.0.0.1:8002',  
+          changeOrigin: true,  
+          pathRewrite: {
+              '^/api': '/xiaozhi'  // 将 /api 重写为 /xiaozhi  
+          }  
+      },
+      '/redis': {
+          target: 'http://127.0.0.1:6379',  
+          changeOrigin: true,  
+      } 
       }
     },
     client: {
       overlay: false, // 不显示 webpack 错误覆盖层
     },
   },
+
   publicPath: process.env.VUE_APP_PUBLIC_PATH || "/",
   chainWebpack: config => {
 

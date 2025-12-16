@@ -21,10 +21,12 @@ class Message:
 
 
 class Dialogue:
-    def __init__(self):
+    def __init__(self,max_history_rounds=5):
         self.dialogue: List[Message] = []
         # 获取当前时间
         self.current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # print("--------------------------max_rounds----in Dia------------",max_history_rounds)
+        self.max_history_rounds = max_history_rounds  # 添加这一行
 
     def put(self, message: Message):
         self.dialogue.append(message)
@@ -79,6 +81,9 @@ class Dialogue:
             )
 
             # 添加说话人个性化描述
+
+            # 只添加当前说话人的信息  
+         
             try:
                 speakers = voiceprint_config.get("speakers", [])
                 if speakers:
@@ -111,8 +116,27 @@ class Dialogue:
             dialogue.append({"role": "system", "content": enhanced_system_prompt})
 
         # 添加用户和助手的对话
-        for m in self.dialogue:
-            if m.role != "system":  # 跳过原始的系统消息
-                self.getMessages(m, dialogue)
+        # for m in self.dialogue:
+        #     if m.role != "system":  # 跳过原始的系统消息
+        #         self.getMessages(m, dialogue)
+
+
+        # 添加用户和助手的对话    
+        non_system_messages = [m for m in self.dialogue if m.role != "system"]    
+        # print(f"=== 调试: 总消息数 = {len(non_system_messages)}, max_history_rounds = {self.max_history_rounds}")  
+        
+        # 应用轮数限制 - 滑动窗口    
+        if self.max_history_rounds is not None and len(non_system_messages) > 0:    
+            max_messages = self.max_history_rounds * 2    
+            # print(f"=== 调试: 最大消息数 = {max_messages}")  
+            if len(non_system_messages) > max_messages:    
+                # print(f"=== 调试: 应用滑动窗口,从 {len(non_system_messages)} 条裁剪到 {max_messages} 条")  
+                non_system_messages = non_system_messages[-max_messages:]
+
+
+
+        for m in non_system_messages: 
+            self.getMessages(m, dialogue)
+
 
         return dialogue

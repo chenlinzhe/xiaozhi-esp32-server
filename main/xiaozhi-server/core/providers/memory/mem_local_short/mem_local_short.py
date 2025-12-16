@@ -122,6 +122,8 @@ class MemoryProvider(MemoryProviderBase):
         self.load_memory(summary_memory)
 
     def load_memory(self, summary_memory):
+
+        return
         # api获取到总结记忆后直接返回
         if summary_memory or not self.save_to_file:
             self.short_memory = summary_memory
@@ -144,6 +146,9 @@ class MemoryProvider(MemoryProviderBase):
             yaml.dump(all_memory, f, allow_unicode=True)
 
     async def save_memory(self, msgs):
+
+            # 禁用记忆总结功能  
+        return None
         # 打印使用的模型信息
         model_info = getattr(self.llm, "model_name", str(self.llm.__class__.__name__))
         logger.bind(tag=TAG).debug(f"使用记忆保存模型: {model_info}")
@@ -199,4 +204,5 @@ class MemoryProvider(MemoryProviderBase):
         return self.short_memory
 
     async def query_memory(self, query: str) -> str:
-        return self.short_memory
+        return ""
+        # return self.short_memory

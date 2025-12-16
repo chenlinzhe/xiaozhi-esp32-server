@@ -367,20 +367,28 @@ public class AgentServiceImpl extends BaseServiceImpl<AgentDao, AgentEntity> imp
         // 获取默认模板
         AgentTemplateEntity template = agentTemplateService.getDefaultTemplate();
         if (template != null) {
-            // 设置模板中的默认值
-            entity.setAsrModelId(template.getAsrModelId());
-            entity.setVadModelId(template.getVadModelId());
-            entity.setLlmModelId(template.getLlmModelId());
-            entity.setVllmModelId(template.getVllmModelId());
-            entity.setTtsModelId(template.getTtsModelId());
-            entity.setTtsVoiceId(template.getTtsVoiceId());
-            entity.setMemModelId(template.getMemModelId());
-            entity.setIntentModelId(template.getIntentModelId());
-            entity.setSystemPrompt(template.getSystemPrompt());
-            entity.setSummaryMemory(template.getSummaryMemory());
-            entity.setChatHistoryConf(template.getChatHistoryConf());
-            entity.setLangCode(template.getLangCode());
-            entity.setLanguage(template.getLanguage());
+            // 设置模板中的默认值,仅当实体中对应字段为空时才设置
+            if (entity.getAsrModelId() == null) entity.setAsrModelId(template.getAsrModelId());
+            if (entity.getVadModelId() == null) entity.setVadModelId(template.getVadModelId());
+            if (entity.getLlmModelId() == null) entity.setLlmModelId(template.getLlmModelId());
+            if (entity.getVllmModelId() == null) entity.setVllmModelId(template.getVllmModelId());
+            if (entity.getTtsModelId() == null) entity.setTtsModelId(template.getTtsModelId());
+            if (entity.getTtsVoiceId() == null) entity.setTtsVoiceId(template.getTtsVoiceId());
+            if (entity.getMemModelId() == null) entity.setMemModelId(template.getMemModelId());
+            if (entity.getIntentModelId() == null) entity.setIntentModelId(template.getIntentModelId());
+            if (entity.getSystemPrompt() == null) entity.setSystemPrompt(template.getSystemPrompt());
+            if (entity.getSummaryMemory() == null) entity.setSummaryMemory(template.getSummaryMemory());
+            if (entity.getChatHistoryConf() == null) entity.setChatHistoryConf(template.getChatHistoryConf());
+            if (entity.getLangCode() == null) entity.setLangCode(template.getLangCode());
+            if (entity.getLanguage() == null) entity.setLanguage(template.getLanguage());
+        }
+
+        // 如果音色ID仍为null,但有TTS模型ID,则设置为该模型的第一个可用音色
+        if (entity.getTtsVoiceId() == null && entity.getTtsModelId() != null) {
+            var voices = timbreModelService.getVoiceNames(entity.getTtsModelId(), null);
+            if (voices != null && !voices.isEmpty()) {
+                entity.setTtsVoiceId(voices.get(0).getId());
+            }
         }
 
         // 设置用户ID和创建者信息

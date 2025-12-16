@@ -9,42 +9,11 @@ TAG = __name__
 logger = setup_logging()
 
 CHANNEL_MAP = {
-    "V2EX": "v2ex-share",
-    "知乎": "zhihu",
-    "微博": "weibo",
-    "联合早报": "zaobao",
-    "酷安": "coolapk",
-    "MKTNews": "mktnews-flash",
-    "华尔街见闻": "wallstreetcn-quick",
-    "36氪": "36kr-quick",
-    "抖音": "douyin",
-    "虎扑": "hupu",
-    "百度贴吧": "tieba",
-    "今日头条": "toutiao",
-    "IT之家": "ithome",
     "澎湃新闻": "thepaper",
-    "卫星通讯社": "sputniknewscn",
-    "参考消息": "cankaoxiaoxi",
-    "远景论坛": "pcbeta-windows11",
     "财联社": "cls-depth",
-    "雪球": "xueqiu-hotstock",
-    "格隆汇": "gelonghui",
-    "法布财经": "fastbull-express",
-    "Solidot": "solidot",
-    "Hacker News": "hackernews",
-    "Product Hunt": "producthunt",
-    "Github": "github-trending-today",
-    "哔哩哔哩": "bilibili-hot-search",
-    "快手": "kuaishou",
-    "靠谱新闻": "kaopu",
-    "金十数据": "jin10",
     "百度热搜": "baidu",
-    "牛客": "nowcoder",
-    "少数派": "sspai",
-    "稀土掘金": "juejin",
-    "凤凰网": "ifeng",
-    "虫部落": "chongbuluo-latest",
 }
+
 
 
 # 默认新闻来源字典，当配置中没有指定时使用
@@ -90,8 +59,6 @@ GET_NEWS_FROM_NEWSNOW_FUNCTION_DESC = {
         "name": "get_news_from_newsnow",
         "description": (
             "获取最新新闻，随机选择一条新闻进行播报。"
-            f"用户可以选择不同的新闻源，标准的名称是：{example_sources_str}"
-            "例如用户要求百度新闻，其实就是百度热搜。如果没有指定，默认从澎湃新闻获取。"
             "用户可以要求获取详细内容，此时会获取新闻的详细内容。"
         ),
         "parameters": {
@@ -99,7 +66,7 @@ GET_NEWS_FROM_NEWSNOW_FUNCTION_DESC = {
             "properties": {
                 "source": {
                     "type": "string",
-                    "description": f"新闻源的标准中文名称，例如{example_sources_str}等。可选参数，如果不提供则使用默认新闻源",
+                    "description": f"新闻源的标准中文名称，例如{example_sources_str}等。",
                 },
                 "detail": {
                     "type": "boolean",

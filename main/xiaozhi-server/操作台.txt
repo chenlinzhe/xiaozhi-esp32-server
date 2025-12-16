@@ -1,0 +1,68 @@
+1.MYSQL   3389
+sudo service mysql start
+
+            sudo mysql -u root -p
+            USE xiaozhi_esp32_server;
+
+2.启动向量数据库  6379
+redis-stack-server -port 6379
+
+3.小智API  8002
+cd /home/ubuntu/xiaozhi-esp32-server/main/manager-api
+mvn spring-boot:run
+
+(mvn clean compile)
+
+            4.小智WEB 6006          http://129.204.9.60.68:6006/xiaozhi/ota/
+            cd /home/ubuntu/xiaozhi-esp32-server/main/manager-web
+            npm run serve
+
+
+            (npm run build)
+
+
+            4.nginx
+
+            cd /etc/nginx/
+
+            sodu nginx 启动
+            nginx -t  测试
+            nginx -s stop 停止
+
+            # 方法1：使用systemctl重启（推荐）
+            sudo systemctl restart nginx
+
+            # 方法2：重新加载配置（不中断服务）
+            sudo systemctl reload nginx   
+
+ 
+
+5.语音 6008               ws://129.204.9.68:6008/xiaozhi/v1/
+conda activate py310
+cd /home/ubuntu/xiaozhi-esp32-server/main/xiaozhi-server
+python app.py
+
+
+---------------------------------------------
+清理数据污染
+主要：
+find /home/ubuntu/xiaozhi-esp32-server/main/manager-api -name "*.ipynb_checkpoints" -type d -exec rm -rf {} +  
+
+find /home/ubuntu/xiaozhi-esp32-server/main/manager-api -name "*-checkpoint.java" -delete
+
+
+
+
+-------------------------------------------
+
+
+阿里
+https://dashscope.aliyuncs.com/compatible-mode/v1
+qwen-flash
+sk-19702b6380d14571b8993afdbaef3948
+
+本机LLM
+https://u665989-a661-c76dd856.westc.gpuhub.com:8443/v1
+qwen3-32b-awq
+123
+
